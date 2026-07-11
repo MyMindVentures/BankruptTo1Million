@@ -23,6 +23,7 @@ export const navItems: NavItem[] = [
   { label: 'Story', href: '/#story' },
   { label: 'Platform', href: '/#platform' },
   { label: 'Roadmap', href: '/#roadmap' },
+  { label: 'Journal', href: '/journal' },
   { label: 'Founding Heroes', href: '/founding-heroes' },
   { label: 'Impact', href: '/impact' },
   { label: 'Issues', href: '/issues' },
