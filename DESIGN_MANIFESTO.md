@@ -143,3 +143,26 @@ Before approval, confirm:
 The platform should not impress because it appears expensive. It should impress because every decision reveals intelligence, authenticity and intent.
 
 **We are showing how a million-euro mission is built: one honest contribution, one thoughtful decision and one focused issue at a time.**
+
+## A Personal Thank You
+
+If you are reading this, you have already given us something valuable: your time.
+
+Opening this journey means showing unfinished work, asking for help and trusting that the right people will recognize the thinking, talent and determination behind the mission. Whether you contribute one component, one fix, one design improvement or one thoughtful introduction, your contribution creates momentum.
+
+Every merged contribution represents more than completed work. It represents belief before proof.
+
+Thank you for considering becoming part of this story.
+
+> **Some people invest money. Others invest talent. Both can change a future. Thank you for considering ours.**
+
+With sincere gratitude,
+
+**Kevin De Vlieger**  
+Founder · Concept Thinker · Vision Partner
+
+**Micha**  
+Co-Founder · Community Builder · Hospitality Lead
+
+**Bankrupt to 1 Million**  
+*More Than Rebuilding a Life. Building a Movement.*
