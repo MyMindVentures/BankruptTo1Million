@@ -24,6 +24,7 @@ export const navItems: NavItem[] = [
   { label: 'Platform', href: '/#platform' },
   { label: 'Roadmap', href: '/#roadmap' },
   { label: 'Founding Heroes', href: '/founding-heroes' },
+  { label: 'Impact', href: '/impact' },
   { label: 'Contribute', href: '/#contribute' },
   { label: 'Apply', href: '/become-a-founding-hero' },
 ];
