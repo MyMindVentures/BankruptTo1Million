@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
 import { SectionHeading } from './components/SectionHeading';
+import { supabase } from './lib/supabase';
 import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
 
 function HomePage() {
@@ -17,8 +18,8 @@ function HomePage() {
             one connection and one feature at a time.
           </p>
           <div className="hero__actions" aria-label="Primary calls to action">
-            <a className="button" href="#contribute">
-              Become a founding builder <ArrowRight aria-hidden="true" size={18} />
+            <a className="button" href="/issues">
+              Browse contribution issues <ArrowRight aria-hidden="true" size={18} />
             </a>
             <a className="button button--ghost" href="#story">
               Read the mission
@@ -93,7 +94,7 @@ function HomePage() {
           </p>
         </div>
         <div className="contribute__actions">
-          <a className="button" href="https://github.com/MyMindVentures/BankruptTo1Million/issues">
+          <a className="button" href="/issues">
             <Users aria-hidden="true" size={18} /> Browse open issues
           </a>
           <a className="button button--ghost" href="https://github.com/MyMindVentures/BankruptTo1Million#how-to-contribute">
@@ -182,6 +183,154 @@ function FoundingHeroesPage() {
 }
 
 
+
+type JsonRecord = Record<string, unknown>;
+
+type PublicProfile = {
+  id: string;
+  display_name?: string;
+  role?: string;
+  github_profile_url?: string;
+  github_login?: string;
+  avatar_url?: string;
+  bio?: string;
+  primary_disciplines?: string[];
+  experience_level?: string;
+  consent_public_recognition?: boolean;
+  accepted_contribution_guidelines?: boolean;
+};
+
+type IssueDeveloper = {
+  id?: string;
+  github_issue_id?: number | string;
+  profile_id?: string;
+  github_login?: string;
+  contribution_status?: string;
+  is_primary_claimant?: boolean;
+  claimed_at?: string;
+  profiles?: PublicProfile | PublicProfile[] | null;
+};
+
+type GithubIssue = {
+  id: number | string;
+  issue_number?: number;
+  number?: number;
+  repository?: string;
+  title: string;
+  summary?: string;
+  body?: string;
+  html_url?: string;
+  github_url?: string;
+  author_login?: string;
+  user_login?: string;
+  labels?: unknown;
+  state?: string;
+  state_reason?: string;
+  issue_type?: string;
+  discipline?: string;
+  difficulty?: string;
+  estimated_time?: string;
+  claim_status?: string;
+  implementation_status?: string;
+  linked_pull_request_url?: string;
+  linked_pull_request?: string;
+  created_at?: string;
+  updated_at?: string;
+  closed_at?: string;
+  implemented_at?: string;
+  synced_at?: string;
+  last_synced_at?: string;
+  github_issue_developers?: IssueDeveloper[];
+};
+
+type ProfileForm = Required<Pick<PublicProfile, 'display_name' | 'role' | 'github_profile_url' | 'github_login' | 'avatar_url' | 'bio' | 'experience_level'>> & {
+  primary_disciplines: string[];
+  consent_public_recognition: boolean;
+  accepted_contribution_guidelines: boolean;
+};
+
+const disciplines = ['Frontend', 'Backend', 'Full-stack', 'UI/UX', 'Accessibility', 'Testing / QA', 'DevOps', 'Database', 'API / Integrations', 'Translation / i18n', 'Content', 'Documentation'];
+const difficulties = ['Beginner', 'Intermediate', 'Advanced'];
+const times = ['Under 1 hour', '1–2 hours', '2–4 hours', '4–8 hours', 'More than 8 hours'];
+const statuses = ['Available', 'Claimed', 'In progress', 'In review', 'Implemented', 'Open', 'Closed'];
+const issueTypes = ['Feature', 'Bug', 'Accessibility', 'Translation', 'Documentation', 'Maintenance'];
+
+type FilterKey = 'discipline' | 'difficulty' | 'time' | 'status' | 'type';
+const filterGroups: { key: FilterKey; label: string; values: string[] }[] = [
+  { key: 'discipline', label: 'Discipline', values: disciplines },
+  { key: 'difficulty', label: 'Difficulty', values: difficulties },
+  { key: 'time', label: 'Estimated time', values: times },
+  { key: 'status', label: 'Status', values: statuses },
+  { key: 'type', label: 'Issue type', values: issueTypes },
+];
+
+function normalize(value?: unknown) { return String(value || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+function titleCase(value?: unknown) { return String(value || '').replace(/[-_]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); }
+function issueNumber(issue: GithubIssue) { return Number(issue.issue_number ?? issue.number ?? 0); }
+function labelsOf(issue: GithubIssue): string[] {
+  if (Array.isArray(issue.labels)) return issue.labels.map((label) => typeof label === 'string' ? label : String((label as JsonRecord).name || '')).filter(Boolean);
+  if (typeof issue.labels === 'string') { try { const parsed = JSON.parse(issue.labels); return Array.isArray(parsed) ? parsed.map(String) : issue.labels.split(',').map((v) => v.trim()); } catch { return issue.labels.split(',').map((v) => v.trim()); } }
+  return [];
+}
+function labelValue(issue: GithubIssue, prefix: string) { return labelsOf(issue).find((label) => normalize(label).startsWith(normalize(prefix)))?.split(':').slice(1).join(':'); }
+function issueField(issue: GithubIssue, key: FilterKey) {
+  if (key === 'discipline') return titleCase(issue.discipline || labelValue(issue, 'discipline'));
+  if (key === 'difficulty') return titleCase(issue.difficulty || labelValue(issue, 'difficulty'));
+  if (key === 'time') {
+    const raw = normalize(issue.estimated_time || labelValue(issue, 'time'));
+    if (raw.includes('1-2')) return '1–2 hours'; if (raw.includes('2-4')) return '2–4 hours'; if (raw.includes('4-8')) return '4–8 hours'; if (raw.includes('8h')) return 'More than 8 hours'; if (raw.includes('1h') || raw.includes('under')) return 'Under 1 hour';
+  }
+  if (key === 'status') return titleCase(issue.claim_status || issue.implementation_status || issue.state || labelValue(issue, 'status'));
+  return titleCase(issue.issue_type || labelValue(issue, 'type'));
+}
+function primaryClaim(issue: GithubIssue) { return issue.github_issue_developers?.find((d) => d.is_primary_claimant !== false && !['released', 'completed'].includes(normalize(d.contribution_status))) || null; }
+function claimProfile(claim: IssueDeveloper | null): PublicProfile | null { return Array.isArray(claim?.profiles) ? claim.profiles[0] || null : claim?.profiles || null; }
+function isClaimAvailable(issue: GithubIssue) { return normalize(issue.state) !== 'closed' && !primaryClaim(issue) && !['claimed', 'in-progress'].includes(normalize(issue.claim_status)); }
+function fmt(value?: string) { return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value)) : 'Not recorded'; }
+function markdown(text?: string) {
+  const safe = String(text || 'No issue body was synchronized.').replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]!));
+  return safe.replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h2>$1</h2>').replace(/^# (.*)$/gm, '<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\n/g, '<br />');
+}
+
+async function readJson<T = unknown>(responseOrPromise: Response | Promise<Response>): Promise<T> { const response = await responseOrPromise; if (!response.ok) throw new Error(await response.text()); return response.json() as Promise<T>; }
+
+function useSessionState() {
+  const [session, setSession] = useState(() => supabase.auth.getSession());
+  const refresh = () => setSession(supabase.auth.getSession());
+  return { session, refresh };
+}
+
+function IssuesPage() {
+  const [issues, setIssues] = useState<GithubIssue[]>([]), [status, setStatus] = useState('loading'), [error, setError] = useState(''), [search, setSearch] = useState(new URLSearchParams(location.search).get('q') || ''), [sort, setSort] = useState(new URLSearchParams(location.search).get('sort') || 'newest');
+  const [filters, setFilters] = useState<Record<FilterKey, string[]>>(() => Object.fromEntries(filterGroups.map((g) => [g.key, new URLSearchParams(location.search).getAll(g.key)])) as Record<FilterKey, string[]>);
+  useEffect(() => { readJson<GithubIssue[]>(supabase.from('github_issues').request({ query: 'select=*,github_issue_developers(*,profiles(*))&order=created_at.desc' })).then(setIssues).then(() => setStatus('ready')).catch((e: Error) => { setError(e.message); setStatus('error'); }); }, []);
+  useEffect(() => { const params = new URLSearchParams(); if (search) params.set('q', search); if (sort !== 'newest') params.set('sort', sort); filterGroups.forEach((g) => filters[g.key].forEach((v) => params.append(g.key, v))); history.replaceState(null, '', `/issues${params.toString() ? `?${params}` : ''}`); }, [filters, search, sort]);
+  const filtered = useMemo(() => issues.filter((issue) => {
+    const q = search.trim().toLowerCase();
+    if (q && !String(issueNumber(issue)).includes(q) && !issue.title.toLowerCase().includes(q)) return false;
+    return filterGroups.every((g) => !filters[g.key].length || filters[g.key].some((v) => normalize(issueField(issue, g.key)) === normalize(v) || labelsOf(issue).some((l) => normalize(l).includes(normalize(v)))));
+  }).sort((a,b) => sort === 'updated' ? Date.parse(b.updated_at || '') - Date.parse(a.updated_at || '') : sort === 'easy' ? difficulties.indexOf(issueField(a,'difficulty')) - difficulties.indexOf(issueField(b,'difficulty')) : sort === 'short' ? times.indexOf(issueField(a,'time')) - times.indexOf(issueField(b,'time')) : Date.parse(b.created_at || '') - Date.parse(a.created_at || '')), [issues, filters, search, sort]);
+  const toggle = (key: FilterKey, value: string) => setFilters((current) => ({ ...current, [key]: current[key].includes(value) ? current[key].filter((v) => v !== value) : [...current[key], value] }));
+  return <main className="issues-page"><section className="hero issue-hero section-grid"><div><p className="eyebrow">Supabase issue browser</p><h1>Choose focused work.</h1><p className="hero__lede">Browse synchronized GitHub issues from Supabase, filter by real labels, and claim work only after contributor profile completion.</p><a className="button" href="/impact">Back to impact</a></div><aside className="hero-card"><GitPullRequest/><blockquote>{filtered.length} matches</blockquote><p>{issues.length} synchronized public issues loaded from Supabase.</p></aside></section><section className="section"><div className="issue-toolbar"><label>Search issues<input value={search} onChange={(e)=>setSearch(e.target.value)} placeholder="Number or title" /></label><label>Sort<select value={sort} onChange={(e)=>setSort(e.target.value)}><option value="newest">Newest</option><option value="updated">Recently updated</option><option value="easy">Easiest first</option><option value="short">Shortest estimated time</option></select></label><button className="button button--ghost button--small" onClick={()=>{setFilters(Object.fromEntries(filterGroups.map((g)=>[g.key, []])) as unknown as Record<FilterKey,string[]>); setSearch('');}}>Reset filters</button></div>{filterGroups.map((group)=><fieldset className="chip-group" key={group.key}><legend>{group.label}</legend><div>{group.values.map((value)=><button type="button" className={`chip ${filters[group.key].includes(value) ? 'chip--active' : ''}`} onClick={()=>toggle(group.key,value)} key={value}>{value}</button>)}</div></fieldset>)}{status==='loading' ? <div className="impact-state">Loading Supabase issues…</div> : null}{status==='error' ? <div className="impact-state impact-state--error">Could not load Supabase issues. {error}</div> : null}{status==='ready' && !filtered.length ? <div className="impact-state">No issues match these filters. Reset filters or try a broader search.</div> : null}<div className="issue-grid">{filtered.map((issue)=><IssueCard issue={issue} key={issue.id}/>)}</div></section></main>;
+}
+function IssueCard({ issue }: { issue: GithubIssue }) { const claim = primaryClaim(issue), profile = claimProfile(claim); return <article className="issue-card"><div className="issue-card__top"><span>#{issueNumber(issue)}</span><strong>{titleCase(issue.state || 'open')}</strong></div><h2>{issue.title}</h2><p>{issue.summary || String(issue.body || '').slice(0, 180) || 'No summary synchronized yet.'}</p><dl><div><dt>Type</dt><dd>{issueField(issue,'type') || 'Unlabeled'}</dd></div><div><dt>Discipline</dt><dd>{issueField(issue,'discipline') || 'Unlabeled'}</dd></div><div><dt>Difficulty</dt><dd>{issueField(issue,'difficulty') || 'Unlabeled'}</dd></div><div><dt>Time</dt><dd>{issueField(issue,'time') || 'Unlabeled'}</dd></div><div><dt>Claim</dt><dd>{claim ? `Claimed by @${claim.github_login || profile?.github_login}` : 'Available'}</dd></div><div><dt>Updated</dt><dd>{fmt(issue.updated_at)}</dd></div><div><dt>Implementation</dt><dd>{titleCase(issue.implementation_status || 'Not started')}</dd></div></dl><div className="label-row">{labelsOf(issue).map((label)=><span key={label}>{label}</span>)}</div><div className="issue-actions"><a className="button button--small" href={`/issues/${issueNumber(issue)}`}>View issue</a>{isClaimAvailable(issue) ? <a className="button button--ghost button--small" href={`/issues/${issueNumber(issue)}?claim=1`}>Claim this issue</a> : null}{issue.linked_pull_request_url ? <a className="button button--ghost button--small" href={issue.linked_pull_request_url} target="_blank" rel="noreferrer">Linked PR</a> : null}</div></article>; }
+
+function IssueDetailPage({ number }: { number: number }) {
+  const { session } = useSessionState(); const [issue,setIssue]=useState<GithubIssue|null>(null),[status,setStatus]=useState('loading'),[message,setMessage]=useState('');
+  useEffect(()=>{ readJson<GithubIssue[]>(supabase.from('github_issues').request({ query: `select=*,github_issue_developers(*,profiles(*))&issue_number=eq.${number}` })).then((rows)=>{setIssue(rows[0]||null); setStatus('ready');}).catch((e:Error)=>{setMessage(e.message);setStatus('error');});},[number]);
+  async function claim() { if (!session) { location.href = `/profile?returnTo=${encodeURIComponent(`/issues/${number}?claim=1`)}`; return; } const profs=await readJson<PublicProfile[]>(supabase.from('profiles').request({query:`select=*&id=eq.${session.user.id}`, accessToken: session.access_token})); const p=profs[0]; if (!profileComplete(p)) { location.href=`/profile/complete?returnTo=${encodeURIComponent(`/issues/${number}?claim=1`)}`; return; } await readJson(supabase.rpc('claim_github_issue',{ p_issue_number:number },session.access_token)); location.href=`/issues/${number}`; }
+  if (status==='loading') return <main className="section"><div className="impact-state">Loading issue detail…</div></main>; if(status==='error'||!issue) return <main className="section"><div className="impact-state impact-state--error">Issue detail unavailable. {message}</div></main>;
+  const claimRow=primaryClaim(issue), p=claimProfile(claimRow);
+  return <main className="issues-page"><section className="section issue-detail"><p className="eyebrow">Issue #{number}</p><h1>{issue.title}</h1><div className="issue-actions"><a className="button" href={issue.html_url || issue.github_url || `https://github.com/MyMindVentures/BankruptTo1Million/issues/${number}`} target="_blank" rel="noreferrer">Open original issue on GitHub</a>{isClaimAvailable(issue)?<button className="button button--ghost" onClick={claim}>Claim this issue</button>:null}</div><dl className="detail-grid">{[['Repository',issue.repository||'MyMindVentures/BankruptTo1Million'],['Author',issue.author_login||issue.user_login||'Unknown'],['State',titleCase(issue.state)],['State reason',issue.state_reason||'Not recorded'],['Discipline',issueField(issue,'discipline')],['Difficulty',issueField(issue,'difficulty')],['Estimated time',issueField(issue,'time')],['Claim status',claimRow?`Claimed by @${claimRow.github_login || p?.github_login}`:'Available'],['Created',fmt(issue.created_at)],['Updated',fmt(issue.updated_at)],['Closed',fmt(issue.closed_at)],['Implemented',fmt(issue.implemented_at)],['Last Supabase sync',fmt(issue.synced_at||issue.last_synced_at)]].map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v||'Unlabeled'}</dd></div>)}</dl>{p?<a className="claimant" href="/profile/issues"><img src={p.avatar_url} alt=""/>@{p.github_login} contributor profile</a>:null}<div className="label-row">{labelsOf(issue).map((label)=><span key={label}>{label}</span>)}</div><article className="markdown-body" dangerouslySetInnerHTML={{__html: markdown(issue.body)}} /></section></main>;
+}
+function profileComplete(p?: PublicProfile) { return Boolean(p?.display_name && p.role && p.github_profile_url && p.github_login && p.avatar_url && p.bio && p.primary_disciplines?.length && p.experience_level && p.consent_public_recognition && p.accepted_contribution_guidelines); }
+function ProfilePage() { const {session,refresh}=useSessionState(); const [mode,setMode]=useState<'signin'|'profile'>('signin'); const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[form,setForm]=useState<ProfileForm>({display_name:'',role:'Contributor',github_profile_url:'',github_login:'',avatar_url:'',bio:'',primary_disciplines:[],experience_level:'Beginner',consent_public_recognition:false,accepted_contribution_guidelines:false}); const returnTo=new URLSearchParams(location.search).get('returnTo')||'/profile/issues'; // eslint-disable-next-line react-hooks/exhaustive-deps
+ useEffect(()=>{ if(session){setMode('profile'); readJson<PublicProfile[]>(supabase.from('profiles').request({query:`select=*&id=eq.${session.user.id}`,accessToken:session.access_token})).then((r)=>{if(r[0]) setForm({...form,...r[0], primary_disciplines:r[0].primary_disciplines||[]});});}},[]); async function auth(signUp=false){ await (signUp ? supabase.auth.signUp(email,password) : supabase.auth.signInWithPassword(email,password)); refresh(); setMode('profile'); }
+ async function save(e:FormEvent){e.preventDefault(); if(!session) return; await readJson(supabase.from('profiles').request({method:'POST',accessToken:session.access_token,headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:{id:session.user.id,...form}})); location.href=returnTo; }
+ if(!session&&mode==='signin') return <main className="section"><h1>Sign in to claim.</h1><div className="application-form"><input placeholder="Email" value={email} onChange={(e)=>setEmail(e.target.value)}/><input placeholder="Password" type="password" value={password} onChange={(e)=>setPassword(e.target.value)}/><button className="button" onClick={()=>auth(false)}>Sign in</button><button className="button button--ghost" onClick={()=>auth(true)}>Create account</button></div></main>;
+ return <main className="section"><h1>Complete contributor profile.</h1><form className="application-form" onSubmit={save}><input required placeholder="Display name" value={form.display_name} onChange={(e)=>setForm({...form,display_name:e.target.value})}/><select value={form.role} onChange={(e)=>setForm({...form,role:e.target.value})}><option>Contributor</option><option>Developer</option></select><input required placeholder="GitHub login" value={form.github_login} onChange={(e)=>setForm({...form,github_login:e.target.value})}/><input required placeholder="GitHub profile URL" value={form.github_profile_url} onChange={(e)=>setForm({...form,github_profile_url:e.target.value})}/><input required placeholder="Avatar URL" value={form.avatar_url} onChange={(e)=>setForm({...form,avatar_url:e.target.value})}/><textarea required placeholder="Short biography or skills summary" value={form.bio} onChange={(e)=>setForm({...form,bio:e.target.value})}/><select value={form.experience_level} onChange={(e)=>setForm({...form,experience_level:e.target.value})}>{difficulties.map((d)=><option key={d}>{d}</option>)}</select><fieldset className="chip-group"><legend>Primary disciplines</legend><div>{disciplines.map((d)=><button type="button" className={`chip ${form.primary_disciplines.includes(d)?'chip--active':''}`} onClick={()=>setForm({...form,primary_disciplines:form.primary_disciplines.includes(d)?form.primary_disciplines.filter(x=>x!==d):[...form.primary_disciplines,d]})} key={d}>{d}</button>)}</div></fieldset><label><input type="checkbox" checked={form.consent_public_recognition} onChange={(e)=>setForm({...form,consent_public_recognition:e.target.checked})}/> Consent to public recognition</label><label><input type="checkbox" checked={form.accepted_contribution_guidelines} onChange={(e)=>setForm({...form,accepted_contribution_guidelines:e.target.checked})}/> Accept contribution guidelines</label><button className="button" type="submit">Save profile</button></form></main> }
+function ProfileIssuesPage(){ const {session}=useSessionState(); const [claims,setClaims]=useState<IssueDeveloper[]>([]); // eslint-disable-next-line react-hooks/exhaustive-deps
+ useEffect(()=>{ if(session) readJson<IssueDeveloper[]>(supabase.from('github_issue_developers').request({query:`select=*,github_issues(*)&profile_id=eq.${session.user.id}`,accessToken:session.access_token})).then(setClaims);},[]); if(!session) return <main className="section"><h1>Contributor dashboard</h1><a className="button" href="/profile?returnTo=/profile/issues">Sign in</a></main>; return <main className="section"><h1>Contributor dashboard.</h1><p>Public profile status, GitHub profile and contribution history are shown from Supabase.</p><div className="issue-grid">{claims.map((c)=><article className="issue-card" key={c.id}><h2>{titleCase(c.contribution_status)}</h2><p>Claimed {fmt(c.claimed_at)} as @{c.github_login}.</p></article>)}</div></main> }
 type ImpactStat = {
   label: string;
   value: number | string;
@@ -410,8 +559,9 @@ function ImpactDashboardPage() {
 
       <section className="section" aria-labelledby="impact-overview-title">
         <SectionHeading eyebrow="Progress" title="Current repository impact" titleId="impact-overview-title">
-          Open work, completed work and merged pull requests are loaded from GitHub and refreshed through the site server instead of exposing privileged tokens in the browser.
+          Open work, completed work and merged pull requests remain useful aggregate statistics. For contributor action, browse the full Supabase-backed issue browser.
         </SectionHeading>
+        <p><a className="button" href="/issues">Browse synchronized issues</a></p>
         {status === 'loading' ? <ImpactLoadingState /> : null}
         {status === 'error' ? <ImpactErrorState message={errorMessage} /> : null}
         {status === 'ready' && impactData ? (
@@ -759,6 +909,14 @@ function App() {
         <FoundingHeroesPage />
       ) : path === '/impact' ? (
         <ImpactDashboardPage />
+      ) : path === '/issues' ? (
+        <IssuesPage />
+      ) : path.startsWith('/issues/') ? (
+        <IssueDetailPage number={Number(path.split('/')[2])} />
+      ) : path === '/profile' || path === '/profile/complete' ? (
+        <ProfilePage />
+      ) : path === '/profile/issues' ? (
+        <ProfileIssuesPage />
       ) : path === '/become-a-founding-hero' ? (
         <BecomeFoundingHeroPage />
       ) : (
