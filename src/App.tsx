@@ -115,7 +115,7 @@ function FoundingHeroesPage() {
             It is a quiet public thank you for useful work, courage and trust.
           </p>
           <div className="hero__actions" aria-label="Founding Heroes calls to action">
-            <a className="button" href="#founding-hero-roles">
+            <a className="button" href="/become-a-founding-hero">
               Become a Founding Hero <ArrowRight aria-hidden="true" size={18} />
             </a>
             <a className="button button--ghost" href="#founding-hero-profiles">
@@ -179,13 +179,123 @@ function FoundingHeroesPage() {
   );
 }
 
+function BecomeFoundingHeroPage() {
+  return (
+    <main id="top" className="application-page">
+      <section className="hero application-hero section-grid" aria-labelledby="application-hero-title">
+        <div className="hero__content">
+          <p className="eyebrow">Founding Hero application</p>
+          <h1 id="application-hero-title">Start with one honest contribution.</h1>
+          <p className="hero__lede">
+            This page is the first public shell for people who want to help shape Bankrupt to 1 Million before the outcome is certain.
+            The form is not connected yet, so it clearly explains the next structure without pretending a submission was sent.
+          </p>
+        </div>
+        <aside className="hero-card application-hero__note" aria-label="Application status">
+          <CheckCircle2 aria-hidden="true" />
+          <blockquote>Not connected yet.</blockquote>
+          <p>
+            The application flow is frontend-only for now. A real submission step will be added only after privacy, storage and backend handling are configured.
+          </p>
+        </aside>
+      </section>
+
+      <section className="section section-grid" aria-labelledby="application-context-title">
+        <SectionHeading eyebrow="Before you apply" title="Choose the way you can help" titleId="application-context-title">
+          Founding Heroes can support the mission through voluntary contribution, practical resources, sponsorship, investment interest or commercial collaboration depending on the role.
+        </SectionHeading>
+        <div className="story-panel application-note">
+          <h3>Privacy first</h3>
+          <p>
+            Share only information you are comfortable providing. Public recognition will always require permission, and sensitive contact details should never appear on the Founding Heroes Wall.
+          </p>
+          <h3>Participation models</h3>
+          <p>
+            Some roles may be volunteer or in-kind support. Others may become sponsored, invested or commercial only through a separate written agreement.
+          </p>
+        </div>
+      </section>
+
+      <section className="section" aria-labelledby="application-form-title">
+        <SectionHeading eyebrow="Form shell" title="Structured application preview" titleId="application-form-title">
+          Later issues will add fields, validation and Supabase submission. This issue establishes the accessible page and form structure only.
+        </SectionHeading>
+
+        <form className="application-form" aria-describedby="application-form-status">
+          <fieldset>
+            <legend>Your identity</legend>
+            <div className="form-grid">
+              <div className="form-field">
+                <label htmlFor="founding-hero-name">Name</label>
+                <input id="founding-hero-name" name="name" type="text" placeholder="Your name or public alias" disabled />
+                <p>Identity fields will be finalized in a follow-up issue.</p>
+              </div>
+              <div className="form-field">
+                <label htmlFor="founding-hero-email">Email</label>
+                <input id="founding-hero-email" name="email" type="email" placeholder="you@example.com" disabled />
+                <p>Used only for application follow-up after backend storage is configured.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>How you want to contribute</legend>
+            <div className="form-grid">
+              <div className="form-field">
+                <label htmlFor="founding-hero-participation">Participation type</label>
+                <select id="founding-hero-participation" name="participation" disabled defaultValue="">
+                  <option value="">Choose a future option</option>
+                  <option>Volunteer contribution</option>
+                  <option>In-kind support</option>
+                  <option>Sponsored support</option>
+                  <option>Investment interest</option>
+                  <option>Commercial collaboration</option>
+                </select>
+                <p>These models explain intent only and do not create an automatic agreement.</p>
+              </div>
+              <div className="form-field">
+                <label htmlFor="founding-hero-role">Contribution focus</label>
+                <input id="founding-hero-role" name="role" type="text" placeholder="Frontend, writing, testing, hosting..." disabled />
+                <p>Role selection will be implemented in a separate focused issue.</p>
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Motivation and consent</legend>
+            <div className="form-field">
+              <label htmlFor="founding-hero-message">Why this mission fits you</label>
+              <textarea id="founding-hero-message" name="message" placeholder="A short note about the contribution you want to make" disabled />
+              <p>Long-form fields, validation and consent controls are intentionally out of scope here.</p>
+            </div>
+          </fieldset>
+
+          <div className="form-status" id="application-form-status" role="status">
+            <strong>Submissions are not open yet.</strong>
+            <span>This shell is intentionally disabled until secure storage, privacy handling and real submission logic are configured.</span>
+          </div>
+          <button className="button" type="submit" disabled>
+            Submit application later
+          </button>
+        </form>
+      </section>
+    </main>
+  );
+}
+
 function App() {
-  const isFoundingHeroesRoute = window.location.pathname === '/founding-heroes';
+  const path = window.location.pathname;
 
   return (
     <>
       <Header />
-      {isFoundingHeroesRoute ? <FoundingHeroesPage /> : <HomePage />}
+      {path === '/founding-heroes' ? (
+        <FoundingHeroesPage />
+      ) : path === '/become-a-founding-hero' ? (
+        <BecomeFoundingHeroPage />
+      ) : (
+        <HomePage />
+      )}
     </>
   );
 }

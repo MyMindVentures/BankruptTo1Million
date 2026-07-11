@@ -25,6 +25,7 @@ export const navItems: NavItem[] = [
   { label: 'Roadmap', href: '/#roadmap' },
   { label: 'Founding Heroes', href: '/founding-heroes' },
   { label: 'Contribute', href: '/#contribute' },
+  { label: 'Apply', href: '/become-a-founding-hero' },
 ];
 
 export const platformFeatures: FeatureCard[] = [
