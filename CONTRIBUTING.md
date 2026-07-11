@@ -66,3 +66,26 @@ The complete standard is defined in [DESIGN_MANIFESTO.md](./DESIGN_MANIFESTO.md)
 Contributions are voluntary unless an issue explicitly states otherwise. Participation does not automatically create employment, equity, ownership or revenue-share rights. Any different arrangement must be agreed separately in writing.
 
 Meaningful merged contributions receive permanent GitHub credit and may, with permission, be recognized on the Founding Heroes Wall.
+
+## A Personal Thank You
+
+If you are reading this, you have already given us something valuable: your time.
+
+Opening this journey means showing unfinished work, asking for help and trusting that the right people will recognize the thinking, talent and determination behind the mission. Whether you contribute one component, one fix, one design improvement or one thoughtful introduction, your contribution creates momentum.
+
+Every merged contribution represents more than completed work. It represents belief before proof.
+
+Thank you for considering becoming part of this story.
+
+> **Some people invest money. Others invest talent. Both can change a future. Thank you for considering ours.**
+
+With sincere gratitude,
+
+**Kevin De Vlieger**  
+Founder · Concept Thinker · Vision Partner
+
+**Micha**  
+Co-Founder · Community Builder · Hospitality Lead
+
+**Bankrupt to 1 Million**  
+*More Than Rebuilding a Life. Building a Movement.*
