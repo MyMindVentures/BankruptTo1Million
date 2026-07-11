@@ -4,13 +4,67 @@
 
 **Building in public from financial rock bottom — one story, one connection and one feature at a time.**
 
-We are **Kevin & Micha**.
+[View Open Issues](https://github.com/MyMindVentures/BankruptTo1Million/issues) · [Contribute](#how-to-contribute) · [Project Vision](#the-long-term-vision)
 
-Bankrupt to 1 Million is not a polished success story told after everything worked out. It is a living documentary about rebuilding from the beginning — honestly, publicly and with the help of a community.
+---
 
-We are creating a place where builders, creators, supporters, hosts, partners and people with untapped potential can find one another and help turn possibility into momentum.
+## Welcome
+
+We are **Kevin De Vlieger and Micha**, the founders of **Bankrupt to 1 Million**.
+
+This is not a polished success story created after everything worked out.
+
+It is a living documentary about rebuilding from the beginning — honestly, publicly and with the help of a community.
+
+We are starting from financial rock bottom, limited resources and no large technical team. Instead of hiding that reality, we are making it part of the story.
+
+This repository is where the digital platform behind that journey will be built.
+
+Not by pretending we can do everything alone.
+
+But by creating clear opportunities for developers, designers, writers, testers, creators and supporters to contribute one meaningful piece at a time.
 
 > **No one rebuilds alone.**
+
+---
+
+## The Core Belief
+
+We believe the world does not have a shortage of talent.
+
+**It has a shortage of the right people finding each other.**
+
+Every day, people with ideas, creativity and potential remain stuck because they lack:
+
+- the right environment;
+- the right network;
+- technical skills;
+- capital;
+- support;
+- confidence;
+- or a complementary team.
+
+Bankrupt to 1 Million exists to show what becomes possible when people stop trying to carry everything alone and begin building through trust, collaboration and human connection.
+
+---
+
+## What Bankrupt to 1 Million Really Means
+
+The title may sound financial, but the mission is much bigger than money.
+
+For us, one million represents:
+
+- freedom to choose how we live;
+- freedom to build meaningful ventures;
+- freedom to help other people create momentum;
+- freedom to create experiences instead of chasing status;
+- freedom to work with people who believe in the same future.
+
+Money is not the destination.
+
+It is a tool that can create possibilities.
+
+The real measure of success is found in the people we meet, the opportunities we create, the stories we share, the ventures we build and the lives we help change along the way.
 
 ---
 
@@ -18,209 +72,95 @@ We are creating a place where builders, creators, supporters, hosts, partners an
 
 We are not professional software developers.
 
-We do not have a large team, investors or a development budget.
+We do not currently have:
 
-What we do have is a clear mission, extensive product documentation, visual concepts and the determination to keep moving forward.
+- a large engineering team;
+- investors funding the entire platform;
+- a traditional development budget;
+- every skill required to build the complete vision ourselves.
 
-Instead of waiting until we have every resource, we are building the Bankrupt to 1 Million website differently:
+What we do have is:
 
-- One clearly documented GitHub issue at a time
-- One contributor at a time
-- One completed feature at a time
-- One growing community around the mission
+- a clear mission;
+- extensive product thinking;
+- website blueprints;
+- visual concepts and mockups;
+- documented features;
+- strong determination;
+- a belief that collaboration can create momentum where money alone cannot.
 
-**Many hands make light work.**
+Instead of waiting until every resource is available, we are building differently:
 
----
+- one clearly documented GitHub Issue at a time;
+- one contributor at a time;
+- one completed feature at a time;
+- one growing community around the mission.
 
-## The Mission
-
-Bankrupt to 1 Million is not simply about reaching a financial milestone.
-
-It is about:
-
-- rebuilding a meaningful life from rock bottom;
-- documenting the real process instead of only showing finished success;
-- proving that asking for help is not weakness;
-- connecting people with complementary strengths;
-- creating momentum for people whose talent remains unseen;
-- building ventures, stories, experiences and opportunities together;
-- using future success to help others rebuild their lives too.
-
-We believe the world does not have a shortage of talent.
-
-**It has a shortage of the right people finding each other.**
+> **Many hands make light work.**
 
 ---
 
 ## Build One Feature. Become a Founding Builder.
 
-We are not asking one developer to build an entire platform.
+We are not asking one developer to build our entire vision.
 
-Instead, contributors can choose one small, clearly scoped issue, complete the feature and submit a Pull Request.
+We are creating small, clearly scoped issues so contributors can choose one feature that matches their interests, availability and skill level.
 
-### How it works
+A contributor may help by building:
 
-1. Browse the open GitHub Issues.
-2. Choose a feature that matches your interests and skills.
-3. Comment: `I'd like to work on this.`
-4. Wait until the issue is assigned to you.
-5. Create a dedicated branch.
-6. Build and test the feature.
-7. Submit a Pull Request referencing the issue.
-8. After review and merge, become a recognized Founding Builder.
+- one form;
+- one page section;
+- one responsive component;
+- one accessibility improvement;
+- one bug fix;
+- one translation;
+- one piece of documentation;
+- one testing workflow;
+- one useful integration.
 
-Please do not begin work on an unassigned issue. This prevents multiple contributors from unknowingly building the same feature.
+Every contribution moves the project forward.
 
----
-
-## Founding Builders Wall
-
-Every meaningful contribution deserves visible recognition.
-
-After a contribution is merged, the contributor will be invited to complete a **Founding Builder Profile**.
-
-With their permission, the future Founding Builders Wall may showcase:
-
-- Name and profile photo
-- Country or location
-- Developer or contributor role
-- GitHub profile
-- Portfolio and social accounts
-- Short biography
-- Personal support message
-- Completed GitHub issues
-- Features they helped create
-- Date they joined the movement
-
-Your work will not disappear into a repository.
-
-It will become part of the public history of Bankrupt to 1 Million.
+Every merged contribution becomes part of the public history of Bankrupt to 1 Million.
 
 ---
 
-## Who Can Contribute?
+## How to Contribute
 
-Contributions are welcome from:
+### 1. Browse the Issues
 
-- Frontend Developers
-- Backend Developers
-- Full-Stack Developers
-- Mobile Developers
-- UI/UX Designers
-- Accessibility Specialists
-- QA Testers
-- DevOps Engineers
-- Technical Writers
-- Translators
-- Open-source contributors
-- Experienced professionals and motivated beginners
+Visit the [open GitHub Issues](https://github.com/MyMindVentures/BankruptTo1Million/issues).
 
-Not every contribution needs to be large.
+Look for a feature that matches your experience and available time.
 
-A small improvement, bug fix, translation, accessibility enhancement or documentation update can still move the mission forward.
+Issues should contain:
 
----
+- the objective;
+- background and context;
+- supplied mockups or references;
+- required functionality;
+- acceptance criteria;
+- technical boundaries;
+- verification steps.
 
-## Current Contribution Model
+### 2. Claim an Issue
 
-This repository is being developed through a community-supported, bootstrapped approach.
+Comment on the issue:
 
-Before claiming an issue, please understand:
+```text
+I'd like to work on this.
+```
 
-- Contributions are currently voluntary unless an issue explicitly states otherwise.
-- Every issue should contain its own scope and acceptance criteria.
-- Contributors retain credit for their work through Git history and public recognition.
-- No contributor is expected to commit for months or build the entire platform.
-- A single completed feature is already meaningful.
+Please wait until the issue is assigned to you before beginning work. This prevents multiple contributors from unknowingly building the same feature.
 
-We value honesty, respect, clarity and appreciation.
+### 3. Create a Branch
 
----
-
-## Project Direction
-
-The long-term Bankrupt to 1 Million platform is intended to grow into a combination of:
-
-- A living documentary
-- A founder journal and storytelling platform
-- A public journey and roadmap
-- A community hub
-- A Founding Heroes and Partners Wall
-- A collaboration platform
-- A media and gallery archive
-- A place for future ventures and opportunities
-- A transparency and giving-back platform
-
-The project will evolve gradually through documented issues. Contributors should build only the scope defined in the issue they claim.
-
----
-
-## Design Direction
-
-The website should feel:
-
-- Human
-- Honest
-- Cinematic
-- Premium
-- Editorial
-- Warm
-- Hopeful
-- Purpose-driven
-
-The visual identity should avoid:
-
-- Generic SaaS templates
-- Cheap startup aesthetics
-- Excessive visual clutter
-- Fake luxury
-- Hustle-culture imagery
-- Generic AI robots
-- Unnecessary redesigns that ignore supplied references
-
-When an issue includes an approved mockup, screenshot or design reference, treat it as the visual Source of Truth unless the issue states otherwise.
-
----
-
-## Contribution Principles
-
-### 1. Follow the issue
-
-Do not expand scope without discussing it first.
-
-### 2. Reuse existing components
-
-Avoid duplicate components, random styling or unnecessary dependencies.
-
-### 3. Keep changes focused
-
-A Pull Request should solve the claimed issue and avoid unrelated changes.
-
-### 4. Make it responsive
-
-Features should work across desktop, tablet and mobile where applicable.
-
-### 5. Protect accessibility
-
-Use semantic HTML, keyboard-friendly interactions, clear labels and readable contrast.
-
-### 6. Test before submitting
-
-Run the project's available lint, type-check, test and build commands before opening a Pull Request.
-
-### 7. Communicate openly
-
-Ask questions inside the issue when requirements are unclear. Questions are welcome; silent guessing creates unnecessary rework.
-
----
-
-## Suggested Branch Naming
+Recommended branch naming:
 
 ```text
 feature/issue-number-short-title
 fix/issue-number-short-title
 docs/issue-number-short-title
+test/issue-number-short-title
 ```
 
 Example:
@@ -229,32 +169,431 @@ Example:
 feature/12-founding-builder-form
 ```
 
----
+### 4. Build Only the Assigned Scope
 
-## Commit Examples
+Follow the issue closely.
+
+Do not expand the feature, redesign unrelated pages or introduce major architectural changes without discussing them first.
+
+### 5. Test Your Work
+
+Before opening a Pull Request:
+
+- run the project's available lint command;
+- run the type checker;
+- run the available tests;
+- run the production build where applicable;
+- check the browser console;
+- test required responsive breakpoints;
+- verify keyboard accessibility;
+- confirm that existing functionality still works.
+
+### 6. Submit a Pull Request
+
+Your Pull Request should include:
+
+- a clear summary;
+- the issue it resolves;
+- screenshots or a short video when relevant;
+- testing performed;
+- known limitations;
+- any recommended follow-up work.
+
+Reference the issue using:
 
 ```text
-feat: build founding builder profile form
-fix: improve mobile navigation behavior
-docs: clarify contributor workflow
+Closes #12
 ```
 
 ---
 
 ## Pull Request Checklist
 
-Before submitting a Pull Request, confirm:
+Before submitting, confirm:
 
 - [ ] The issue was assigned to me.
 - [ ] I followed the documented scope.
-- [ ] I reused existing design tokens and components where possible.
+- [ ] I used the supplied mockup or design reference.
+- [ ] I reused existing components and design tokens where possible.
+- [ ] I avoided unnecessary dependencies.
 - [ ] The feature works on the required screen sizes.
-- [ ] Required validation and states are implemented.
-- [ ] I tested the feature locally.
-- [ ] There are no new critical console, lint or type errors.
+- [ ] Required empty, loading, error and success states are included.
+- [ ] Required validation works.
+- [ ] Keyboard navigation works where applicable.
+- [ ] I tested my changes locally.
+- [ ] I introduced no new critical console, lint, type or build errors.
 - [ ] I included screenshots or a short video where applicable.
-- [ ] I referenced the issue in the Pull Request.
-- [ ] I documented limitations or follow-up work honestly.
+- [ ] I referenced the related issue.
+- [ ] I documented limitations honestly.
+
+---
+
+## Founding Builders Wall
+
+Every meaningful contribution deserves more than a hidden commit in a repository.
+
+After a Pull Request is merged, the contributor will be invited to complete a **Founding Builder Profile**.
+
+With permission, the future **Founding Builders Wall** may display:
+
+- full name or chosen display name;
+- profile photo;
+- country or location;
+- developer or contributor type;
+- GitHub profile;
+- portfolio website;
+- LinkedIn and other public accounts;
+- short biography;
+- personal support message;
+- completed GitHub Issues;
+- features contributed;
+- date joined;
+- total contributions.
+
+Our goal is to permanently recognize the people who believed in the project before success was guaranteed.
+
+Your work will not disappear into a repository.
+
+**It will become part of the story.**
+
+---
+
+## Who Can Contribute?
+
+We welcome contributions from:
+
+- Frontend Developers
+- Backend Developers
+- Full-Stack Developers
+- Mobile Developers
+- AI Engineers
+- UI/UX Designers
+- Accessibility Specialists
+- QA Testers
+- DevOps Engineers
+- Security Contributors
+- Technical Writers
+- Translators
+- Open-source Maintainers
+- Experienced Professionals
+- Motivated Beginners
+
+You do not need to commit for months.
+
+You do not need to build the whole platform.
+
+You do not need to be the most experienced person in the room.
+
+One well-built feature is already meaningful.
+
+---
+
+## Current Contribution Model
+
+This repository is currently developed through a community-supported and bootstrapped model.
+
+Please understand:
+
+- contributions are voluntary unless an issue explicitly states otherwise;
+- no contributor is expected to work indefinitely;
+- each issue should define its own scope;
+- contributors keep visible credit through Git history and public recognition;
+- merged work may become part of the public Bankrupt to 1 Million platform;
+- participation does not automatically create employment, ownership, equity or revenue-share rights;
+- any future paid, equity or partnership arrangement must be agreed separately and in writing.
+
+We want expectations to remain honest and clear for everyone involved.
+
+---
+
+## Meet the Founders
+
+### Kevin De Vlieger
+
+**Founder · Concept Thinker · Vision Partner · Venture Architect**
+
+Kevin sees possibilities where others see disconnected pieces.
+
+His role is to shape the mission, create concepts, connect ideas, design future ventures, document the journey and bring together the people needed to turn vision into reality.
+
+His strengths include:
+
+- concept creation;
+- systems thinking;
+- opportunity discovery;
+- venture design;
+- AI-native product thinking;
+- partnerships;
+- storytelling;
+- connecting people around a shared vision.
+
+### Micha
+
+**Co-Founder · Experience Designer · Community Builder · Hospitality Lead**
+
+Micha is the human heart of the movement.
+
+His role is to create warmth, trust and genuine connection between hosts, supporters, contributors and partners.
+
+His strengths include:
+
+- community building;
+- hospitality;
+- shared experiences;
+- practical support;
+- relationship building;
+- making people feel welcome and involved.
+
+### Together
+
+Kevin sees the direction.
+
+Micha brings people into the experience.
+
+Together, they are building a movement around resilience, collaboration, human potential and the belief that the right people can change one another's future.
+
+---
+
+## The Platform We Are Building
+
+Bankrupt to 1 Million is intended to evolve into more than a traditional website.
+
+It will become a combination of:
+
+- a living documentary;
+- an honest founder journal;
+- a storytelling platform;
+- an interactive journey map;
+- a community hub;
+- a Founding Heroes and Partners Wall;
+- a public roadmap;
+- a media and gallery archive;
+- a collaboration platform;
+- a venture studio showcase;
+- a transparency and giving-back platform;
+- a place where supporters can discover concrete ways to help.
+
+The platform will grow gradually through documented issues and milestones.
+
+---
+
+## Planned Public Areas
+
+The long-term website direction includes:
+
+1. Home
+2. Our Story
+3. Interactive Journey Map
+4. Stories & Blog
+5. Experiences We Share
+6. Partners & Sponsor Wall
+7. Founding Heroes
+8. Venture Studio
+9. Roadmap
+10. Giving Back
+11. Become a Partner
+12. Media Kit
+13. Contact
+14. Community Hub
+15. Gallery & Media Vault
+
+These areas are not expected to appear all at once.
+
+They will be built progressively as resources, contributors and validated needs grow.
+
+---
+
+## Current Priorities
+
+Early repository priorities include:
+
+- repository and contribution foundations;
+- project documentation;
+- core website architecture;
+- responsive navigation and layout;
+- homepage sections;
+- Founding Builder Profile Form;
+- Founding Builders Wall;
+- founder stories and journal content;
+- collaboration and support flows;
+- accessibility improvements;
+- future backend and content management integration.
+
+The issue list is the operational Source of Truth for what should be built next.
+
+---
+
+## Design Direction
+
+The Bankrupt to 1 Million platform should feel:
+
+- human;
+- cinematic;
+- documentary-driven;
+- honest;
+- warm;
+- premium;
+- editorial;
+- hopeful;
+- credible;
+- purpose-driven.
+
+The design should communicate a real journey in progress, not a fake image of finished success.
+
+### Visual Principles
+
+Use:
+
+- strong editorial typography;
+- generous spacing;
+- cinematic photography;
+- authentic founder and community stories;
+- clean hierarchy;
+- restrained motion;
+- premium dark or warm neutral surfaces;
+- subtle gold accents where defined by the supplied design;
+- accessible contrast;
+- responsive layouts.
+
+Avoid:
+
+- generic SaaS templates;
+- fake dashboards used only as decoration;
+- excessive neon;
+- generic AI robots;
+- hustle-culture visuals;
+- luxury-flex imagery;
+- crowded pages;
+- childish illustrations;
+- unnecessary redesigns of approved mockups;
+- visual changes that ignore the existing identity.
+
+When an issue contains an approved mockup, screenshot or visual template, treat it as the **visual Source of Truth**.
+
+The task is to build it faithfully, not replace it with a personal redesign.
+
+---
+
+## Development Principles
+
+### Follow the Issue
+
+Build what the issue asks for.
+
+Ask questions when something is unclear instead of silently guessing.
+
+### Keep Pull Requests Focused
+
+One Pull Request should solve one clear problem.
+
+Avoid combining unrelated changes.
+
+### Reuse Before Creating
+
+Use existing components, utilities and design tokens whenever possible.
+
+Avoid duplicate UI and unnecessary code.
+
+### Do Not Over-Engineer
+
+Build the simplest maintainable solution that meets the acceptance criteria.
+
+Do not add a backend, authentication, database, payment system or external service unless the issue explicitly requires it.
+
+### Build Responsively
+
+Where applicable, features must work on:
+
+- desktop;
+- tablet;
+- mobile.
+
+Do not simply hide important functionality on smaller screens.
+
+### Protect Accessibility
+
+Use:
+
+- semantic HTML;
+- proper labels;
+- keyboard-friendly controls;
+- visible focus states;
+- descriptive button text;
+- readable contrast;
+- meaningful alternative text.
+
+### Preserve Trust
+
+Never claim that something works when it has not been tested.
+
+Document limitations openly.
+
+---
+
+## Commit Guidelines
+
+Use clear, focused commit messages.
+
+Examples:
+
+```text
+feat: build founding builder profile form
+feat: add live founder card preview
+fix: improve mobile navigation behavior
+fix: validate profile image uploads
+docs: clarify contributor workflow
+test: add form validation tests
+refactor: reuse shared form field component
+```
+
+---
+
+## Issue Difficulty
+
+Issues may use the following guidance:
+
+- 🟢 **Beginner** — small, isolated and well documented
+- 🟡 **Intermediate** — multiple components or moderate state and validation
+- 🔴 **Advanced** — architecture, integrations, backend or complex workflows
+
+Estimated time is only a rough guide. Quality and honest communication matter more than speed.
+
+---
+
+## Working With Design References
+
+Some issues may include:
+
+- AI-generated design concepts;
+- screenshots;
+- website mockups;
+- public gallery references;
+- wireframes;
+- content templates.
+
+These references exist to reduce ambiguity.
+
+AI-generated concepts should be treated as visual direction, while the issue defines the required functionality and behavior.
+
+Where a design contains a clearly impossible, inconsistent or inaccessible element, raise it in the issue before changing the design substantially.
+
+---
+
+## Security and Privacy
+
+Do not commit:
+
+- passwords;
+- private API keys;
+- access tokens;
+- personal documents;
+- private contact information;
+- production secrets;
+- private contributor data.
+
+Use environment variables for secrets when integrations are introduced.
+
+Contributor profile information may only be shown publicly with the contributor's permission.
 
 ---
 
@@ -264,34 +603,79 @@ This community should feel safe, respectful and encouraging.
 
 We expect contributors to:
 
-- Treat one another with dignity.
-- Give constructive feedback.
-- Respect different experience levels and backgrounds.
-- Avoid harassment, discrimination and personal attacks.
-- Communicate disagreements professionally.
-- Remember that a real person is behind every contribution.
+- treat one another with dignity;
+- welcome different backgrounds and experience levels;
+- give constructive feedback;
+- avoid harassment, discrimination and personal attacks;
+- communicate disagreements professionally;
+- respect contributor privacy;
+- remember that a real person is behind every issue, comment and Pull Request.
 
-We are building more than software. We are building trust.
+We are building more than software.
+
+**We are building trust.**
 
 ---
 
-## Roadmap
+## What Happens After a Contribution?
 
-The roadmap will be developed publicly through GitHub Issues and future milestones.
+After a Pull Request is submitted:
 
-Early priorities include:
+1. The contribution is reviewed.
+2. Feedback may be requested.
+3. Required changes are discussed openly.
+4. Once the acceptance criteria are met, the Pull Request can be merged.
+5. The contributor receives permanent GitHub credit.
+6. The contributor is invited to complete the Founding Builder Profile Form.
+7. With permission, the contributor may be featured on the Founding Builders Wall.
 
-- Repository and contribution foundations
-- Core website architecture
-- Landing page sections
-- Founding Builder Profile Form
-- Founding Builders Wall
-- Founder journal and stories
-- Collaboration and support flows
-- Responsive design and accessibility
-- Future backend and content management integration
+A merged contribution may also be highlighted in future stories, community updates or social posts.
 
-Each technical feature should have its own issue with clear requirements, acceptance criteria and design references.
+---
+
+## Other Ways to Support the Mission
+
+Not everyone needs to write code.
+
+You can also help by:
+
+- reviewing documentation;
+- testing features;
+- reporting bugs;
+- translating content;
+- improving accessibility;
+- sharing the repository;
+- introducing a developer or designer;
+- helping with content or storytelling;
+- offering technical guidance;
+- becoming a host, sponsor or partner;
+- encouraging someone whose talent deserves to be seen.
+
+Every form of meaningful support matters.
+
+---
+
+## The Long-Term Vision
+
+Bankrupt to 1 Million begins with two people rebuilding their lives.
+
+But the mission should not end with us.
+
+As we create momentum, we want to build an ecosystem that helps other people who are still stuck where we once stood.
+
+People with ideas.
+
+People rebuilding after burnout or financial hardship.
+
+People whose greatest strengths remain unseen.
+
+People who never found the right environment or team.
+
+Our ambition is not simply to reach one million.
+
+Our ambition is to create connections, ventures, partnerships and opportunities that help many more people discover what they are capable of.
+
+Because rebuilding a life becomes far more meaningful when it helps others rebuild theirs too.
 
 ---
 
@@ -303,15 +687,19 @@ Opening this project publicly means exposing what we do not yet have: all the te
 
 But we refuse to let those missing resources become the end of the story.
 
-We are choosing to think outside the box, ask for help honestly and build through community.
+We are choosing to ask for help honestly.
 
-Whether you contribute code, improve documentation, report a bug, share the project or simply encourage the mission — it matters.
+We are choosing collaboration over pretending.
+
+We are choosing to build before success is guaranteed.
+
+Whether you contribute code, improve documentation, test a feature, report a bug, translate a page, share the repository or simply encourage the mission — it matters.
 
 Thank you for your time.
 
 Thank you for your talent.
 
-Thank you for believing that meaningful things can be built together.
+Thank you for believing that meaningful things can still be built when the right people decide to help one another.
 
 With sincere gratitude,
 
