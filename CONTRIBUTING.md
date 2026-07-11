@@ -23,6 +23,22 @@ Small, clearly defined issues make it easier for more people to participate, red
 
 Some contributions may require additional investigation, refinement or implementation time. When a contributor chooses to invest more than the expected time, we are especially grateful. That extra effort goes beyond completing a task; it helps move the entire mission forward and deserves explicit recognition.
 
+## Ideas and Suggestions
+
+Thoughtful suggestions are always welcome.
+
+If you see an opportunity to improve the website, contributor experience, documentation, accessibility, visual design, technical architecture or the wider project, please open a GitHub Issue so the idea can be discussed and considered openly.
+
+Before creating a suggestion:
+
+- search the existing issues to avoid duplicates;
+- describe the problem or opportunity clearly;
+- explain why the change would improve the project;
+- include sketches, screenshots, references or examples when useful;
+- keep the discussion constructive and respectful.
+
+Not every suggestion can be implemented, but every serious proposal will be read with appreciation and considered on its merits. Good ideas are a meaningful form of contribution, even before any code is written.
+
 ## Contribution Standard
 
 Every contribution must:
