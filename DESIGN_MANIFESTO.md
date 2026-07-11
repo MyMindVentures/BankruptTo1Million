@@ -48,6 +48,10 @@ Founding contributors should receive permanent, dignified recognition. Profiles 
 
 Contributors must follow approved tokens, components, layouts and issue references. A small feature may not introduce a new visual language or redesign unrelated work.
 
+### 9. Respect for contributor time
+
+Most issues are intentionally scoped for approximately two hours or less. This protects contributor time and makes participation accessible. When someone voluntarily invests more time, care or refinement than expected, that additional effort should be acknowledged with sincere gratitude and visible recognition.
+
 ## Visual Language
 
 ### Colour
@@ -151,6 +155,8 @@ If you are reading this, you have already given us something valuable: your time
 Opening this journey means showing unfinished work, asking for help and trusting that the right people will recognize the thinking, talent and determination behind the mission. Whether you contribute one component, one fix, one design improvement or one thoughtful introduction, your contribution creates momentum.
 
 Every merged contribution represents more than completed work. It represents belief before proof.
+
+If your contribution takes more than the expected two hours and you still choose to continue, please know that we do not take that effort for granted. We are sincerely thankful for every additional hour, every careful decision and every improvement you make.
 
 Thank you for considering becoming part of this story.
 
