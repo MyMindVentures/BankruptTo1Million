@@ -1,5 +1,5 @@
-import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, GitPullRequest, HeartHandshake, RefreshCw, Users } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
 import { SectionHeading } from './components/SectionHeading';
@@ -177,6 +177,283 @@ function FoundingHeroesPage() {
           ))}
         </ul>
       </section>
+    </main>
+  );
+}
+
+
+type ImpactStat = {
+  label: string;
+  value: number | string;
+  description: string;
+};
+
+type ImpactBadge = {
+  label: string;
+  criteria: string;
+};
+
+type ContributionItem = {
+  number: number;
+  title: string;
+  url: string;
+  state?: string;
+  category?: string;
+  mergedAt?: string;
+  closedAt?: string;
+};
+
+type Contributor = {
+  login: string;
+  displayName?: string;
+  avatarUrl?: string;
+  profileUrl: string;
+  implementedIssues: ContributionItem[];
+  mergedPullRequests: ContributionItem[];
+  reviewsPerformed: number;
+  featuresCompleted: number;
+  bugFixesCompleted: number;
+  firstContributionDate?: string;
+  mostRecentContributionDate?: string;
+  badges: ImpactBadge[];
+  isBot?: boolean;
+};
+
+type ImpactData = {
+  source: string;
+  refreshedAt: string;
+  cacheTtlMinutes: number;
+  stale: boolean;
+  stats: {
+    totalIssues: number;
+    openIssues: number;
+    closedIssues: number;
+    featuresCompleted: number;
+    bugFixesCompleted: number;
+    mergedPullRequests: number;
+    testsPassed?: number | null;
+  };
+  contributors: Contributor[];
+  bots: Contributor[];
+  attributionRules: string[];
+};
+
+function formatImpactDate(value?: string) {
+  if (!value) return 'Unknown';
+
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+}
+
+function ImpactStatCard({ stat }: { stat: ImpactStat }) {
+  return (
+    <article className="impact-stat-card">
+      <span>{stat.label}</span>
+      <strong>{stat.value}</strong>
+      <p>{stat.description}</p>
+    </article>
+  );
+}
+
+function ContributionBadge({ badge }: { badge: ImpactBadge }) {
+  return <span className="contribution-badge" title={badge.criteria}>{badge.label}</span>;
+}
+
+function ContributorCard({ contributor, onSelect }: { contributor: Contributor; onSelect: (login: string) => void }) {
+  return (
+    <article className="contributor-card">
+      <div className="contributor-card__identity">
+        {contributor.avatarUrl ? (
+          <img src={contributor.avatarUrl} alt={`${contributor.login} GitHub avatar`} loading="lazy" />
+        ) : (
+          <span className="contributor-card__fallback" aria-hidden="true">{contributor.login.slice(0, 2).toUpperCase()}</span>
+        )}
+        <div>
+          <h3>{contributor.displayName || contributor.login}</h3>
+          <a href={contributor.profileUrl} target="_blank" rel="noreferrer">
+            @{contributor.login} <ExternalLink aria-hidden="true" size={14} />
+          </a>
+        </div>
+      </div>
+      <dl className="contributor-card__stats">
+        <div><dt>Issues</dt><dd>{contributor.implementedIssues.length}</dd></div>
+        <div><dt>PRs</dt><dd>{contributor.mergedPullRequests.length}</dd></div>
+        <div><dt>Features</dt><dd>{contributor.featuresCompleted}</dd></div>
+        <div><dt>Fixes</dt><dd>{contributor.bugFixesCompleted}</dd></div>
+      </dl>
+      <div className="badge-list" aria-label={`Badges for ${contributor.login}`}>
+        {contributor.badges.map((badge) => <ContributionBadge badge={badge} key={badge.label} />)}
+      </div>
+      <button className="button button--ghost button--small" type="button" onClick={() => onSelect(contributor.login)}>
+        View verified history
+      </button>
+    </article>
+  );
+}
+
+function ContributorProfile({ contributor }: { contributor: Contributor }) {
+  const timeline = [...contributor.mergedPullRequests, ...contributor.implementedIssues]
+    .sort((a, b) => new Date(b.mergedAt || b.closedAt || 0).getTime() - new Date(a.mergedAt || a.closedAt || 0).getTime())
+    .slice(0, 10);
+
+  return (
+    <article className="contributor-profile" aria-labelledby="contributor-profile-title">
+      <div className="contributor-profile__header">
+        <Award aria-hidden="true" />
+        <div>
+          <p className="eyebrow">Contributor detail</p>
+          <h2 id="contributor-profile-title">{contributor.displayName || contributor.login}</h2>
+          <p>
+            First contribution: {formatImpactDate(contributor.firstContributionDate)} · Latest: {formatImpactDate(contributor.mostRecentContributionDate)}
+          </p>
+        </div>
+      </div>
+      <dl className="contributor-profile__totals">
+        <div><dt>Implemented issues</dt><dd>{contributor.implementedIssues.length}</dd></div>
+        <div><dt>Merged pull requests</dt><dd>{contributor.mergedPullRequests.length}</dd></div>
+        <div><dt>Reviews performed</dt><dd>{contributor.reviewsPerformed}</dd></div>
+      </dl>
+      <div className="badge-list">
+        {contributor.badges.map((badge) => <ContributionBadge badge={badge} key={badge.label} />)}
+      </div>
+      <ol className="contribution-timeline" aria-label={`Verified contribution timeline for ${contributor.login}`}>
+        {timeline.map((item) => (
+          <li key={`${item.url}-${item.number}`}>
+            <span>{item.category || 'Contribution'} #{item.number}</span>
+            <a href={item.url} target="_blank" rel="noreferrer">{item.title}</a>
+            <time dateTime={item.mergedAt || item.closedAt}>{formatImpactDate(item.mergedAt || item.closedAt)}</time>
+          </li>
+        ))}
+      </ol>
+    </article>
+  );
+}
+
+function ImpactLoadingState() {
+  return <div className="impact-state" role="status"><RefreshCw aria-hidden="true" /> Loading verified GitHub impact data…</div>;
+}
+
+function ImpactErrorState({ message }: { message: string }) {
+  return <div className="impact-state impact-state--error" role="alert">GitHub impact data could not be loaded. {message}</div>;
+}
+
+function ImpactEmptyState() {
+  return <div className="impact-state">No verified contributor activity is available yet. The dashboard will populate when merged pull requests and linked issues are found.</div>;
+}
+
+function ImpactDashboardPage() {
+  const [impactData, setImpactData] = useState<ImpactData | null>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedLogin, setSelectedLogin] = useState<string | null>(null);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetch('/api/impact')
+      .then((response) => {
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return response.json() as Promise<ImpactData>;
+      })
+      .then((data) => {
+        if (!data || !data.stats || !Array.isArray(data.contributors)) throw new Error('Unexpected response shape.');
+        if (!isMounted) return;
+        setImpactData(data);
+        setSelectedLogin(data.contributors[0]?.login ?? null);
+        setStatus('ready');
+      })
+      .catch((error: Error) => {
+        if (!isMounted) return;
+        setErrorMessage(error.message);
+        setStatus('error');
+      });
+
+    return () => { isMounted = false; };
+  }, []);
+
+  const selectedContributor = useMemo(
+    () => impactData?.contributors.find((contributor) => contributor.login === selectedLogin) ?? null,
+    [impactData, selectedLogin],
+  );
+
+  const stats: ImpactStat[] = impactData ? [
+    { label: 'Total issues created', value: impactData.stats.totalIssues, description: 'Issues tracked in the public repository.' },
+    { label: 'Open issues', value: impactData.stats.openIssues, description: 'Visible opportunities still waiting for builders.' },
+    { label: 'Closed issues', value: impactData.stats.closedIssues, description: 'Issues closed or implemented in GitHub.' },
+    { label: 'Features completed', value: impactData.stats.featuresCompleted, description: 'Closed issues and merged PRs marked as features.' },
+    { label: 'Bug fixes completed', value: impactData.stats.bugFixesCompleted, description: 'Closed issues and merged PRs marked as fixes.' },
+    { label: 'Pull requests merged', value: impactData.stats.mergedPullRequests, description: 'Merged PRs counted once by PR number.' },
+    { label: 'Tests passed', value: impactData.stats.testsPassed ?? 'Not reported', description: 'Shown only when reliable workflow data is available.' },
+  ] : [];
+
+  return (
+    <main id="top" className="impact-page">
+      <section className="hero impact-hero section-grid" aria-labelledby="impact-hero-title">
+        <div className="hero__content">
+          <p className="eyebrow">Public impact dashboard</p>
+          <h1 id="impact-hero-title">Proof that work is moving.</h1>
+          <p className="hero__lede">
+            Verified GitHub issues, pull requests and contributor history are translated into a transparent progress view for visitors, partners and founding builders.
+          </p>
+        </div>
+        <aside className="hero-card impact-hero__note" aria-label="Data source summary">
+          <GitPullRequest aria-hidden="true" />
+          <blockquote>Real repository data.</blockquote>
+          <p>No fake production statistics. Public data is synchronized server-side and cached to reduce GitHub API rate-limit risk.</p>
+        </aside>
+      </section>
+
+      <section className="section" aria-labelledby="impact-overview-title">
+        <SectionHeading eyebrow="Progress" title="Current repository impact" titleId="impact-overview-title">
+          Open work, completed work and merged pull requests are loaded from GitHub and refreshed through the site server instead of exposing privileged tokens in the browser.
+        </SectionHeading>
+        {status === 'loading' ? <ImpactLoadingState /> : null}
+        {status === 'error' ? <ImpactErrorState message={errorMessage} /> : null}
+        {status === 'ready' && impactData ? (
+          <>
+            <div className="impact-refresh-note" role="status">
+              <Clock aria-hidden="true" size={18} /> Latest refresh: {formatImpactDate(impactData.refreshedAt)} · Refresh window: {impactData.cacheTtlMinutes} minutes{impactData.stale ? ' · Data may be stale' : ''}
+            </div>
+            <div className="impact-stat-grid">{stats.map((stat) => <ImpactStatCard stat={stat} key={stat.label} />)}</div>
+          </>
+        ) : null}
+      </section>
+
+      {status === 'ready' && impactData ? (
+        <>
+          <section className="section" aria-labelledby="builders-wall-title">
+            <SectionHeading eyebrow="Wall of Founding Builders" title="Verified early contributors" titleId="builders-wall-title">
+              The wall recognizes contributors with merged repository work. Bot activity is excluded from the main wall and tracked separately when present.
+            </SectionHeading>
+            {impactData.contributors.length ? (
+              <div className="contributor-grid">
+                {impactData.contributors.map((contributor) => <ContributorCard contributor={contributor} key={contributor.login} onSelect={setSelectedLogin} />)}
+              </div>
+            ) : <ImpactEmptyState />}
+          </section>
+
+          {selectedContributor ? (
+            <section className="section" aria-labelledby="contributor-detail-heading">
+              <h2 className="visually-hidden" id="contributor-detail-heading">Selected contributor detail</h2>
+              <ContributorProfile contributor={selectedContributor} />
+            </section>
+          ) : null}
+
+          <section className="section section-grid" aria-labelledby="impact-rules-title">
+            <SectionHeading eyebrow="Attribution" title="How recognition is calculated" titleId="impact-rules-title">
+              Rules are documented here so visitors can understand how completed issues, merged pull requests and badges are assigned.
+            </SectionHeading>
+            <div className="story-panel">
+              <ul className="impact-rule-list">
+                {impactData.attributionRules.map((rule) => <li key={rule}>{rule}</li>)}
+              </ul>
+              {impactData.bots.length ? <p>Separated bot accounts: {impactData.bots.map((bot) => bot.login).join(', ')}.</p> : <p>No automated bot contributors were included in the public wall.</p>}
+            </div>
+          </section>
+        </>
+      ) : null}
     </main>
   );
 }
@@ -477,6 +754,8 @@ function App() {
       <Header />
       {path === '/founding-heroes' ? (
         <FoundingHeroesPage />
+      ) : path === '/impact' ? (
+        <ImpactDashboardPage />
       ) : path === '/become-a-founding-hero' ? (
         <BecomeFoundingHeroPage />
       ) : (
