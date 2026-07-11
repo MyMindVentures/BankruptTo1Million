@@ -224,6 +224,7 @@ type ImpactData = {
   refreshedAt: string;
   cacheTtlMinutes: number;
   stale: boolean;
+  warning?: string;
   stats: {
     totalIssues: number;
     openIssues: number;
@@ -282,7 +283,9 @@ function ContributorCard({ contributor, onSelect }: { contributor: Contributor; 
         <div><dt>PRs</dt><dd>{contributor.mergedPullRequests.length}</dd></div>
         <div><dt>Features</dt><dd>{contributor.featuresCompleted}</dd></div>
         <div><dt>Fixes</dt><dd>{contributor.bugFixesCompleted}</dd></div>
+        <div><dt>Reviews</dt><dd>{contributor.reviewsPerformed}</dd></div>
       </dl>
+      <p className="contributor-card__dates">First: {formatImpactDate(contributor.firstContributionDate)} · Latest: {formatImpactDate(contributor.mostRecentContributionDate)}</p>
       <div className="badge-list" aria-label={`Badges for ${contributor.login}`}>
         {contributor.badges.map((badge) => <ContributionBadge badge={badge} key={badge.label} />)}
       </div>
@@ -382,10 +385,10 @@ function ImpactDashboardPage() {
     { label: 'Total issues created', value: impactData.stats.totalIssues, description: 'Issues tracked in the public repository.' },
     { label: 'Open issues', value: impactData.stats.openIssues, description: 'Visible opportunities still waiting for builders.' },
     { label: 'Closed issues', value: impactData.stats.closedIssues, description: 'Issues closed or implemented in GitHub.' },
-    { label: 'Features completed', value: impactData.stats.featuresCompleted, description: 'Closed issues and merged PRs marked as features.' },
+    { label: 'Features completed', value: impactData.stats.featuresCompleted, description: 'Closed issues and merged PRs marked as feature, UI or backend work.' },
     { label: 'Bug fixes completed', value: impactData.stats.bugFixesCompleted, description: 'Closed issues and merged PRs marked as fixes.' },
     { label: 'Pull requests merged', value: impactData.stats.mergedPullRequests, description: 'Merged PRs counted once by PR number.' },
-    { label: 'Tests passed', value: impactData.stats.testsPassed ?? 'Not reported', description: 'Shown only when reliable workflow data is available.' },
+    { label: 'Workflow checks passed', value: impactData.stats.testsPassed ?? 'Not reported', description: 'Successful completed GitHub Actions runs when workflow data is available.' },
   ] : [];
 
   return (
@@ -414,7 +417,7 @@ function ImpactDashboardPage() {
         {status === 'ready' && impactData ? (
           <>
             <div className="impact-refresh-note" role="status">
-              <Clock aria-hidden="true" size={18} /> Latest refresh: {formatImpactDate(impactData.refreshedAt)} · Refresh window: {impactData.cacheTtlMinutes} minutes{impactData.stale ? ' · Data may be stale' : ''}
+              <Clock aria-hidden="true" size={18} /> Latest refresh: {formatImpactDate(impactData.refreshedAt)} · Refresh window: {impactData.cacheTtlMinutes} minutes{impactData.stale ? ' · Data may be stale' : ''}{impactData.warning ? ` · ${impactData.warning}` : ''}
             </div>
             <div className="impact-stat-grid">{stats.map((stat) => <ImpactStatCard stat={stat} key={stat.label} />)}</div>
           </>
