@@ -25,7 +25,7 @@ export function Header() {
           ))}
         </nav>
 
-        <a className="button button--small site-header__cta" href="https://github.com/MyMindVentures/BankruptTo1Million/issues">
+        <a className="button button--small site-header__cta" href="/issues">
           View Issues
         </a>
 
@@ -49,7 +49,7 @@ export function Header() {
             </a>
           ))}
         </nav>
-        <a className="button button--small" href="https://github.com/MyMindVentures/BankruptTo1Million/issues" onClick={closeMobileMenu}>
+        <a className="button button--small" href="/issues" onClick={closeMobileMenu}>
           View Issues
         </a>
       </div>
