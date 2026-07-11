@@ -2,6 +2,7 @@ import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, GitPullRequest, H
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
+import { JournalArticlePage, JournalPage } from './pages/JournalPages';
 import { SectionHeading } from './components/SectionHeading';
 import { supabase } from './lib/supabase';
 import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
@@ -905,7 +906,13 @@ function App() {
   return (
     <>
       <Header />
-      {path === '/founding-heroes' ? (
+      {path === '/journal' ? (
+        <JournalPage />
+      ) : path.startsWith('/journal/category/') || path.startsWith('/journal/tag/') || path.startsWith('/journal/venture/') || path.startsWith('/journal/author/') ? (
+        <JournalPage />
+      ) : path.startsWith('/journal/') ? (
+        <JournalArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
+      ) : path === '/founding-heroes' ? (
         <FoundingHeroesPage />
       ) : path === '/impact' ? (
         <ImpactDashboardPage />
