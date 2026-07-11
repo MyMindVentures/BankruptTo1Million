@@ -1,4 +1,4 @@
-import { ArrowRight, CheckCircle2, Github, HeartHandshake } from 'lucide-react';
+import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
 import { Header } from './components/Header';
 import { SectionHeading } from './components/SectionHeading';
 import { platformFeatures, roadmap } from './data/siteContent';
@@ -94,7 +94,7 @@ function App() {
           </div>
           <div className="contribute__actions">
             <a className="button" href="https://github.com/MyMindVentures/BankruptTo1Million/issues">
-              <Github aria-hidden="true" size={18} /> Browse open issues
+              <Users aria-hidden="true" size={18} /> Browse open issues
             </a>
             <a className="button button--ghost" href="https://github.com/MyMindVentures/BankruptTo1Million#how-to-contribute">
               <CheckCircle2 aria-hidden="true" size={18} /> Contribution guide
