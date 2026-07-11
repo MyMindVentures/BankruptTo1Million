@@ -100,6 +100,38 @@ Instead of waiting until every resource is available, we are building differentl
 
 ---
 
+## Environment Configuration
+
+This Vite application uses a single frontend Supabase client for future database-backed features. Local and deployed environments must provide only the public Supabase values listed in `.env.example`; never commit a service-role key or any real credentials.
+
+### Local development
+
+1. Copy the example file:
+
+```bash
+cp .env.example .env.local
+```
+
+2. Fill in these variables in `.env.local`:
+
+```text
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+The app reads both values through Vite environment variables. If either value is missing or empty, the shared Supabase client throws a developer-facing error that names the missing variable without printing credentials.
+
+### Railway deployment
+
+In Railway, add the same variables to the service environment:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+Use the public anon key only. Do not add `SUPABASE_SERVICE_ROLE_KEY`, service-role credentials or other secrets to frontend code.
+
+---
+
 ## Build One Feature. Become a Founding Builder.
 
 We are not asking one developer to build our entire vision.
