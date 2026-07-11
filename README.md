@@ -707,3 +707,16 @@ With sincere gratitude,
 Founders of Bankrupt to 1 Million
 
 > **Many hands make light work.** ❤️🚀
+---
+
+## Railway Deployment
+
+Railway can build the Vite app into `dist/` and serve that production build with `vite preview`.
+
+Recommended Railway commands:
+
+```text
+Build command: npm run build
+Start command: npm run start
+```
+
