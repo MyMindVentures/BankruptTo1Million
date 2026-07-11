@@ -1,4 +1,5 @@
 import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
+import type { FormEvent } from 'react';
 import { Header } from './components/Header';
 import { SectionHeading } from './components/SectionHeading';
 import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
@@ -180,6 +181,10 @@ function FoundingHeroesPage() {
 }
 
 function BecomeFoundingHeroPage() {
+  const handlePreviewSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+  };
+
   return (
     <main id="top" className="application-page">
       <section className="hero application-hero section-grid" aria-labelledby="application-hero-title">
@@ -221,19 +226,33 @@ function BecomeFoundingHeroPage() {
           Later issues will add fields, validation and Supabase submission. This issue establishes the accessible page and form structure only.
         </SectionHeading>
 
-        <form className="application-form" aria-describedby="application-form-status">
+        <form className="application-form" aria-describedby="application-form-status" onSubmit={handlePreviewSubmit}>
           <fieldset>
             <legend>Your identity</legend>
             <div className="form-grid">
               <div className="form-field">
                 <label htmlFor="founding-hero-name">Name</label>
-                <input id="founding-hero-name" name="name" type="text" placeholder="Your name or public alias" disabled />
-                <p>Identity fields will be finalized in a follow-up issue.</p>
+                <input
+                  id="founding-hero-name"
+                  name="name"
+                  type="text"
+                  placeholder="Your name or public alias"
+                  aria-describedby="founding-hero-name-help"
+                  disabled
+                />
+                <p id="founding-hero-name-help">Identity fields will be finalized in a follow-up issue.</p>
               </div>
               <div className="form-field">
                 <label htmlFor="founding-hero-email">Email</label>
-                <input id="founding-hero-email" name="email" type="email" placeholder="you@example.com" disabled />
-                <p>Used only for application follow-up after backend storage is configured.</p>
+                <input
+                  id="founding-hero-email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  aria-describedby="founding-hero-email-help"
+                  disabled
+                />
+                <p id="founding-hero-email-help">Used only for application follow-up after backend storage is configured.</p>
               </div>
             </div>
           </fieldset>
@@ -243,7 +262,13 @@ function BecomeFoundingHeroPage() {
             <div className="form-grid">
               <div className="form-field">
                 <label htmlFor="founding-hero-participation">Participation type</label>
-                <select id="founding-hero-participation" name="participation" disabled defaultValue="">
+                <select
+                  id="founding-hero-participation"
+                  name="participation"
+                  aria-describedby="founding-hero-participation-help"
+                  disabled
+                  defaultValue=""
+                >
                   <option value="">Choose a future option</option>
                   <option>Volunteer contribution</option>
                   <option>In-kind support</option>
@@ -251,12 +276,19 @@ function BecomeFoundingHeroPage() {
                   <option>Investment interest</option>
                   <option>Commercial collaboration</option>
                 </select>
-                <p>These models explain intent only and do not create an automatic agreement.</p>
+                <p id="founding-hero-participation-help">These models explain intent only and do not create an automatic agreement.</p>
               </div>
               <div className="form-field">
                 <label htmlFor="founding-hero-role">Contribution focus</label>
-                <input id="founding-hero-role" name="role" type="text" placeholder="Frontend, writing, testing, hosting..." disabled />
-                <p>Role selection will be implemented in a separate focused issue.</p>
+                <input
+                  id="founding-hero-role"
+                  name="role"
+                  type="text"
+                  placeholder="Frontend, writing, testing, hosting..."
+                  aria-describedby="founding-hero-role-help"
+                  disabled
+                />
+                <p id="founding-hero-role-help">Role selection will be implemented in a separate focused issue.</p>
               </div>
             </div>
           </fieldset>
@@ -265,8 +297,29 @@ function BecomeFoundingHeroPage() {
             <legend>Motivation and consent</legend>
             <div className="form-field">
               <label htmlFor="founding-hero-message">Why this mission fits you</label>
-              <textarea id="founding-hero-message" name="message" placeholder="A short note about the contribution you want to make" disabled />
-              <p>Long-form fields, validation and consent controls are intentionally out of scope here.</p>
+              <textarea
+                id="founding-hero-message"
+                name="message"
+                placeholder="A short note about the contribution you want to make"
+                aria-describedby="founding-hero-message-help"
+                disabled
+              />
+              <p id="founding-hero-message-help">Long-form fields, validation and consent controls are intentionally out of scope here.</p>
+            </div>
+            <div className="form-field consent-field">
+              <div className="consent-field__control">
+                <input
+                  id="founding-hero-recognition-consent"
+                  name="publicRecognitionConsent"
+                  type="checkbox"
+                  aria-describedby="founding-hero-recognition-consent-help"
+                  disabled
+                />
+                <label htmlFor="founding-hero-recognition-consent">I may want public recognition later</label>
+              </div>
+              <p id="founding-hero-recognition-consent-help">
+                Public recognition will require separate confirmation before anything is published on the Founding Heroes Wall.
+              </p>
             </div>
           </fieldset>
 
