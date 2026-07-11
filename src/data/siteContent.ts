@@ -19,11 +19,12 @@ export type RoadmapItem = {
 };
 
 export const navItems: NavItem[] = [
-  { label: 'Home', href: '#top' },
-  { label: 'Story', href: '#story' },
-  { label: 'Platform', href: '#platform' },
-  { label: 'Roadmap', href: '#roadmap' },
-  { label: 'Contribute', href: '#contribute' },
+  { label: 'Home', href: '/#top' },
+  { label: 'Story', href: '/#story' },
+  { label: 'Platform', href: '/#platform' },
+  { label: 'Roadmap', href: '/#roadmap' },
+  { label: 'Founding Heroes', href: '/founding-heroes' },
+  { label: 'Contribute', href: '/#contribute' },
 ];
 
 export const platformFeatures: FeatureCard[] = [
@@ -79,5 +80,50 @@ export const roadmap: RoadmapItem[] = [
     phase: 'Momentum',
     title: 'Partnership and support flows',
     description: 'Help sponsors, partners, hosts and contributors discover concrete ways to join the mission.',
+  },
+];
+
+
+export type FoundingHeroPlaceholder = {
+  label: string;
+  title: string;
+  description: string;
+};
+
+export type FoundingHeroRole = {
+  title: string;
+  description: string;
+};
+
+export const foundingHeroPlaceholders: FoundingHeroPlaceholder[] = [
+  {
+    label: 'Profile slot',
+    title: 'Builder story',
+    description: 'Reserved for a real contributor profile after permission, context and contribution details are confirmed.',
+  },
+  {
+    label: 'Anonymous option',
+    title: 'Quiet recognition',
+    description: 'Supports contributors who want their work honored without publishing a full public identity.',
+  },
+  {
+    label: 'Contribution record',
+    title: 'What changed',
+    description: 'Future profiles can connect recognition to concrete work such as issues, commits, designs or documentation.',
+  },
+];
+
+export const foundingHeroRoles: FoundingHeroRole[] = [
+  {
+    title: 'Frontend builders',
+    description: 'Ship focused UI, routing, accessibility and responsive improvements through clearly scoped issues.',
+  },
+  {
+    title: 'Story and content contributors',
+    description: 'Help turn real progress into clear editorial copy, documentation and public updates.',
+  },
+  {
+    title: 'Quality reviewers',
+    description: 'Test routes, keyboard behavior, responsive layouts and honest acceptance criteria before release.',
   },
 ];
