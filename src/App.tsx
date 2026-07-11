@@ -1,4 +1,6 @@
 import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
+import { useState } from 'react';
+import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
 import { SectionHeading } from './components/SectionHeading';
 import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
@@ -179,7 +181,78 @@ function FoundingHeroesPage() {
   );
 }
 
+type FoundingHeroApplicationForm = {
+  motivation: string;
+  experienceSummary: string;
+  availability: string;
+  consentToContact: boolean;
+  consentToPublicRecognition: boolean;
+};
+
+type FoundingHeroApplicationErrors = Partial<Record<keyof FoundingHeroApplicationForm, string>>;
+
+const initialFoundingHeroApplication: FoundingHeroApplicationForm = {
+  motivation: '',
+  experienceSummary: '',
+  availability: '',
+  consentToContact: false,
+  consentToPublicRecognition: false,
+};
+
 function BecomeFoundingHeroPage() {
+  const [application, setApplication] = useState<FoundingHeroApplicationForm>(initialFoundingHeroApplication);
+  const [errors, setErrors] = useState<FoundingHeroApplicationErrors>({});
+  const [submissionState, setSubmissionState] = useState<'idle' | 'submitted'>('idle');
+
+  const updateField = (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, type, value } = event.target;
+    const fieldName = name as keyof FoundingHeroApplicationForm;
+    const nextValue = type === 'checkbox' ? (event.target as HTMLInputElement).checked : value;
+
+    setApplication((currentApplication) => ({
+      ...currentApplication,
+      [fieldName]: nextValue,
+    }));
+    setErrors((currentErrors) => {
+      if (!currentErrors[fieldName]) {
+        return currentErrors;
+      }
+
+      const nextErrors = { ...currentErrors };
+      delete nextErrors[fieldName];
+      return nextErrors;
+    });
+    setSubmissionState('idle');
+  };
+
+  const validateApplication = () => {
+    const nextErrors: FoundingHeroApplicationErrors = {};
+
+    if (!application.motivation.trim()) {
+      nextErrors.motivation = 'Share a short motivation so we understand why this mission fits you.';
+    }
+
+    if (!application.consentToContact) {
+      nextErrors.consentToContact = 'Confirm that we may contact you about this application.';
+    }
+
+    return nextErrors;
+  };
+
+  const handlePreviewSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextErrors = validateApplication();
+    setErrors(nextErrors);
+
+    if (Object.keys(nextErrors).length > 0) {
+      setSubmissionState('idle');
+      return;
+    }
+
+    setSubmissionState('submitted');
+  };
+
   return (
     <main id="top" className="application-page">
       <section className="hero application-hero section-grid" aria-labelledby="application-hero-title">
@@ -188,14 +261,14 @@ function BecomeFoundingHeroPage() {
           <h1 id="application-hero-title">Start with one honest contribution.</h1>
           <p className="hero__lede">
             This page is the first public shell for people who want to help shape Bankrupt to 1 Million before the outcome is certain.
-            The form is not connected yet, so it clearly explains the next structure without pretending a submission was sent.
+            The form is not connected yet, so it validates the local application structure without pretending a submission was sent.
           </p>
         </div>
         <aside className="hero-card application-hero__note" aria-label="Application status">
           <CheckCircle2 aria-hidden="true" />
-          <blockquote>Not connected yet.</blockquote>
+          <blockquote>Frontend preview.</blockquote>
           <p>
-            The application flow is frontend-only for now. A real submission step will be added only after privacy, storage and backend handling are configured.
+            The application flow uses local state only for now. A real submission step will be added only after privacy, storage and backend handling are configured.
           </p>
         </aside>
       </section>
@@ -218,22 +291,36 @@ function BecomeFoundingHeroPage() {
 
       <section className="section" aria-labelledby="application-form-title">
         <SectionHeading eyebrow="Form shell" title="Structured application preview" titleId="application-form-title">
-          Later issues will add fields, validation and Supabase submission. This issue establishes the accessible page and form structure only.
+          This frontend-only form captures motivation, experience, availability and consent locally so the future Supabase submission can inherit a clear, accessible structure.
         </SectionHeading>
 
-        <form className="application-form" aria-describedby="application-form-status">
+        <form className="application-form" aria-describedby="application-form-status" noValidate onSubmit={handlePreviewSubmit}>
           <fieldset>
             <legend>Your identity</legend>
             <div className="form-grid">
               <div className="form-field">
                 <label htmlFor="founding-hero-name">Name</label>
-                <input id="founding-hero-name" name="name" type="text" placeholder="Your name or public alias" disabled />
-                <p>Identity fields will be finalized in a follow-up issue.</p>
+                <input
+                  id="founding-hero-name"
+                  name="name"
+                  type="text"
+                  placeholder="Your name or public alias"
+                  aria-describedby="founding-hero-name-help"
+                  disabled
+                />
+                <p id="founding-hero-name-help">Identity fields will be finalized in a follow-up issue.</p>
               </div>
               <div className="form-field">
                 <label htmlFor="founding-hero-email">Email</label>
-                <input id="founding-hero-email" name="email" type="email" placeholder="you@example.com" disabled />
-                <p>Used only for application follow-up after backend storage is configured.</p>
+                <input
+                  id="founding-hero-email"
+                  name="email"
+                  type="email"
+                  placeholder="you@example.com"
+                  aria-describedby="founding-hero-email-help"
+                  disabled
+                />
+                <p id="founding-hero-email-help">Used only for application follow-up after backend storage is configured.</p>
               </div>
             </div>
           </fieldset>
@@ -243,7 +330,13 @@ function BecomeFoundingHeroPage() {
             <div className="form-grid">
               <div className="form-field">
                 <label htmlFor="founding-hero-participation">Participation type</label>
-                <select id="founding-hero-participation" name="participation" disabled defaultValue="">
+                <select
+                  id="founding-hero-participation"
+                  name="participation"
+                  aria-describedby="founding-hero-participation-help"
+                  disabled
+                  defaultValue=""
+                >
                   <option value="">Choose a future option</option>
                   <option>Volunteer contribution</option>
                   <option>In-kind support</option>
@@ -251,31 +344,124 @@ function BecomeFoundingHeroPage() {
                   <option>Investment interest</option>
                   <option>Commercial collaboration</option>
                 </select>
-                <p>These models explain intent only and do not create an automatic agreement.</p>
+                <p id="founding-hero-participation-help">These models explain intent only and do not create an automatic agreement.</p>
               </div>
               <div className="form-field">
                 <label htmlFor="founding-hero-role">Contribution focus</label>
-                <input id="founding-hero-role" name="role" type="text" placeholder="Frontend, writing, testing, hosting..." disabled />
-                <p>Role selection will be implemented in a separate focused issue.</p>
+                <input
+                  id="founding-hero-role"
+                  name="role"
+                  type="text"
+                  placeholder="Frontend, writing, testing, hosting..."
+                  aria-describedby="founding-hero-role-help"
+                  disabled
+                />
+                <p id="founding-hero-role-help">Role selection will be implemented in a separate focused issue.</p>
               </div>
             </div>
           </fieldset>
 
           <fieldset>
             <legend>Motivation and consent</legend>
-            <div className="form-field">
-              <label htmlFor="founding-hero-message">Why this mission fits you</label>
-              <textarea id="founding-hero-message" name="message" placeholder="A short note about the contribution you want to make" disabled />
-              <p>Long-form fields, validation and consent controls are intentionally out of scope here.</p>
+            <div className="form-grid form-grid--single">
+              <div className="form-field">
+                <label htmlFor="founding-hero-motivation">Why this mission fits you <span aria-hidden="true">*</span></label>
+                <textarea
+                  id="founding-hero-motivation"
+                  name="motivation"
+                  value={application.motivation}
+                  placeholder="A short note about why you want to contribute"
+                  aria-describedby={`founding-hero-motivation-help${errors.motivation ? ' founding-hero-motivation-error' : ''}`}
+                  aria-invalid={errors.motivation ? 'true' : undefined}
+                  onChange={updateField}
+                  required
+                />
+                <p id="founding-hero-motivation-help">Required. Share what draws you to the mission and the contribution you hope to make.</p>
+                {errors.motivation ? (
+                  <p className="form-error" id="founding-hero-motivation-error">
+                    {errors.motivation}
+                  </p>
+                ) : null}
+              </div>
+              <div className="form-field">
+                <label htmlFor="founding-hero-experience">Relevant experience <span className="optional-label">Optional</span></label>
+                <textarea
+                  id="founding-hero-experience"
+                  name="experienceSummary"
+                  value={application.experienceSummary}
+                  placeholder="Skills, lived experience, projects or practical support you can offer"
+                  aria-describedby="founding-hero-experience-help"
+                  onChange={updateField}
+                />
+                <p id="founding-hero-experience-help">Optional. Include only the background you are comfortable sharing.</p>
+              </div>
+              <div className="form-field">
+                <label htmlFor="founding-hero-availability">Availability <span className="optional-label">Optional</span></label>
+                <select
+                  id="founding-hero-availability"
+                  name="availability"
+                  value={application.availability}
+                  aria-describedby="founding-hero-availability-help"
+                  onChange={updateField}
+                >
+                  <option value="">Choose if you want to share availability</option>
+                  <option value="one-off">One focused contribution</option>
+                  <option value="few-hours-month">A few hours per month</option>
+                  <option value="few-hours-week">A few hours per week</option>
+                  <option value="discuss-first">I would rather discuss what is realistic</option>
+                </select>
+                <p id="founding-hero-availability-help">Optional. This helps plan respectfully and does not imply a long-term commitment.</p>
+              </div>
+              <div className="form-field consent-field">
+                <div className="consent-field__control">
+                  <input
+                    id="founding-hero-contact-consent"
+                    name="consentToContact"
+                    type="checkbox"
+                    checked={application.consentToContact}
+                    aria-describedby={`founding-hero-contact-consent-help${errors.consentToContact ? ' founding-hero-contact-consent-error' : ''}`}
+                    aria-invalid={errors.consentToContact ? 'true' : undefined}
+                    onChange={updateField}
+                    required
+                  />
+                  <label htmlFor="founding-hero-contact-consent">You may contact me about this application <span aria-hidden="true">*</span></label>
+                </div>
+                <p id="founding-hero-contact-consent-help">Required. Contact permission is only for application follow-up and future consent confirmation.</p>
+                {errors.consentToContact ? (
+                  <p className="form-error" id="founding-hero-contact-consent-error">
+                    {errors.consentToContact}
+                  </p>
+                ) : null}
+              </div>
+              <div className="form-field consent-field">
+                <div className="consent-field__control">
+                  <input
+                    id="founding-hero-public-recognition-consent"
+                    name="consentToPublicRecognition"
+                    type="checkbox"
+                    checked={application.consentToPublicRecognition}
+                    aria-describedby="founding-hero-public-recognition-consent-help"
+                    onChange={updateField}
+                  />
+                  <label htmlFor="founding-hero-public-recognition-consent">I may want public recognition later <span className="optional-label">Optional</span></label>
+                </div>
+                <p id="founding-hero-public-recognition-consent-help">
+                  Optional and off by default. Public recognition will still require separate confirmation before anything is published on the Founding Heroes Wall.
+                </p>
+              </div>
             </div>
           </fieldset>
 
           <div className="form-status" id="application-form-status" role="status">
-            <strong>Submissions are not open yet.</strong>
-            <span>This shell is intentionally disabled until secure storage, privacy handling and real submission logic are configured.</span>
+            <strong>{submissionState === 'submitted' ? 'Local validation complete.' : 'Submissions are not open yet.'}</strong>
+            <span>
+              {submissionState === 'submitted'
+                ? 'This frontend preview has not sent data anywhere. Supabase submission will be added in a separate backend issue.'
+                : 'Complete the required local fields to preview validation. Secure storage, privacy handling and real submission logic are still pending.'}
+            </span>
           </div>
-          <button className="button" type="submit" disabled>
-            Submit application later
+          <button className="button" type="submit">
+            Preview application validation
           </button>
         </form>
       </section>
