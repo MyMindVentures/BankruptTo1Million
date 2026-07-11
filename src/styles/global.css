@@ -261,3 +261,61 @@ p { color: var(--muted); line-height: 1.7; }
   h1 { font-size: 3.4rem; }
   .button { width: 100%; }
 }
+
+.founding-page .hero {
+  padding-bottom: clamp(3rem, 7vw, 5rem);
+}
+
+.founding-hero h1 {
+  max-width: 8ch;
+}
+
+.founding-hero__note blockquote {
+  max-width: 9ch;
+}
+
+.placeholder-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2.5rem;
+}
+
+.placeholder-card,
+.role-list li {
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, rgba(36, 31, 24, 0.9), rgba(27, 23, 18, 0.72));
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.2);
+}
+
+.placeholder-card {
+  min-height: 18rem;
+  padding: 1.5rem;
+}
+
+.placeholder-card span {
+  display: inline-block;
+  margin-bottom: 3rem;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.role-list {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.role-list li {
+  padding: 1.25rem;
+}
+
+@media (max-width: 860px) {
+  .placeholder-grid { grid-template-columns: 1fr; }
+}

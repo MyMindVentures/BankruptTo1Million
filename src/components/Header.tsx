@@ -12,7 +12,7 @@ export function Header() {
   return (
     <header className="site-header">
       <div className="site-header__bar">
-        <a className="brand" href="#top" aria-label="Bankrupt to 1 Million home" onClick={closeMobileMenu}>
+        <a className="brand" href="/#top" aria-label="Bankrupt to 1 Million home" onClick={closeMobileMenu}>
           <span className="brand__mark">B1M</span>
           <span className="brand__text">Bankrupt to 1 Million</span>
         </a>
