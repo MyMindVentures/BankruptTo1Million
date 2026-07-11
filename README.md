@@ -711,9 +711,9 @@ Founders of Bankrupt to 1 Million
 
 ## Railway Deployment
 
-Railway can build the Vite app into `dist/` and serve that production build with `vite preview`.
+Railway can build the Vite app into `dist/` and serve that production build with the repository's lightweight Node static server.
 
-This repository includes `railway.json` so Railway installs dev dependencies before building the Vite production bundle, then serves the generated `dist/` directory with `vite preview`.
+This repository includes `railway.json` so Railway installs dev dependencies before building the Vite production bundle, then runs `npm run start` to bind the static server to Railway's provided `PORT` on `0.0.0.0`.
 
 Recommended Railway commands if configuring the service manually:
 
