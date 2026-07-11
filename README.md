@@ -713,10 +713,14 @@ Founders of Bankrupt to 1 Million
 
 Railway can build the Vite app into `dist/` and serve that production build with `vite preview`.
 
-Recommended Railway commands:
+This repository includes `railway.json` so Railway installs dev dependencies before building the Vite production bundle, then serves the generated `dist/` directory with `vite preview`.
+
+Recommended Railway commands if configuring the service manually:
 
 ```text
-Build command: npm run build
+Build command: npm install --include=dev && npm run build
 Start command: npm run start
 ```
+
+If Railway shows its platform-level **404 Not Found** page, confirm the public domain is attached to this service and redeploy after the build succeeds.
 
