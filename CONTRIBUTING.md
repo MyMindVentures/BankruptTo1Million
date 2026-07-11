@@ -10,7 +10,18 @@ Thank you for helping build the platform behind this mission.
 4. Read [DESIGN_MANIFESTO.md](./DESIGN_MANIFESTO.md).
 5. Build only the assigned scope.
 
-Each issue is intended to remain small and focused. Unless explicitly stated otherwise, the expected effort is no more than two hours.
+## Timebox Principle
+
+We intentionally design most GitHub Issues so they can be completed in approximately **two hours or less**. Respecting a contributor's time is one of our core principles.
+
+Small, clearly defined issues make it easier for more people to participate, reduce onboarding friction and create steady momentum across the project.
+
+- The default target is two hours or less per issue.
+- If an issue appears larger, it should normally be split before implementation begins.
+- Contributors are not expected to solve multiple issues in one Pull Request.
+- The timebox is guidance, not pressure. Quality and honest communication matter more than speed.
+
+Some contributions may require additional investigation, refinement or implementation time. When a contributor chooses to invest more than the expected time, we are especially grateful. That extra effort goes beyond completing a task; it helps move the entire mission forward and deserves explicit recognition.
 
 ## Contribution Standard
 
@@ -74,6 +85,8 @@ If you are reading this, you have already given us something valuable: your time
 Opening this journey means showing unfinished work, asking for help and trusting that the right people will recognize the thinking, talent and determination behind the mission. Whether you contribute one component, one fix, one design improvement or one thoughtful introduction, your contribution creates momentum.
 
 Every merged contribution represents more than completed work. It represents belief before proof.
+
+If your contribution takes more than the expected two hours and you still choose to continue, please know that we do not take that effort for granted. We are sincerely thankful for every additional hour, every careful decision and every improvement you make.
 
 Thank you for considering becoming part of this story.
 
