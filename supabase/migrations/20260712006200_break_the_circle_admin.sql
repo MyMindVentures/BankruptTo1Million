@@ -61,3 +61,23 @@ begin
   foreach v_author_id in array p_author_ids loop insert into public.journal_post_author_links (journal_post_id, journal_author_id, author_order, author_role) values (v_post_id, v_author_id, 0, 'author') on conflict do nothing; end loop;
   return query select v_post_id;
 end; $$;
+
+create or replace function public.transition_break_the_circle_post(p_post_id uuid, p_status text, p_scheduled_for timestamptz default null) returns table(id uuid)
+language plpgsql security invoker as $$
+declare v_post public.journal_posts%rowtype;
+begin
+  if (auth.jwt() -> 'app_metadata' ->> 'role') <> 'admin' then raise exception 'Administrator access is required.'; end if;
+  if p_status not in ('draft','scheduled','published','archived') then raise exception 'Unsupported Break the Circle status.'; end if;
+  select p.* into v_post from public.journal_posts p join public.break_the_circle_posts b on b.journal_post_id = p.id where p.id = p_post_id for update;
+  if v_post.id is null then raise exception 'Break the Circle post not found.'; end if;
+  if p_status in ('published','scheduled') and (nullif(v_post.body,'') is null or nullif(v_post.excerpt,'') is null) then raise exception 'Body and excerpt are required before publishing or scheduling.'; end if;
+  if p_status = 'scheduled' and (p_scheduled_for is null or p_scheduled_for <= now()) then raise exception 'Scheduled posts require a future scheduled date.'; end if;
+  update public.journal_posts set
+    status = p_status,
+    published_at = case when p_status = 'published' then now() when p_status = 'draft' then null when p_status = 'scheduled' then null else published_at end,
+    scheduled_for = case when p_status = 'scheduled' then p_scheduled_for when p_status in ('published','draft','archived') then null else scheduled_for end,
+    updated_at = now()
+  where journal_posts.id = p_post_id;
+  update public.break_the_circle_posts set updated_by = auth.uid(), updated_at = now() where journal_post_id = p_post_id;
+  return query select p_post_id;
+end; $$;
