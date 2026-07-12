@@ -1,0 +1,295 @@
+.partnership-ecosystem {
+  position: relative;
+  overflow: hidden;
+}
+
+.partnership-ecosystem::before {
+  content: '';
+  position: absolute;
+  inset: -8rem auto auto 55%;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(215, 168, 79, 0.16), transparent 68%);
+  pointer-events: none;
+}
+
+.partnership-ecosystem > * {
+  position: relative;
+}
+
+.partnership-ecosystem h2 {
+  max-width: 15ch;
+}
+
+.partnership-ecosystem__stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.8rem;
+  margin: 2rem 0;
+}
+
+.partnership-ecosystem__stats article {
+  padding: 1rem;
+  border: 1px solid var(--line);
+  border-radius: 1.1rem;
+  background: rgba(16, 13, 10, 0.48);
+}
+
+.partnership-ecosystem__stats strong,
+.partnership-ecosystem__stats span {
+  display: block;
+}
+
+.partnership-ecosystem__stats strong {
+  color: var(--gold);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  line-height: 1;
+}
+
+.partnership-ecosystem__stats span {
+  margin-top: 0.5rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.partnership-tabs {
+  display: flex;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0 0 0.7rem;
+  scrollbar-width: thin;
+}
+
+.partnership-tabs button {
+  flex: 0 0 auto;
+  min-height: 2.7rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 247, 237, 0.035);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.86rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: border-color var(--duration-fast), background var(--duration-fast), color var(--duration-fast);
+}
+
+.partnership-tabs button:hover,
+.partnership-tabs button:focus-visible,
+.partnership-tabs button.is-active {
+  border-color: rgba(215, 168, 79, 0.68);
+  background: var(--gold-soft);
+  color: var(--text);
+}
+
+.partnership-category-panel {
+  margin-top: 1.25rem;
+}
+
+.partnership-category-panel[hidden] {
+  display: none;
+}
+
+.partnership-category-panel__intro {
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid rgba(215, 168, 79, 0.28);
+  border-radius: 1.25rem;
+  background: linear-gradient(145deg, rgba(215, 168, 79, 0.1), rgba(16, 13, 10, 0.32));
+}
+
+.partnership-category-panel__heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.partnership-category-panel__heading h3 {
+  margin: 0;
+  font-size: clamp(1.35rem, 3vw, 2rem);
+}
+
+.partnership-category-panel__heading > span {
+  flex: 0 0 auto;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--gold);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+.partnership-category-panel__intro > p:last-child {
+  margin-bottom: 0;
+}
+
+.partnership-category-panel__profile {
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--line);
+}
+
+.partnership-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.partnership-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+  padding: clamp(1rem, 2.5vw, 1.4rem);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(36, 31, 24, 0.95), rgba(22, 18, 14, 0.88));
+  box-shadow: var(--shadow-soft);
+}
+
+.partnership-card__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: start;
+}
+
+.partnership-card__rank {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid rgba(215, 168, 79, 0.48);
+  border-radius: 50%;
+  color: var(--gold);
+  font-size: 0.78rem;
+  font-weight: 900;
+}
+
+.partnership-card__identity h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.partnership-card__subtitle {
+  margin: 0.35rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+.partnership-card__score {
+  color: var(--gold);
+  font-size: 0.86rem;
+}
+
+.partnership-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.partnership-card__meta span {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.partnership-card__block {
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--line);
+}
+
+.partnership-card__block strong {
+  color: var(--text);
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.partnership-card__block p {
+  margin: 0.45rem 0 0;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.partnership-card__block--value {
+  margin: 0 -0.35rem;
+  padding: 0.85rem 0.35rem 0;
+  border-top-color: rgba(215, 168, 79, 0.36);
+}
+
+.partnership-card__block--value strong {
+  color: var(--gold);
+}
+
+.partnership-card__link {
+  margin-top: auto;
+  color: var(--gold);
+  font-size: 0.86rem;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.partnership-card__link:hover,
+.partnership-card__link:focus-visible {
+  text-decoration: underline;
+}
+
+.partnership-ecosystem__callout {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+  border: 1px solid rgba(215, 168, 79, 0.42);
+  border-radius: 1.25rem;
+  background: var(--gold-soft);
+}
+
+.partnership-ecosystem__callout strong {
+  display: block;
+  color: var(--text);
+  font-size: 1.05rem;
+}
+
+.partnership-ecosystem__callout p {
+  margin: 0.35rem 0 0;
+}
+
+@media (max-width: 800px) {
+  .partnership-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .partnership-ecosystem__stats {
+    grid-template-columns: 1fr;
+  }
+
+  .partnership-category-panel__heading,
+  .partnership-ecosystem__callout {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .partnership-category-panel__heading > span {
+    align-self: flex-start;
+  }
+
+  .partnership-ecosystem__callout .button {
+    width: 100%;
+  }
+}
