@@ -13,10 +13,13 @@ export function Footer() {
           <p>A public rebuild told with honesty, useful work and human connection.</p>
         </div>
       </div>
-      <nav className="site-footer__nav" aria-label="Footer navigation">
-        {navItems.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
-        <a href={disclaimerHref}>Disclaimer</a>
-      </nav>
+      <div className="site-footer__sitemap">
+        <p className="eyebrow">Sitemap</p>
+        <nav className="site-footer__nav" aria-label="Website sitemap">
+          {navItems.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
+          <a href={disclaimerHref}>Disclaimer</a>
+        </nav>
+      </div>
       <a className="site-footer__mission" href="/support">
         <HeartHandshake aria-hidden="true" size={18} /> Support the mission <ArrowUpRight aria-hidden="true" size={16} />
       </a>
