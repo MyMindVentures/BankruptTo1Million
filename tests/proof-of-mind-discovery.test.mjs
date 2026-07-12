@@ -42,3 +42,9 @@ test('lead RPC normalizes and reuses leads, upserts concept relation, and preven
 test('raw Supabase errors are not displayed as the only fallback', () => {
   assert.match(page, /The request could not be saved\. Please try again shortly\./);
 });
+
+
+test('discovery success copy references the selected concept instead of a hard-coded venture', () => {
+  assert.match(page, /linked to \${concept\.title}/);
+  assert.doesNotMatch(page, /linked to Maritex AI/);
+});
