@@ -50,8 +50,9 @@ test('administrator can publish, unpublish, archive and schedule', () => {
   assert.match(page, />Archive</);
   assert.match(page, />Schedule</);
   assert.match(lib, /transitionBreakTheCirclePost/);
+  assert.match(lib, /transition_break_the_circle_post/);
   assert.match(lib, /Scheduled posts require a future scheduled date/);
-  assert.match(lib, /body\.scheduled_for = null/);
+  assert.match(migration, /Body and excerpt are required before publishing or scheduling/);
 });
 
 test('featured status and order are editable and sorted from metadata', () => {
