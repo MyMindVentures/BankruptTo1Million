@@ -6,7 +6,9 @@ import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pag
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
 import { supabase } from './lib/supabase';
-import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
+import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
+import type { PublicFoundingHero } from './lib/foundingHeroes';
+import { foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
 
 function HomePage() {
   return (
@@ -108,7 +110,40 @@ function HomePage() {
   );
 }
 
+function FoundingHeroCard({ hero }: { hero: PublicFoundingHero }) {
+  const initials = hero.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('') || 'FH';
+  const links = [
+    { href: hero.websiteUrl, label: 'Website' },
+    { href: hero.githubUrl, label: 'GitHub' },
+    { href: hero.linkedinUrl, label: 'LinkedIn' },
+  ].filter((link) => link.href);
+  return <article className={`founding-profile-card${hero.featured ? ' founding-profile-card--featured' : ''}`}>
+    <div className="founding-profile-card__top">
+      {hero.avatarUrl ? <img src={hero.avatarUrl} alt={`${hero.displayName} profile portrait`} loading="lazy" /> : <div className="founding-profile-card__avatar" aria-hidden="true">{initials}</div>}
+      <div>
+        <p className="eyebrow">{hero.featured ? 'Featured Founding Hero' : hero.recognitionLevel || 'Founding Hero'}</p>
+        <h3>{hero.displayName}</h3>
+        <p>{hero.roleTitle}</p>
+      </div>
+    </div>
+    {hero.shortBio ? <p>{hero.shortBio}</p> : null}
+    {hero.supportMessage ? <blockquote>{hero.supportMessage}</blockquote> : null}
+    <div className="founding-profile-card__meta">
+      {hero.location ? <span>{hero.location}</span> : null}
+      {hero.joinedAt ? <span>Joined {fmt(hero.joinedAt)}</span> : null}
+      {hero.isAnonymous ? <span>Identity kept private by request</span> : null}
+    </div>
+    {links.length ? <div className="founding-profile-card__links">{links.map((link) => <a key={link.label} href={link.href} target="_blank" rel="noreferrer">{link.label}<ExternalLink size={14} aria-hidden="true" /></a>)}</div> : null}
+  </article>;
+}
+
 function FoundingHeroesPage() {
+  const [heroes, setHeroes] = useState<PublicFoundingHero[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    getPublishedFoundingHeroes().then((rows) => { setHeroes(rows); setStatus('ready'); }).catch((e: Error) => { setError(e.message); setStatus('error'); });
+  }, []);
   return (
     <main id="top" className="founding-page">
       <section className="hero founding-hero section-grid" aria-labelledby="founding-hero-title">
@@ -116,7 +151,7 @@ function FoundingHeroesPage() {
           <p className="eyebrow">Founding Heroes</p>
           <h1 id="founding-hero-title">Belief before proof.</h1>
           <p className="hero__lede">
-            This future wall will recognize the early builders who chose to contribute before the outcome was certain.
+            This wall recognizes approved early builders who chose to contribute before the outcome was certain.
             It is a quiet public thank you for useful work, courage and trust.
           </p>
           <div className="hero__actions" aria-label="Founding Heroes calls to action">
@@ -124,7 +159,7 @@ function FoundingHeroesPage() {
               Become a Founding Hero <ArrowRight aria-hidden="true" size={18} />
             </a>
             <a className="button button--ghost" href="#founding-hero-profiles">
-              View future profiles
+              View profiles
             </a>
           </div>
         </div>
@@ -132,7 +167,7 @@ function FoundingHeroesPage() {
           <HeartHandshake aria-hidden="true" />
           <blockquote>Recognition without performance.</blockquote>
           <p>
-            Profiles will only appear with permission and will focus on meaningful contributions, not rankings, points or invented social proof.
+            Only published Supabase records appear here. Private applications, email addresses and internal notes stay hidden.
           </p>
         </aside>
       </section>
@@ -143,28 +178,22 @@ function FoundingHeroesPage() {
         </SectionHeading>
         <div className="story-panel">
           <p>
-            The page shell is intentionally honest today. It creates the structure for recognition without pretending that profiles,
-            numbers or testimonials already exist.
+            The wall is loaded from the approved public profile fields in Supabase, so publication changes are reflected on reload.
           </p>
           <p>
-            As the project grows, this chapter can hold approved contributor stories, public or anonymous recognition and the context behind each contribution.
+            Anonymous recognition is supported without exposing names, locations, avatars or social links.
           </p>
         </div>
       </section>
 
       <section className="section" id="founding-hero-profiles" aria-labelledby="profile-slots-title">
-        <SectionHeading eyebrow="Future profiles" title="Profile slots for later contributors" titleId="profile-slots-title">
-          These placeholders reserve space for permission-first editorial profiles once real contributors choose how they want to be recognized.
+        <SectionHeading eyebrow="Public wall" title="Published Founding Heroes" titleId="profile-slots-title">
+          Real profiles appear only after they are explicitly approved for publication.
         </SectionHeading>
-        <div className="placeholder-grid">
-          {foundingHeroPlaceholders.map((slot) => (
-            <article className="placeholder-card" key={slot.title}>
-              <span>{slot.label}</span>
-              <h3>{slot.title}</h3>
-              <p>{slot.description}</p>
-            </article>
-          ))}
-        </div>
+        {status === 'loading' ? <div className="impact-state" role="status" aria-live="polite">Loading Founding Heroes from Supabase…</div> : null}
+        {status === 'error' ? <div className="impact-state impact-state--error" role="alert">{error}</div> : null}
+        {status === 'ready' && !heroes.length ? <div className="impact-state"><strong>No Founding Heroes are published yet.</strong><br />Approved contributor profiles will appear here as soon as they are ready.</div> : null}
+        {heroes.length ? <div className="founding-profile-grid" role="list">{heroes.map((hero) => <div role="listitem" key={hero.id}><FoundingHeroCard hero={hero} /></div>)}</div> : null}
       </section>
 
       <section className="section section-grid" id="founding-hero-roles" aria-labelledby="roles-title">
@@ -183,7 +212,6 @@ function FoundingHeroesPage() {
     </main>
   );
 }
-
 
 
 type JsonRecord = Record<string, unknown>;
