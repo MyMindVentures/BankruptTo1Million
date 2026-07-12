@@ -1,4 +1,4 @@
-import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, GitPullRequest, HeartHandshake, RefreshCw, Users } from 'lucide-react';
+import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, Gift, GitPullRequest, HeartHandshake, RefreshCw, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
@@ -9,6 +9,8 @@ import { supabase } from './lib/supabase';
 import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
 import type { PublicFoundingHero } from './lib/foundingHeroes';
 import { foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
+import { categoryById, getSupportOpportunities, opportunitiesForCategory, submitSupportOffer, supportCategories } from './lib/supportMission';
+import type { SupportOffer, SupportOpportunity } from './lib/supportMission';
 
 function HomePage() {
   return (
@@ -25,8 +27,8 @@ function HomePage() {
             <a className="button" href="/issues">
               Browse contribution issues <ArrowRight aria-hidden="true" size={18} />
             </a>
-            <a className="button button--ghost" href="#story">
-              Read the mission
+            <a className="button button--ghost" href="/support">
+              Support our mission
             </a>
           </div>
         </div>
@@ -929,6 +931,51 @@ function BecomeFoundingHeroPage() {
   );
 }
 
+
+function SupportMissionPage({ categoryId }: { categoryId?: string }) {
+  const selectedCategory = categoryById(categoryId || '') || supportCategories[0];
+  const [opportunities, setOpportunities] = useState<SupportOpportunity[]>([]);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [error, setError] = useState('');
+  const [offer, setOffer] = useState<SupportOffer>({ name: '', email: '', categoryId: selectedCategory.id, message: '', consentToContact: false, consentToPublicRecognition: false });
+  const [formState, setFormState] = useState<'idle' | 'submitting' | 'success' | 'error'>('idle');
+  const [formError, setFormError] = useState('');
+
+  useEffect(() => {
+    setOffer((current) => ({ ...current, categoryId: selectedCategory.id }));
+  }, [selectedCategory.id]);
+
+  useEffect(() => {
+    getSupportOpportunities()
+      .then((rows) => { setOpportunities(rows); setStatus('ready'); })
+      .catch((e: Error) => { setError(e.message); setStatus('error'); });
+  }, []);
+
+  const counts = useMemo(() => Object.fromEntries(supportCategories.map((category) => [category.id, opportunitiesForCategory(opportunities, category.id).length])), [opportunities]);
+  const selectedOpportunities = opportunitiesForCategory(opportunities, selectedCategory.id);
+
+  async function handleOfferSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setFormState('submitting');
+    setFormError('');
+    if (!offer.name.trim() || !offer.email.trim() || !offer.message.trim() || !offer.consentToContact) {
+      setFormError('Please complete your name, email, support note and contact consent.');
+      setFormState('error');
+      return;
+    }
+    try {
+      await submitSupportOffer(offer);
+      setFormState('success');
+      setOffer({ name: '', email: '', categoryId: selectedCategory.id, message: '', consentToContact: false, consentToPublicRecognition: false });
+    } catch (e) {
+      setFormError(e instanceof Error ? e.message : 'Your support offer could not be submitted.');
+      setFormState('error');
+    }
+  }
+
+  return <main id="top" className="support-page"><section className="hero support-hero section-grid" aria-labelledby="support-title"><div className="hero__content"><p className="eyebrow">Mission ecosystem</p><h1 id="support-title">Support Our Mission</h1><p className="hero__lede">Every great mission is built by people who choose to contribute in their own unique way.</p><p>Bankrupt to 1 Million needs support across technology, wellbeing, business, storytelling, practical help and funding — without turning the mission into a generic donation page.</p><div className="hero__actions"><a className="button" href="#support-categories">Choose How You Can Help <ArrowRight aria-hidden="true" size={18} /></a><a className="button button--ghost" href="#support-offer">Offer Another Kind of Support</a></div></div><aside className="hero-card"><Gift aria-hidden="true"/><blockquote>Many ways to help.</blockquote><p>Choose a pathway, inspect current needs, or send a private offer when your skill, connection or resource does not fit a listed role.</p></aside></section><section className="section" id="support-categories" aria-labelledby="support-grid-title"><SectionHeading eyebrow="Pathways" title="Choose your contribution lane" titleId="support-grid-title">Each category is data-driven and connects to a stable detail view with current needs, open opportunities and privacy-first next steps.</SectionHeading>{status === 'loading' ? <div className="impact-state" role="status">Loading active support opportunities…</div> : null}{status === 'error' ? <div className="impact-state impact-state--error" role="alert">{error} Showing evergreen support pathways.</div> : null}<div className="support-grid">{supportCategories.map((category) => <article className="support-card" key={category.id}><span className="support-card__marker">{category.marker}</span><h3>{category.title}</h3><p>{category.summary}</p><p className="support-card__count">{counts[category.id] || 0} active opportunities</p><a className="button button--ghost button--small" href={`/support/${category.id}`}>{category.cta}</a></article>)}</div></section><section className="section section-grid support-detail" id="support-detail" aria-labelledby="support-detail-title"><div><p className="eyebrow">Category detail</p><h2 id="support-detail-title">{selectedCategory.title}</h2><p>{selectedCategory.whyItMatters}</p>{selectedCategory.privacyNote ? <p className="support-privacy-note">{selectedCategory.privacyNote} Coaches, therapists and wellbeing supporters do not replace licensed medical care.</p> : null}<h3>Current concrete needs</h3><ul className="support-need-list">{selectedCategory.needs.map((need) => <li key={need}>{need}</li>)}</ul></div><div className="story-panel"><h3>Open opportunities</h3>{status === 'loading' ? <p>Checking for current open roles…</p> : null}{status !== 'loading' && !selectedOpportunities.length ? <p>No specific open opportunity is published for this category yet. You can still send a private offer below.</p> : null}{selectedOpportunities.map((opportunity) => <article className="support-opportunity" key={opportunity.id}><h4>{opportunity.title}</h4><p>{opportunity.summary}</p><a className="button button--small" href={opportunity.applicationUrl || '#support-offer'}>{opportunity.applicationUrl ? 'Apply to opportunity' : 'Apply'}</a></article>)}</div></section><section className="section" id="support-offer" aria-labelledby="support-offer-title"><SectionHeading eyebrow="Private offer" title="Offer another kind of support" titleId="support-offer-title">You may have a skill, connection or resource we have not thought of yet. Tell us how you believe you can help.</SectionHeading><form className="application-form" onSubmit={handleOfferSubmit}><div className="form-grid"><div className="form-field"><label htmlFor="support-name">Name</label><input id="support-name" value={offer.name} onChange={(e)=>setOffer({...offer,name:e.target.value})} required /></div><div className="form-field"><label htmlFor="support-email">Email</label><input id="support-email" type="email" value={offer.email} onChange={(e)=>setOffer({...offer,email:e.target.value})} required /></div></div><div className="form-field"><label htmlFor="support-category">Support category</label><select id="support-category" value={offer.categoryId} onChange={(e)=>setOffer({...offer,categoryId:e.target.value})}>{supportCategories.map((category)=><option value={category.id} key={category.id}>{category.title}</option>)}<option value="another-kind">Another kind of support</option></select></div><div className="form-field"><label htmlFor="support-message">How can you help?</label><textarea id="support-message" value={offer.message} onChange={(e)=>setOffer({...offer,message:e.target.value})} required /></div><label><input type="checkbox" checked={offer.consentToContact} onChange={(e)=>setOffer({...offer,consentToContact:e.target.checked})} required /> You may contact me privately about this offer.</label><label><input type="checkbox" checked={offer.consentToPublicRecognition} onChange={(e)=>setOffer({...offer,consentToPublicRecognition:e.target.checked})} /> I may be open to public recognition later, after explicit separate consent.</label><div className={`form-status${formState === 'error' ? ' impact-state--error' : ''}`} role={formState === 'error' ? 'alert' : 'status'}><strong>{formState === 'success' ? 'Support offer received.' : formState === 'submitting' ? 'Submitting…' : 'Private by default.'}</strong><span>{formState === 'success' ? 'Thank you. Public recognition still requires separate explicit consent.' : formError || 'Email, health details and internal notes are never displayed publicly from this page.'}</span></div><button className="button" type="submit" disabled={formState === 'submitting'}>Offer Another Kind of Support</button></form></section></main>;
+}
+
 function App() {
   const path = window.location.pathname;
 
@@ -961,6 +1008,10 @@ function App() {
         <JournalArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
       ) : path === '/founding-heroes' ? (
         <FoundingHeroesPage />
+      ) : path === '/support' ? (
+        <SupportMissionPage />
+      ) : path.startsWith('/support/') ? (
+        <SupportMissionPage categoryId={decodeURIComponent(path.split('/')[2] || '')} />
       ) : path === '/impact' ? (
         <ImpactDashboardPage />
       ) : path === '/issues' ? (
