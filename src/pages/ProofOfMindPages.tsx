@@ -49,7 +49,7 @@ function DiscoveryCallModal({ concept, onClose }: { concept: ProofOfMindConcept;
     try {
       await submitProofOfMindDiscovery(payload);
       setState('success');
-      setMessage('Thank you. Your discovery call request has been saved and linked to Maritex AI. We will contact you soon.');
+      setMessage(`Thank you. Your discovery call request has been saved and linked to ${concept.title}. We will contact you soon.`);
     } catch (error) {
       setState('error');
       setMessage('The request could not be saved. Please try again shortly.');
