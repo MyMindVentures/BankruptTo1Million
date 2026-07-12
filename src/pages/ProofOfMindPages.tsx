@@ -1,10 +1,11 @@
-import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, Copy, Database, ExternalLink, Factory, Film, Globe2, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
+import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Copy, Database, ExternalLink, Factory, Film, Globe2, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { canOpenProofOfMindConcept, getProofOfMindConceptBySlug, getProofOfMindConcepts, normalizeProofOfMindUrl, submitProofOfMindDiscovery, trackProofOfMindEvent, validateProofOfMindDiscoveryInput } from '../lib/proofOfMind';
 import type { ProofOfMindConcept, ProofOfMindConceptDetail } from '../lib/proofOfMind';
 import '../styles/proofOfMind.css';
+import '../styles/proofOfMindExpandableCards.css';
 
 function ProofOfMindErrorState({ onRetry }: { onRetry: () => void }) {
   return <div className="impact-state impact-state--error" role="alert"><div><strong>Proof of Mind could not be loaded.</strong><br />The public archive request failed.</div><button className="button button--small" type="button" onClick={onRetry}><RefreshCw size={16} aria-hidden="true" /> Try again</button></div>;
@@ -83,20 +84,25 @@ async function shareConcept(concept: ProofOfMindConcept, platform = 'native') {
 function ConceptCard({ concept, onDiscovery }: { concept: ProofOfMindConcept; onDiscovery: (concept: ProofOfMindConcept) => void }) {
   const openable = canOpenProofOfMindConcept(concept);
   const [copied, setCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const copy = async () => { const ok = await shareConcept(concept, 'card'); if (ok) { setCopied(true); window.setTimeout(() => setCopied(false), 1800); } };
-  return <article className={`concept-card proof-premium-card${concept.is_featured ? ' concept-card--featured' : ''}`}>
+  return <article className={`concept-card proof-premium-card ${expanded ? 'concept-card--expanded' : 'concept-card--compact'}${concept.is_featured ? ' concept-card--featured' : ''}`}>
     <ConceptVisual concept={concept} />
-    <div className="concept-card__meta"><span>{humanize(concept.concept_type)}</span><span>{concept.category}</span><span>{humanize(concept.concept_status)}</span>{concept.viral_score !== null ? <span>Viral {concept.viral_score}/10</span> : null}</div>
+    <div className="concept-card__meta"><span>{humanize(concept.concept_type)}</span><span>{concept.category}</span><span>{humanize(concept.concept_status)}</span></div>
     <div className="concept-card__title-row"><h3>{concept.title}</h3>{concept.concept_score !== null ? <strong>{concept.concept_score}/10</strong> : null}</div>
     {concept.tagline ? <p className="concept-card__tagline">{concept.tagline}</p> : null}
-    {concept.founder ? <p className="concept-card__founder">Created by {concept.founder.name}{concept.founder.is_original_creator ? ' · original creator' : ''}</p> : null}
-    <div className="proof-score-row"><ScoreBadge label="Concept" value={concept.concept_score} /><ScoreBadge label="Evaluation" value={concept.evaluation?.average_score} /></div>
-    {concept.evaluation?.strongest_criteria.length ? <div className="proof-mini-chips">{concept.evaluation.strongest_criteria.slice(0, 3).map((item) => <span key={item.criterion}>{item.criterion}{item.score !== null ? ` · ${item.score}/10` : ''}</span>)}</div> : null}
-    {concept.viral_hook ? <div className="proof-viral-hook"><Sparkles size={16} /><p>{concept.viral_hook}</p></div> : null}
     {concept.short_description ? <p className="concept-card__clamp">{concept.short_description}</p> : null}
-    {concept.competition.competitive_advantage || concept.innovation_summary ? <div className="concept-card__innovation"><span>Why this wins</span><p>{concept.competition.competitive_advantage || concept.innovation_summary}</p></div> : null}
-    <div className="concept-card__lists"><div><span>Problems solved</span><ol>{concept.problems_solved.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol></div><div><span>Core capabilities</span><ul>{concept.key_features.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ul></div></div>
-    <div className="concept-card__footer"><span>{openable ? 'Full public page' : 'Protected teaser'}</span>{concept.primary_market ? <span>{concept.primary_market}</span> : null}{concept.competition.count ? <span>{concept.competition.count} competitors</span> : null}{leadSummary(concept) ? <span>{leadSummary(concept)}</span> : null}</div>
+    <div className="concept-card__compact-signals"><span>{openable ? 'Full public concept' : 'Protected teaser'}</span>{concept.primary_market ? <span>{concept.primary_market}</span> : null}{concept.key_features.length ? <span>{concept.key_features.length} core capabilities</span> : null}</div>
+    {expanded ? <>
+      {concept.founder ? <p className="concept-card__founder">Created by {concept.founder.name}{concept.founder.is_original_creator ? ' · original creator' : ''}</p> : null}
+      <div className="proof-score-row"><ScoreBadge label="Concept" value={concept.concept_score} /><ScoreBadge label="Evaluation" value={concept.evaluation?.average_score} /></div>
+      {concept.evaluation?.strongest_criteria.length ? <div className="proof-mini-chips">{concept.evaluation.strongest_criteria.slice(0, 3).map((item) => <span key={item.criterion}>{item.criterion}{item.score !== null ? ` · ${item.score}/10` : ''}</span>)}</div> : null}
+      {concept.viral_hook ? <div className="proof-viral-hook"><Sparkles size={16} /><p>{concept.viral_hook}</p></div> : null}
+      {concept.competition.competitive_advantage || concept.innovation_summary ? <div className="concept-card__innovation"><span>Why this wins</span><p>{concept.competition.competitive_advantage || concept.innovation_summary}</p></div> : null}
+      <div className="concept-card__lists"><div><span>Problems solved</span><ol>{concept.problems_solved.slice(0, 3).map((item) => <li key={item}>{item}</li>)}</ol></div><div><span>Core capabilities</span><ul>{concept.key_features.slice(0, 4).map((item) => <li key={item}>{item}</li>)}</ul></div></div>
+      <div className="concept-card__footer">{concept.viral_score !== null ? <span>Viral {concept.viral_score}/10</span> : null}{concept.competition.count ? <span>{concept.competition.count} competitors</span> : null}{leadSummary(concept) ? <span>{leadSummary(concept)}</span> : null}</div>
+    </> : null}
+    <button className="proof-card-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <><ChevronUp size={16} /> Show less</> : <><ChevronDown size={16} /> Show more</>}</button>
     <div className="proof-card-actions">{openable ? <a className="button button--small" href={`/proof-of-mind/${concept.slug}`} onClick={() => void trackProofOfMindEvent(concept.id, 'detail_open', { source: 'teaser_card' })}>View full concept <ArrowRight size={16} /></a> : <button className="button button--small" type="button" onClick={() => onDiscovery(concept)}>Register interest</button>}<button className="button button--ghost button--small" type="button" onClick={copy}>{copied ? <CheckCircle size={16} /> : <Share2 size={16} />}{copied ? 'Shared' : 'Share'}</button></div>
   </article>;
 }
