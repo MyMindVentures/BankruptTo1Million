@@ -25,12 +25,13 @@ const footerGroups = [
     ],
   },
   {
-    title: 'Transparency',
+    title: 'Legal & Transparency',
     links: [
-      { label: 'Mission Context', href: '/break-the-circle' },
-      { label: 'Public Build Log', href: '/journal' },
-      { label: 'Concept Ownership', href: '/proof-of-mind' },
-      { label: 'Contribution Guide', href: 'https://github.com/MyMindVentures/BankruptTo1Million#how-to-contribute', external: true },
+      { label: 'Legal Overview', href: '/legal' },
+      { label: 'Ownership & IP Notice', href: '/legal#ownership' },
+      { label: 'Terms of Use', href: '/legal#terms' },
+      { label: 'Privacy Policy', href: '/legal#privacy' },
+      { label: 'Public Mission Statement', href: '/legal#mission' },
       { label: 'Source Repository', href: 'https://github.com/MyMindVentures/BankruptTo1Million', external: true },
     ],
   },
@@ -58,7 +59,7 @@ export function Footer() {
           </p>
 
           <div className="site-footer__trust">
-            <span><ShieldCheck size={16} aria-hidden="true" /> Original concepts protected</span>
+            <a href="/legal#ownership"><ShieldCheck size={16} aria-hidden="true" /> Original concepts protected</a>
             <span><MapPin size={16} aria-hidden="true" /> Based in Alicante, Spain</span>
           </div>
 
@@ -74,8 +75,8 @@ export function Footer() {
 
         <nav className="site-footer__sitemap" aria-label="Complete website sitemap">
           {footerGroups.map((group) => (
-            <section className="site-footer__group" key={group.title} aria-labelledby={`footer-${group.title.toLowerCase()}`}>
-              <h2 id={`footer-${group.title.toLowerCase()}`}>{group.title}</h2>
+            <section className="site-footer__group" key={group.title} aria-labelledby={`footer-${group.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+              <h2 id={`footer-${group.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{group.title}</h2>
               <ul>
                 {group.links.map((link) => (
                   <li key={`${group.title}-${link.href}`}>
@@ -100,7 +101,8 @@ export function Footer() {
           <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer">
             <Github size={16} aria-hidden="true" /> GitHub
           </a>
-          <a href="/proof-of-mind">Ownership notice</a>
+          <a href="/legal#ownership">Ownership notice</a>
+          <a href="/legal#privacy">Privacy</a>
           <a href="#top"><ArrowUp size={15} aria-hidden="true" /> Back to top</a>
         </div>
       </div>
