@@ -1038,3 +1038,88 @@ p { color: var(--muted); line-height: 1.7; }
 @media (max-width: 680px) {
   .founding-profile-grid { grid-template-columns: 1fr; }
 }
+
+.support-hero h1 { max-width: 9ch; }
+.support-hero .hero__content > p:not(.eyebrow):not(.hero__lede) { max-width: 42rem; }
+.support-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+.support-card,
+.support-opportunity {
+  border: 1px solid var(--line);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, rgba(36,31,24,.95), rgba(27,23,18,.78));
+  box-shadow: 0 1.5rem 4rem rgba(0,0,0,.22);
+  padding: 1.35rem;
+}
+.support-card {
+  display: grid;
+  align-content: start;
+  gap: .85rem;
+  min-height: 100%;
+}
+.support-card h3,
+.support-card p,
+.support-opportunity p { margin: 0; }
+.support-card .button { align-self: end; width: fit-content; margin-top: .35rem; }
+.support-card__marker,
+.support-card__count {
+  color: var(--gold);
+  font-size: .78rem;
+  font-weight: 900;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.support-card__marker {
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid rgba(215,168,79,.42);
+  border-radius: 50%;
+  background: var(--gold-soft);
+}
+.support-card__count { color: var(--muted); }
+.support-detail h2 { max-width: 11ch; }
+.support-privacy-note {
+  padding: 1rem;
+  border: 1px solid rgba(215,168,79,.36);
+  border-radius: 1rem;
+  background: var(--gold-soft);
+}
+.support-need-list {
+  display: grid;
+  gap: .75rem;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.support-opportunity {
+  display: grid;
+  gap: .75rem;
+  margin-top: 1rem;
+  box-shadow: none;
+}
+.support-opportunity h4 { margin: 0; color: var(--text); font-size: 1rem; }
+.support-opportunity .button { width: fit-content; }
+.application-form > label {
+  display: flex;
+  align-items: flex-start;
+  gap: .65rem;
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.6;
+}
+.application-form > label input[type="checkbox"] {
+  width: 1.1rem;
+  min-width: 1.1rem;
+  height: 1.1rem;
+  margin-top: .25rem;
+  accent-color: var(--gold);
+}
+@media (max-width: 960px) { .support-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .support-grid { grid-template-columns: 1fr; } .support-card .button, .support-opportunity .button { width: 100%; } }
