@@ -2,6 +2,7 @@ import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, Gift, GitPullRequ
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pages/JournalPages';
 import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
@@ -983,6 +984,7 @@ function App() {
   return (
     <>
       <Header />
+      <div className="page-shell">
       {path === '/help-us-break-the-circle' ? (
         <BreakTheCirclePage />
       ) : path.startsWith('/help-us-break-the-circle/') ? (
@@ -1032,6 +1034,8 @@ function App() {
       ) : (
         <HomePage />
       )}
+      </div>
+      <Footer />
     </>
   );
 }
