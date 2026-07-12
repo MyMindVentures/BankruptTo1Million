@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
 import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pages/JournalPages';
+import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
 import { supabase } from './lib/supabase';
@@ -1000,6 +1001,10 @@ function App() {
         <BreakTheCirclePage />
       ) : path.startsWith('/break-the-circle/') ? (
         <BreakTheCircleArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
+      ) : path === '/proof-of-mind' ? (
+        <ProofOfMindPage />
+      ) : path.startsWith('/proof-of-mind/') ? (
+        <ProofOfMindDetailPage slug={decodeURIComponent(path.split('/')[2] || '')} />
       ) : path === '/journal' ? (
         <JournalPage />
       ) : path.startsWith('/journal/category/') || path.startsWith('/journal/tag/') || path.startsWith('/journal/venture/') || path.startsWith('/journal/author/') ? (
