@@ -16,6 +16,20 @@ export type ProofOfMindConcept = {
   is_fully_openable: boolean;
 };
 
+export type ProofOfMindDiscoveryInput = {
+  concept_id: string;
+  full_name: string;
+  email: string;
+  company: string;
+  role: string;
+  country: string;
+  interest_message: string;
+  consent_to_contact: boolean;
+  website?: string;
+  linkedin?: string;
+  interest_type?: string;
+};
+
 export type ProofOfMindConceptDetail = ProofOfMindConcept & {
   problem: string | null;
   solution: string | null;
@@ -120,4 +134,34 @@ export async function getProofOfMindConceptBySlug(slug: string) {
   if (!row) return null;
   const concept = normalizeDetail(row);
   return canOpenProofOfMindConcept(concept) ? concept : null;
+}
+
+
+export function validateProofOfMindDiscoveryInput(input: ProofOfMindDiscoveryInput) {
+  if (!text(input.concept_id)) throw new Error('A selected concept is required.');
+  if (!text(input.full_name)) throw new Error('Full name is required.');
+  const email = text(input.email)?.toLowerCase();
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('A valid email address is required.');
+  if (!text(input.company)) throw new Error('Company or organisation is required.');
+  if (!text(input.role)) throw new Error('Role is required.');
+  if (!text(input.country)) throw new Error('Country or location is required.');
+  if (!text(input.interest_message)) throw new Error('Please tell us why this concept interests you.');
+  if (input.consent_to_contact !== true) throw new Error('Consent to be contacted is required.');
+}
+
+export async function submitProofOfMindDiscovery(input: ProofOfMindDiscoveryInput) {
+  validateProofOfMindDiscoveryInput(input);
+  await readJson(supabase.rpc('submit_proof_of_mind_discovery_call', {
+    p_concept_id: input.concept_id,
+    p_full_name: input.full_name.trim(),
+    p_email: input.email.trim().toLowerCase(),
+    p_company: input.company.trim(),
+    p_role: input.role.trim(),
+    p_country: input.country.trim(),
+    p_interest_message: input.interest_message.trim(),
+    p_consent_to_contact: input.consent_to_contact,
+    p_website: text(input.website),
+    p_linkedin: text(input.linkedin),
+    p_interest_type: text(input.interest_type) || 'other',
+  }));
 }
