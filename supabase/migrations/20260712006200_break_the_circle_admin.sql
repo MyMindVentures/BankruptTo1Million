@@ -49,7 +49,9 @@ begin
   else
     v_post_id := p_post_id;
     update public.journal_posts set slug=p_post->>'slug', status=p_post->>'status', title=p_post->>'title', subtitle=nullif(p_post->>'subtitle',''), excerpt=nullif(p_post->>'excerpt',''), body=nullif(p_post->>'body',''), content_format=coalesce(p_post->>'content_format','markdown'), cover_image_url=nullif(p_post->>'cover_image_url',''), cover_image_alt=nullif(p_post->>'cover_image_alt',''), original_language=coalesce(p_post->>'original_language','en'), category_id=v_category_id, is_featured=coalesce((p_post->>'is_featured')::boolean,false), published_at=nullif(p_post->>'published_at','')::timestamptz, scheduled_for=nullif(p_post->>'scheduled_for','')::timestamptz, reading_time_minutes=nullif(p_post->>'reading_time_minutes','')::integer, seo_title=nullif(p_post->>'seo_title',''), seo_description=nullif(p_post->>'seo_description',''), og_image_url=nullif(p_post->>'og_image_url',''), updated_at=now() where journal_posts.id=v_post_id;
-    update public.break_the_circle_posts set cta_label=nullif(p_meta->>'cta_label',''), cta_url=nullif(p_meta->>'cta_url',''), is_featured=coalesce((p_meta->>'is_featured')::boolean,false), featured_order=coalesce((p_meta->>'featured_order')::integer,0), updated_by=auth.uid(), updated_at=now() where journal_post_id=v_post_id;
+    insert into public.break_the_circle_posts (journal_post_id,cta_label,cta_url,is_featured,featured_order,created_by,updated_by)
+    values (v_post_id, nullif(p_meta->>'cta_label',''), nullif(p_meta->>'cta_url',''), coalesce((p_meta->>'is_featured')::boolean,false), coalesce((p_meta->>'featured_order')::integer,0), auth.uid(), auth.uid())
+    on conflict (journal_post_id) do update set cta_label=excluded.cta_label, cta_url=excluded.cta_url, is_featured=excluded.is_featured, featured_order=excluded.featured_order, updated_by=auth.uid(), updated_at=now();
   end if;
   delete from public.journal_post_tags where journal_post_id=v_post_id;
   foreach v_tag_id in array p_tag_ids loop insert into public.journal_post_tags (journal_post_id, tag_id) values (v_post_id, v_tag_id) on conflict do nothing; end loop;

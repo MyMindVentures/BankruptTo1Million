@@ -26,6 +26,7 @@ test('administrator create writes journal and metadata through one rpc', () => {
   assert.match(lib, /upsert_break_the_circle_post/);
   assert.match(migration, /insert into public\.journal_posts/);
   assert.match(migration, /insert into public\.break_the_circle_posts/);
+  assert.match(migration, /on conflict \(journal_post_id\) do update/);
   assert.match(migration, /raise exception 'Administrator access is required\.'/);
 });
 
@@ -42,6 +43,8 @@ test('administrator can publish, unpublish, archive and schedule', () => {
   assert.match(page, />Archive</);
   assert.match(page, />Schedule</);
   assert.match(lib, /transitionBreakTheCirclePost/);
+  assert.match(lib, /Scheduled posts require a future scheduled date/);
+  assert.match(lib, /body\.scheduled_for = null/);
 });
 
 test('featured status and order are editable and sorted from metadata', () => {
