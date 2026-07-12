@@ -1,0 +1,189 @@
+.proof-ownership-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  width: fit-content;
+  margin: 0.75rem 0 0.15rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #d2a85a) 32%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface, #111318) 88%, var(--accent, #d2a85a) 12%);
+}
+
+.proof-ownership-signal__icon {
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--accent, #d2a85a) 22%, transparent);
+  color: var(--accent, #d2a85a);
+  font-size: 0.7rem;
+}
+
+.proof-ownership-signal__copy {
+  display: grid;
+  gap: 0.08rem;
+  line-height: 1.2;
+}
+
+.proof-ownership-signal__copy strong {
+  color: var(--text, #f7f3ea);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.proof-ownership-signal__copy small {
+  color: var(--muted, #a8a39a);
+  font-size: 0.68rem;
+}
+
+.proof-ownership {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 1.35rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #d2a85a) 38%, transparent);
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent, #d2a85a) 14%, transparent), transparent 38%),
+    linear-gradient(145deg, color-mix(in srgb, var(--surface, #111318) 94%, #ffffff 6%), var(--surface, #111318));
+  box-shadow: 0 24px 70px rgb(0 0 0 / 28%);
+}
+
+.proof-ownership::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+}
+
+.proof-ownership__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.proof-ownership__icon {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--accent, #d2a85a) 18%, transparent);
+  color: var(--accent, #d2a85a);
+  font-size: 0.95rem;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent, #d2a85a) 26%, transparent);
+}
+
+.proof-ownership__header .eyebrow {
+  margin-bottom: 0.35rem;
+}
+
+.proof-ownership__title {
+  margin: 0;
+  max-width: 20ch;
+}
+
+.proof-ownership__identity {
+  display: grid;
+  gap: 0.3rem;
+  padding: 1rem 1.1rem;
+  border-left: 3px solid var(--accent, #d2a85a);
+  background: rgb(255 255 255 / 3%);
+}
+
+.proof-ownership__identity strong {
+  color: var(--text, #f7f3ea);
+  font-size: clamp(1.15rem, 2vw, 1.45rem);
+}
+
+.proof-ownership__identity span {
+  color: var(--muted, #a8a39a);
+}
+
+.proof-ownership__meta {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.proof-ownership__meta-item {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+  padding: 0.9rem;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 0.85rem;
+  background: rgb(0 0 0 / 12%);
+}
+
+.proof-ownership__meta-item span {
+  color: var(--muted, #a8a39a);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.proof-ownership__meta-item strong {
+  overflow-wrap: anywhere;
+  color: var(--text, #f7f3ea);
+  font-size: 0.9rem;
+}
+
+.proof-ownership__context,
+.proof-ownership__rights {
+  max-width: 78ch;
+}
+
+.proof-ownership__context p,
+.proof-ownership__rights p {
+  margin: 0;
+  color: var(--muted, #b9b4aa);
+  line-height: 1.75;
+}
+
+.proof-ownership__rights {
+  display: grid;
+  gap: 0.65rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #d2a85a) 22%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--accent, #d2a85a) 6%, transparent);
+}
+
+.proof-ownership__rights > strong {
+  color: var(--text, #f7f3ea);
+}
+
+.proof-ownership__collaboration {
+  color: var(--text, #f7f3ea) !important;
+  font-weight: 650;
+}
+
+@media (max-width: 860px) {
+  .proof-ownership__meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .proof-ownership-signal {
+    width: 100%;
+    border-radius: 0.85rem;
+  }
+
+  .proof-ownership__meta {
+    grid-template-columns: 1fr;
+  }
+
+  .proof-ownership__header {
+    align-items: center;
+  }
+
+  .proof-ownership__title {
+    max-width: none;
+  }
+}
