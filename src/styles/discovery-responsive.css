@@ -1,0 +1,117 @@
+.discovery-modal,
+.discovery-modal *,
+.discovery-modal *::before,
+.discovery-modal *::after {
+  box-sizing: border-box;
+}
+
+.discovery-modal {
+  overflow: hidden;
+  padding:
+    max(0.75rem, env(safe-area-inset-top))
+    max(0.75rem, env(safe-area-inset-right))
+    max(0.75rem, env(safe-area-inset-bottom))
+    max(0.75rem, env(safe-area-inset-left));
+}
+
+.discovery-modal__panel {
+  width: min(100%, 48rem);
+  max-width: 100%;
+  max-height: calc(100dvh - 1.5rem);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.discovery-form {
+  min-width: 0;
+  margin-top: 0;
+  padding: clamp(1rem, 4vw, 2rem);
+  padding-top: 3.75rem;
+}
+
+.discovery-form > *,
+.discovery-form .form-grid,
+.discovery-form label {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.discovery-form input:not([type='checkbox']),
+.discovery-form select,
+.discovery-form textarea,
+.discovery-form button {
+  width: 100%;
+  max-width: 100%;
+}
+
+.discovery-form input,
+.discovery-form select,
+.discovery-form textarea {
+  min-width: 0;
+}
+
+.discovery-form textarea {
+  resize: vertical;
+}
+
+.discovery-form .hero__actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.discovery-form > label:has(input[type='checkbox']) {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.discovery-form > label:has(input[type='checkbox']) input[type='checkbox'] {
+  flex: 0 0 1.15rem;
+  width: 1.15rem;
+  min-width: 1.15rem;
+  height: 1.15rem;
+  margin-top: 0.2rem;
+}
+
+.discovery-modal__close {
+  position: sticky;
+  top: 0.75rem;
+  float: right;
+  margin: 0.75rem 0.75rem -3.15rem 0;
+}
+
+@media (max-width: 719px) {
+  .discovery-modal {
+    place-items: stretch center;
+    align-items: end;
+  }
+
+  .discovery-modal__panel {
+    width: 100%;
+    max-height: calc(100dvh - 0.75rem);
+  }
+
+  .discovery-form .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discovery-form h2 {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+}
+
+@media (min-width: 720px) {
+  .discovery-form .hero__actions {
+    grid-template-columns: repeat(2, minmax(0, max-content));
+  }
+
+  .discovery-form .hero__actions .button {
+    width: auto;
+  }
+}
