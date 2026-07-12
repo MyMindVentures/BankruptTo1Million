@@ -1342,3 +1342,28 @@ p { color: var(--muted); line-height: 1.7; }
 @media (min-width: 720px) {
   .discovery-modal { place-items: center; }
 }
+
+.concept-card__visual {
+  min-height: 12rem;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.15rem;
+  background: radial-gradient(circle at 25% 20%, rgba(215, 168, 79, 0.24), transparent 14rem), rgba(16, 13, 10, 0.62);
+}
+.concept-card__visual img { width: 100%; height: 100%; min-height: 12rem; object-fit: cover; display: block; }
+.concept-card__fallback { display: grid; min-height: 12rem; place-items: center; gap: 0.65rem; color: var(--gold); text-align: center; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.concept-card__fallback svg { width: 2.4rem; height: 2.4rem; }
+.concept-card__title-row { display: flex; align-items: start; justify-content: space-between; gap: 1rem; }
+.concept-card__title-row strong { flex: 0 0 auto; border: 1px solid rgba(215, 168, 79, 0.45); border-radius: 999px; color: var(--gold); padding: 0.45rem 0.6rem; background: rgba(215, 168, 79, 0.08); }
+.concept-card__clamp, .concept-card__innovation p { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.concept-card__innovation { border-left: 3px solid var(--gold); padding-left: 0.8rem; }
+.concept-card__innovation span, .concept-card__lists span { color: var(--gold); font-size: 0.78rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.08em; }
+.concept-card__lists { display: grid; gap: 0.85rem; }
+.concept-card__lists ol, .concept-card__lists ul { margin: 0.45rem 0 0; padding-left: 1.15rem; color: var(--muted); }
+.concept-card__lists li { margin-bottom: 0.25rem; }
+.concept-gallery { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+.concept-gallery img { width: 100%; min-height: 9rem; object-fit: cover; border: 1px solid var(--line); border-radius: 1rem; }
+.concept-links { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1rem; }
+.concept-links a { color: var(--gold); font-weight: 900; }
+
+@media (max-width: 620px) { .concept-gallery { grid-template-columns: 1fr; } }

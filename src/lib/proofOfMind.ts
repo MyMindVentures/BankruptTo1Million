@@ -2,18 +2,59 @@ import { supabase } from './supabase';
 
 export type ProofOfMindVisibility = 'hidden' | 'teaser' | 'full';
 
+export type ConceptType = 'app' | 'platform' | 'physical_product' | 'service' | 'leisure_experience' | 'hospitality' | 'community' | 'media' | 'infrastructure' | 'marketplace' | 'hybrid' | 'other';
+
 export type ProofOfMindConcept = {
   id: string;
   slug: string;
-  category: string;
-  status: string;
   title: string;
   tagline: string | null;
   short_description: string | null;
+  innovation_summary: string | null;
+  concept_score: number | null;
+  problems_solved: string[];
+  key_features: string[];
+  concept_type: ConceptType;
+  concept_format: string | null;
+  delivery_model: string | null;
+  primary_market: string | null;
+  physical_location_required: boolean | null;
+  category: string;
   tags: string[];
+  concept_status: string;
   visibility: ProofOfMindVisibility;
   is_featured: boolean;
-  is_fully_openable: boolean;
+  display_order: number;
+  cover_image_url: string | null;
+  cover_image_alt: string | null;
+  original_language: string | null;
+  published_at: string | null;
+  updated_at: string | null;
+  has_public_detail: boolean;
+};
+
+export type ProofOfMindConceptDetail = ProofOfMindConcept & {
+  full_description: string | null;
+  vision_statement: string | null;
+  problem_statement: string | null;
+  solution_overview: string | null;
+  target_audience: string | null;
+  target_users: string[];
+  key_use_cases: string[];
+  differentiation_points: string[];
+  market_opportunity: string | null;
+  business_model_summary: string | null;
+  business_model: string | null;
+  validation_summary: string | null;
+  validation_evidence: string[];
+  roadmap_summary: string | null;
+  collaboration_opportunities: string[];
+  gallery_images: string[];
+  demo_url: string | null;
+  pitch_deck_url: string | null;
+  external_url: string | null;
+  detail_cta_label: string | null;
+  detail_cta_url: string | null;
 };
 
 export type ProofOfMindDiscoveryInput = {
@@ -28,15 +69,6 @@ export type ProofOfMindDiscoveryInput = {
   website?: string;
   linkedin?: string;
   interest_type?: string;
-};
-
-export type ProofOfMindConceptDetail = ProofOfMindConcept & {
-  problem: string | null;
-  solution: string | null;
-  target_audience: string | null;
-  key_features: string[];
-  business_model: string | null;
-  external_url: string | null;
 };
 
 type RawConcept = Record<string, unknown>;
@@ -58,84 +90,78 @@ function requiredText(value: unknown, field: string): string {
   return normalized;
 }
 
-export function normalizeProofOfMindTags(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  return value.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0).map((tag) => tag.trim()).slice(0, 3);
+function integer(value: unknown, fallback = 0) {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-export function normalizeProofOfMindKeyFeatures(value: unknown): string[] {
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim());
-  if (value && typeof value === 'object') return Object.values(value).filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim());
-  return [];
+function score(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(10, parsed)) : null;
 }
 
+function bool(value: unknown): boolean | null {
+  if (typeof value === 'boolean') return value;
+  if (value === null || value === undefined) return null;
+  return Boolean(value);
+}
+
+function list(value: unknown, limit?: number): string[] {
+  const items = Array.isArray(value) ? value : value && typeof value === 'object' ? Object.values(value) : [];
+  const normalized = items.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim());
+  return typeof limit === 'number' ? normalized.slice(0, limit) : normalized;
+}
+
+export function normalizeProofOfMindTags(value: unknown): string[] { return list(value, 5); }
+export function normalizeProofOfMindKeyFeatures(value: unknown): string[] { return list(value); }
 export function normalizeProofOfMindUrl(value: unknown): string | null {
   const candidate = text(value);
   if (!candidate) return null;
-  try {
-    const url = new URL(candidate);
-    return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null;
-  } catch {
-    return null;
-  }
+  try { const url = new URL(candidate); return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null; } catch { return null; }
 }
 
-export function isVisibleProofOfMindConcept(concept: ProofOfMindConcept) {
-  return concept.visibility !== 'hidden';
+function conceptType(value: unknown): ConceptType {
+  const candidate = text(value) || 'other';
+  const allowed = ['app', 'platform', 'physical_product', 'service', 'leisure_experience', 'hospitality', 'community', 'media', 'infrastructure', 'marketplace', 'hybrid', 'other'];
+  return (allowed.includes(candidate) ? candidate : 'other') as ConceptType;
 }
 
-export function canOpenProofOfMindConcept(concept: ProofOfMindConcept) {
-  return concept.is_fully_openable === true && concept.visibility === 'full';
-}
+export function isVisibleProofOfMindConcept(concept: ProofOfMindConcept) { return concept.visibility !== 'hidden'; }
+export function canOpenProofOfMindConcept(concept: ProofOfMindConcept) { return concept.has_public_detail === true && concept.visibility === 'full'; }
 
 function normalizeConcept(row: RawConcept): ProofOfMindConcept {
-  const visibility = (text(row.visibility) || (row.is_fully_openable ? 'full' : 'teaser')) as ProofOfMindVisibility;
+  const visibility = (text(row.visibility) || 'teaser') as ProofOfMindVisibility;
   return {
-    id: requiredText(row.id, 'id'),
-    slug: requiredText(row.slug, 'slug'),
-    category: text(row.category) || 'Uncategorised',
-    status: requiredText(row.status ?? row.concept_status, 'status'),
-    title: requiredText(row.title, 'title'),
-    tagline: text(row.tagline),
-    short_description: text(row.short_description),
-    tags: normalizeProofOfMindTags(row.tags),
-    visibility,
-    is_featured: Boolean(row.is_featured),
-    is_fully_openable: Boolean(row.is_fully_openable) && visibility === 'full',
+    id: requiredText(row.id, 'id'), slug: requiredText(row.slug, 'slug'), title: requiredText(row.title, 'title'),
+    tagline: text(row.tagline), short_description: text(row.short_description), innovation_summary: text(row.innovation_summary), concept_score: score(row.concept_score),
+    problems_solved: list(row.problems_solved, 3), key_features: normalizeProofOfMindKeyFeatures(row.key_features).slice(0, 5), concept_type: conceptType(row.concept_type),
+    concept_format: text(row.concept_format), delivery_model: text(row.delivery_model), primary_market: text(row.primary_market), physical_location_required: bool(row.physical_location_required),
+    category: text(row.category) || 'Uncategorised', tags: normalizeProofOfMindTags(row.tags), concept_status: requiredText(row.concept_status ?? row.status, 'concept_status'),
+    visibility, is_featured: Boolean(row.is_featured), display_order: integer(row.display_order, 999), cover_image_url: normalizeProofOfMindUrl(row.cover_image_url), cover_image_alt: text(row.cover_image_alt),
+    original_language: text(row.original_language), published_at: text(row.published_at), updated_at: text(row.updated_at), has_public_detail: visibility === 'full',
   };
 }
 
 function normalizeDetail(row: RawConcept): ProofOfMindConceptDetail {
-  const concept = normalizeConcept(row);
-  return {
-    ...concept,
-    problem: text(row.problem ?? row.problem_statement),
-    solution: text(row.solution ?? row.solution_overview),
-    target_audience: text(row.target_audience),
-    key_features: normalizeProofOfMindKeyFeatures(row.key_features),
-    business_model: text(row.business_model),
-    external_url: normalizeProofOfMindUrl(row.external_url),
-  };
+  return { ...normalizeConcept(row), full_description: text(row.full_description), vision_statement: text(row.vision_statement), problem_statement: text(row.problem_statement), solution_overview: text(row.solution_overview), target_audience: text(row.target_audience), target_users: list(row.target_users), key_use_cases: list(row.key_use_cases), differentiation_points: list(row.differentiation_points), market_opportunity: text(row.market_opportunity), business_model_summary: text(row.business_model_summary), business_model: text(row.business_model), validation_summary: text(row.validation_summary), validation_evidence: list(row.validation_evidence), roadmap_summary: text(row.roadmap_summary), collaboration_opportunities: list(row.collaboration_opportunities), gallery_images: list(row.gallery_images).map(normalizeProofOfMindUrl).filter((url): url is string => Boolean(url)), demo_url: normalizeProofOfMindUrl(row.demo_url), pitch_deck_url: normalizeProofOfMindUrl(row.pitch_deck_url), external_url: normalizeProofOfMindUrl(row.external_url), detail_cta_label: text(row.detail_cta_label), detail_cta_url: normalizeProofOfMindUrl(row.detail_cta_url) };
 }
 
 export async function getProofOfMindConcepts() {
-  const rows = await readJson<RawConcept[]>(supabase.rpc('get_proof_of_mind_concepts', {}));
-  return rows.map(normalizeConcept).filter(isVisibleProofOfMindConcept).sort((a, b) => Number(b.is_featured) - Number(a.is_featured) || a.title.localeCompare(b.title));
+  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at&order=display_order.asc,updated_at.desc';
+  const rows = await readJson<RawConcept[]>(supabase.from('proof_of_mind_public_teasers').request({ query }));
+  return rows.map(normalizeConcept).filter(isVisibleProofOfMindConcept);
 }
 
 export async function getProofOfMindConceptBySlug(slug: string) {
   const normalizedSlug = text(slug);
   if (!normalizedSlug) throw new Error('A concept slug is required.');
-  const rows = await readJson<RawConcept[]>(supabase.rpc('get_proof_of_mind_concept_by_slug', {
-    requested_slug: normalizedSlug,
-    requested_language: null,
-  }));
+  const query = `slug=eq.${encodeURIComponent(normalizedSlug)}&visibility=eq.full&limit=1`;
+  const rows = await readJson<RawConcept[]>(supabase.from('proof_of_mind_public_details').request({ query }));
   const row = rows[0];
   if (!row) return null;
   const concept = normalizeDetail(row);
   return canOpenProofOfMindConcept(concept) ? concept : null;
 }
-
 
 export function validateProofOfMindDiscoveryInput(input: ProofOfMindDiscoveryInput) {
   if (!text(input.concept_id)) throw new Error('A selected concept is required.');
@@ -151,17 +177,5 @@ export function validateProofOfMindDiscoveryInput(input: ProofOfMindDiscoveryInp
 
 export async function submitProofOfMindDiscovery(input: ProofOfMindDiscoveryInput) {
   validateProofOfMindDiscoveryInput(input);
-  await readJson(supabase.rpc('submit_proof_of_mind_discovery_call', {
-    p_concept_id: input.concept_id,
-    p_full_name: input.full_name.trim(),
-    p_email: input.email.trim().toLowerCase(),
-    p_company: input.company.trim(),
-    p_role: input.role.trim(),
-    p_country: input.country.trim(),
-    p_interest_message: input.interest_message.trim(),
-    p_consent_to_contact: input.consent_to_contact,
-    p_website: text(input.website),
-    p_linkedin: text(input.linkedin),
-    p_interest_type: text(input.interest_type) || 'other',
-  }));
+  await readJson(supabase.rpc('submit_proof_of_mind_discovery_call', { p_concept_id: input.concept_id, p_full_name: input.full_name.trim(), p_email: input.email.trim().toLowerCase(), p_company: input.company.trim(), p_role: input.role.trim(), p_country: input.country.trim(), p_interest_message: input.interest_message.trim(), p_consent_to_contact: input.consent_to_contact, p_website: text(input.website), p_linkedin: text(input.linkedin), p_interest_type: text(input.interest_type) || 'other' }));
 }
