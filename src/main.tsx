@@ -8,6 +8,7 @@ import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
 import './styles/footer.css';
 import './styles/legal.css';
+import './styles/footerLegalPatch.css';
 
 initializeConceptOwnershipUi();
 
