@@ -42,6 +42,8 @@ begin
   if (auth.jwt() -> 'app_metadata' ->> 'role') <> 'admin' then raise exception 'Administrator access is required.'; end if;
   select c.id into v_category_id from public.journal_categories c where c.slug = p_category_slug;
   if v_category_id is null then raise exception 'Break the Circle category is missing.'; end if;
+  if p_post->>'status' = 'scheduled' and (nullif(p_post->>'scheduled_for','') is null or (p_post->>'scheduled_for')::timestamptz <= now()) then raise exception 'Scheduled posts require a future scheduled date.'; end if;
+  if p_post->>'status' = 'published' and nullif(p_post->>'published_at','') is null then raise exception 'Published posts require a valid publication date.'; end if;
   if p_post_id is null then
     insert into public.journal_posts (slug,status,title,subtitle,excerpt,body,content_format,cover_image_url,cover_image_alt,original_language,category_id,is_featured,published_at,scheduled_for,reading_time_minutes,seo_title,seo_description,og_image_url)
     values (p_post->>'slug', p_post->>'status', p_post->>'title', nullif(p_post->>'subtitle',''), nullif(p_post->>'excerpt',''), nullif(p_post->>'body',''), coalesce(p_post->>'content_format','markdown'), nullif(p_post->>'cover_image_url',''), nullif(p_post->>'cover_image_alt',''), coalesce(p_post->>'original_language','en'), v_category_id, coalesce((p_post->>'is_featured')::boolean,false), nullif(p_post->>'published_at','')::timestamptz, nullif(p_post->>'scheduled_for','')::timestamptz, nullif(p_post->>'reading_time_minutes','')::integer, nullif(p_post->>'seo_title',''), nullif(p_post->>'seo_description',''), nullif(p_post->>'og_image_url','')) returning journal_posts.id into v_post_id;
