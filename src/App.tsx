@@ -907,7 +907,11 @@ function App() {
   return (
     <>
       <Header />
-      {path === '/admin/break-the-circle' ? (
+      {path === '/help-us-break-the-circle' ? (
+        <BreakTheCirclePage />
+      ) : path.startsWith('/help-us-break-the-circle/') ? (
+        <BreakTheCircleArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
+      ) : path === '/admin/break-the-circle' ? (
         <AdminBreakTheCirclePage />
       ) : path === '/admin/break-the-circle/new' ? (
         <AdminBreakTheCircleEditorPage />
@@ -915,9 +919,9 @@ function App() {
         <AdminBreakTheCirclePreviewPage id={decodeURIComponent(path.split('/')[3] || '')} />
       ) : path.startsWith('/admin/break-the-circle/') ? (
         <AdminBreakTheCircleEditorPage id={decodeURIComponent(path.split('/')[3] || '')} />
-      ) : path === '/help-us-break-the-circle' ? (
+      ) : path === '/break-the-circle' ? (
         <BreakTheCirclePage />
-      ) : path.startsWith('/help-us-break-the-circle/') ? (
+      ) : path.startsWith('/break-the-circle/') ? (
         <BreakTheCircleArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
       ) : path === '/journal' ? (
         <JournalPage />
