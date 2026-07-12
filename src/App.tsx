@@ -2,7 +2,7 @@ import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, GitPullRequest, H
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
-import { JournalArticlePage, JournalPage } from './pages/JournalPages';
+import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pages/JournalPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
 import { supabase } from './lib/supabase';
@@ -911,6 +911,8 @@ function App() {
         <BreakTheCirclePage />
       ) : path.startsWith('/help-us-break-the-circle/') ? (
         <BreakTheCircleArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
+      ) : path === '/admin/journal/comments' ? (
+        <AdminJournalCommentsPage />
       ) : path === '/admin/break-the-circle' ? (
         <AdminBreakTheCirclePage />
       ) : path === '/admin/break-the-circle/new' ? (

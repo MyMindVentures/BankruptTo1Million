@@ -927,3 +927,18 @@ p { color: var(--muted); line-height: 1.7; }
 .admin-image-preview, .btc-cover { width: min(100%, 58rem); max-height: 28rem; object-fit: cover; border: 1px solid var(--line); border-radius: 1.5rem; margin: 1rem 0; }
 .btc-cta { display: grid; gap: 1rem; justify-items: start; }
 @media (max-width: 860px) { .admin-heading, .admin-row { grid-template-columns: 1fr; } .admin-heading { display: grid; } .admin-actions { justify-content: start; max-width: none; } .admin-row img, .admin-thumb { width: 100%; height: 12rem; } }
+
+.journal-share .story-panel,
+.journal-comments .story-panel { display: grid; gap: 1rem; }
+.share-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+.comment-list { display: grid; gap: 1rem; }
+.comment-card { display: grid; gap: .45rem; padding: 1rem; border: 1px solid var(--line); border-radius: 1rem; background: rgba(16,13,10,.38); }
+.comment-card h3, .comment-card h4 { margin: 0; }
+.comment-card time { color: var(--muted); font-size: .86rem; font-weight: 800; }
+.comment-card p { margin: .25rem 0; white-space: pre-wrap; }
+.comment-card--pinned { border-color: rgba(215,168,79,.55); background: rgba(215,168,79,.09); }
+.comment-card--reply { margin-left: clamp(1rem,4vw,2rem); background: rgba(255,247,237,.04); }
+.comment-form { margin-top: 1rem; }
+.status-badge { display: inline-flex; gap: .35rem; align-items: center; width: fit-content; padding: .25rem .55rem; border: 1px solid var(--line); border-radius: 999px; color: var(--gold); font-size: .78rem; font-weight: 900; text-transform: uppercase; }
+.admin-heading svg { color: var(--gold); }
+@media (max-width: 560px) { .share-actions .button { width: 100%; } .comment-card--reply { margin-left: 0; } }
