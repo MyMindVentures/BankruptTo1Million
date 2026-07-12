@@ -5,6 +5,7 @@ import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
 import './styles/global.css';
 import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
+import './styles/footer.css';
 
 initializeConceptOwnershipUi();
 
