@@ -79,8 +79,8 @@ function normalizeConcept(row: RawConcept): ProofOfMindConcept {
   return {
     id: requiredText(row.id, 'id'),
     slug: requiredText(row.slug, 'slug'),
-    category: requiredText(row.category, 'category'),
-    status: requiredText(row.status, 'status'),
+    category: text(row.category) || 'Uncategorised',
+    status: requiredText(row.status ?? row.concept_status, 'status'),
     title: requiredText(row.title, 'title'),
     tagline: text(row.tagline),
     short_description: text(row.short_description),
@@ -95,8 +95,8 @@ function normalizeDetail(row: RawConcept): ProofOfMindConceptDetail {
   const concept = normalizeConcept(row);
   return {
     ...concept,
-    problem: text(row.problem),
-    solution: text(row.solution),
+    problem: text(row.problem ?? row.problem_statement),
+    solution: text(row.solution ?? row.solution_overview),
     target_audience: text(row.target_audience),
     key_features: normalizeProofOfMindKeyFeatures(row.key_features),
     business_model: text(row.business_model),
@@ -112,7 +112,10 @@ export async function getProofOfMindConcepts() {
 export async function getProofOfMindConceptBySlug(slug: string) {
   const normalizedSlug = text(slug);
   if (!normalizedSlug) throw new Error('A concept slug is required.');
-  const rows = await readJson<RawConcept[]>(supabase.rpc('get_proof_of_mind_concept_by_slug', { p_slug: normalizedSlug }));
+  const rows = await readJson<RawConcept[]>(supabase.rpc('get_proof_of_mind_concept_by_slug', {
+    requested_slug: normalizedSlug,
+    requested_language: null,
+  }));
   const row = rows[0];
   if (!row) return null;
   const concept = normalizeDetail(row);
