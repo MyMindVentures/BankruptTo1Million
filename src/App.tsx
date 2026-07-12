@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { Header } from './components/Header';
 import { JournalArticlePage, JournalPage } from './pages/JournalPages';
+import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
 import { supabase } from './lib/supabase';
 import { foundingHeroPlaceholders, foundingHeroRoles, platformFeatures, roadmap } from './data/siteContent';
@@ -906,7 +907,19 @@ function App() {
   return (
     <>
       <Header />
-      {path === '/journal' ? (
+      {path === '/admin/break-the-circle' ? (
+        <AdminBreakTheCirclePage />
+      ) : path === '/admin/break-the-circle/new' ? (
+        <AdminBreakTheCircleEditorPage />
+      ) : path.startsWith('/admin/break-the-circle/') && path.endsWith('/preview') ? (
+        <AdminBreakTheCirclePreviewPage id={decodeURIComponent(path.split('/')[3] || '')} />
+      ) : path.startsWith('/admin/break-the-circle/') ? (
+        <AdminBreakTheCircleEditorPage id={decodeURIComponent(path.split('/')[3] || '')} />
+      ) : path === '/help-us-break-the-circle' ? (
+        <BreakTheCirclePage />
+      ) : path.startsWith('/help-us-break-the-circle/') ? (
+        <BreakTheCircleArticlePage slug={decodeURIComponent(path.split('/')[2] || '')} />
+      ) : path === '/journal' ? (
         <JournalPage />
       ) : path.startsWith('/journal/category/') || path.startsWith('/journal/tag/') || path.startsWith('/journal/venture/') || path.startsWith('/journal/author/') ? (
         <JournalPage />
