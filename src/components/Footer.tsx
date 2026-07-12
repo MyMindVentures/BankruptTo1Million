@@ -1,6 +1,8 @@
 import { ArrowUpRight, HeartHandshake } from 'lucide-react';
 import { navItems } from '../data/siteContent';
 
+const disclaimerHref = '/break-the-circle/what-this-journey-is-and-what-it-is-not';
+
 export function Footer() {
   return (
     <footer className="site-footer" aria-labelledby="footer-title">
@@ -13,6 +15,7 @@ export function Footer() {
       </div>
       <nav className="site-footer__nav" aria-label="Footer navigation">
         {navItems.map((item) => <a key={item.href} href={item.href}>{item.label}</a>)}
+        <a href={disclaimerHref}>Disclaimer</a>
       </nav>
       <a className="site-footer__mission" href="/support">
         <HeartHandshake aria-hidden="true" size={18} /> Support the mission <ArrowUpRight aria-hidden="true" size={16} />
