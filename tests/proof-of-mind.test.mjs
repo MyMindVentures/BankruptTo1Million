@@ -41,3 +41,13 @@ test('detail page renders required full concept fields', () => {
   assert.match(lib, /normalizeProofOfMindKeyFeatures/);
   assert.match(lib, /normalizeProofOfMindUrl/);
 });
+
+
+test('Proof of Mind renders founder, evaluation, competition and aggregate lead fields', () => {
+  for (const field of ['ProofOfMindFounder', 'ProofOfMindEvaluationSummary', 'ProofOfMindCompetitorComparison', 'ProofOfMindLeadPipelineSummary']) assert.match(lib, new RegExp(field));
+  for (const label of ['Created by', 'Evaluation score', 'Commercial evaluation', 'Competition and positioning', 'Why we are different', 'Partner and lead opportunities', 'target slots']) assert.match(page, new RegExp(label));
+  assert.match(lib, /lead_pipeline_summary/);
+  assert.match(lib, /competition_comparisons/);
+  assert.match(page, /concept\.lead_pipeline\.categories/);
+  assert.doesNotMatch(page, /email_address|phone|contact_notes/);
+});

@@ -4,6 +4,14 @@ export type ProofOfMindVisibility = 'hidden' | 'teaser' | 'full';
 
 export type ConceptType = 'app' | 'platform' | 'physical_product' | 'service' | 'leisure_experience' | 'hospitality' | 'community' | 'media' | 'infrastructure' | 'marketplace' | 'hybrid' | 'other';
 
+export type ProofOfMindFounder = { name: string; role: string | null; is_original_creator: boolean; bio: string | null; };
+export type ProofOfMindEvaluationCriterion = { criterion: string; score: number | null; assessment: string | null; risks: string[]; improvement_actions: string[]; };
+export type ProofOfMindEvaluationSummary = { average_score: number | null; strongest_criteria: ProofOfMindEvaluationCriterion[]; criteria: ProofOfMindEvaluationCriterion[]; };
+export type ProofOfMindCompetitorComparison = { name: string; product: string | null; similarities: string | null; differences: string | null; our_advantage: string | null; competitor_advantage: string | null; strategic_risk: string | null; };
+export type ProofOfMindCompetitionSummary = { count: number; summary: string | null; competitive_advantage: string | null; comparisons: ProofOfMindCompetitorComparison[]; };
+export type ProofOfMindLeadCategory = { name: string; strategic_goal: string | null; default_outreach_angle: string | null; identified_leads: number; target_slots: number; outreach_progress: string | null; };
+export type ProofOfMindLeadPipelineSummary = { category_count: number; target_slots: number; identified_leads: number; categories: ProofOfMindLeadCategory[]; };
+
 export type ProofOfMindConcept = {
   id: string;
   slug: string;
@@ -31,6 +39,10 @@ export type ProofOfMindConcept = {
   published_at: string | null;
   updated_at: string | null;
   has_public_detail: boolean;
+  founder: ProofOfMindFounder | null;
+  evaluation: ProofOfMindEvaluationSummary | null;
+  competition: ProofOfMindCompetitionSummary;
+  lead_pipeline: ProofOfMindLeadPipelineSummary | null;
 };
 
 export type ProofOfMindConceptDetail = ProofOfMindConcept & {
@@ -106,8 +118,10 @@ function bool(value: unknown): boolean | null {
   return Boolean(value);
 }
 
+function arrayValue(value: unknown): unknown[] { return Array.isArray(value) ? value : value && typeof value === 'object' ? Object.values(value) : []; }
+
 function list(value: unknown, limit?: number): string[] {
-  const items = Array.isArray(value) ? value : value && typeof value === 'object' ? Object.values(value) : [];
+  const items = arrayValue(value);
   const normalized = items.filter((item): item is string => typeof item === 'string' && item.trim().length > 0).map((item) => item.trim());
   return typeof limit === 'number' ? normalized.slice(0, limit) : normalized;
 }
@@ -118,6 +132,59 @@ export function normalizeProofOfMindUrl(value: unknown): string | null {
   const candidate = text(value);
   if (!candidate) return null;
   try { const url = new URL(candidate); return ['http:', 'https:'].includes(url.protocol) ? url.toString() : null; } catch { return null; }
+}
+
+
+function normalizeFounder(value: unknown): ProofOfMindFounder | null {
+  const row = Array.isArray(value) ? value[0] : value;
+  if (!row || typeof row !== 'object') return null;
+  const data = row as RawConcept;
+  const name = text(data.name ?? data.founder_name ?? data.full_name);
+  if (!name) return null;
+  return { name, role: text(data.role ?? data.founder_role), is_original_creator: Boolean(data.is_original_creator), bio: text(data.bio ?? data.founder_bio) };
+}
+
+function normalizeEvaluationCriterion(value: unknown): ProofOfMindEvaluationCriterion | null {
+  if (!value || typeof value !== 'object') return null;
+  const row = value as RawConcept;
+  const criterion = text(row.criterion ?? row.criteria_name ?? row.name ?? row.title);
+  if (!criterion) return null;
+  return { criterion, score: score(row.score ?? row.rating), assessment: text(row.assessment ?? row.summary), risks: list(row.risks), improvement_actions: list(row.improvement_actions ?? row.actions) };
+}
+
+function normalizeEvaluation(value: unknown, row: RawConcept): ProofOfMindEvaluationSummary | null {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as RawConcept : row;
+  const criteria = arrayValue((source as RawConcept).criteria ?? value).map(normalizeEvaluationCriterion).filter((item): item is ProofOfMindEvaluationCriterion => Boolean(item));
+  const strongest = arrayValue(source.strongest_criteria).map(normalizeEvaluationCriterion).filter((item): item is ProofOfMindEvaluationCriterion => Boolean(item));
+  const average = score(source.average_score ?? source.evaluation_average_score ?? row.evaluation_average_score);
+  if (average === null && !criteria.length && !strongest.length) return null;
+  return { average_score: average, strongest_criteria: (strongest.length ? strongest : criteria.filter((item) => item.score !== null).sort((a, b) => (b.score ?? 0) - (a.score ?? 0))).slice(0, 3), criteria };
+}
+
+function normalizeCompetition(value: unknown, row: RawConcept): ProofOfMindCompetitionSummary {
+  const source = value && typeof value === 'object' && !Array.isArray(value) ? value as RawConcept : row;
+  const comparisons = arrayValue(source.comparisons ?? row.competition_comparisons).map((item) => {
+    if (!item || typeof item !== 'object') return null;
+    const data = item as RawConcept;
+    const name = text(data.competitor_name ?? data.name ?? data.product);
+    return name ? { name, product: text(data.product), similarities: text(data.similarities), differences: text(data.differences), our_advantage: text(data.our_advantage), competitor_advantage: text(data.competitor_advantage), strategic_risk: text(data.strategic_risk) } : null;
+  }).filter((item): item is ProofOfMindCompetitorComparison => Boolean(item));
+  return { count: integer(source.count ?? source.competitor_count ?? comparisons.length, comparisons.length), summary: text(source.summary ?? row.competition_summary), competitive_advantage: text(source.competitive_advantage ?? row.competitive_advantage ?? row.differentiation_summary), comparisons };
+}
+
+function normalizeLeadPipeline(value: unknown): ProofOfMindLeadPipelineSummary | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as RawConcept;
+  const categories = arrayValue(source.categories).map((item) => {
+    if (!item || typeof item !== 'object') return null;
+    const data = item as RawConcept;
+    const name = text(data.category_name ?? data.name);
+    return name ? { name, strategic_goal: text(data.strategic_goal), default_outreach_angle: text(data.default_outreach_angle), identified_leads: integer(data.identified_leads), target_slots: integer(data.target_slots, 5), outreach_progress: text(data.outreach_progress) } : null;
+  }).filter((item): item is ProofOfMindLeadCategory => Boolean(item));
+  const category_count = integer(source.category_count, categories.length);
+  const target_slots = integer(source.target_slots ?? source.total_target_slots, category_count ? category_count * 5 : categories.reduce((sum, item) => sum + item.target_slots, 0));
+  if (!category_count && !target_slots && !categories.length) return null;
+  return { category_count, target_slots, identified_leads: integer(source.identified_leads), categories };
 }
 
 function conceptType(value: unknown): ConceptType {
@@ -139,6 +206,7 @@ function normalizeConcept(row: RawConcept): ProofOfMindConcept {
     category: text(row.category) || 'Uncategorised', tags: normalizeProofOfMindTags(row.tags), concept_status: requiredText(row.concept_status ?? row.status, 'concept_status'),
     visibility, is_featured: Boolean(row.is_featured), display_order: integer(row.display_order, 999), cover_image_url: normalizeProofOfMindUrl(row.cover_image_url), cover_image_alt: text(row.cover_image_alt),
     original_language: text(row.original_language), published_at: text(row.published_at), updated_at: text(row.updated_at), has_public_detail: visibility === 'full',
+    founder: normalizeFounder(row.founder ?? row.founders ?? row.proof_of_mind_concept_founders), evaluation: normalizeEvaluation(row.evaluation ?? row.evaluation_summary, row), competition: normalizeCompetition(row.competition ?? row.competition_summary_data, row), lead_pipeline: normalizeLeadPipeline(row.lead_pipeline ?? row.lead_pipeline_summary),
   };
 }
 
@@ -147,7 +215,7 @@ function normalizeDetail(row: RawConcept): ProofOfMindConceptDetail {
 }
 
 export async function getProofOfMindConcepts() {
-  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at&order=display_order.asc,updated_at.desc';
+  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,evaluation_average_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at,competition_summary,competition_comparisons,competitive_advantage,founder,founders,evaluation_summary,competition_summary_data,lead_pipeline_summary&order=display_order.asc,updated_at.desc';
   const rows = await readJson<RawConcept[]>(supabase.from('proof_of_mind_public_teasers').request({ query }));
   return rows.map(normalizeConcept).filter(isVisibleProofOfMindConcept);
 }
