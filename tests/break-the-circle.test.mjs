@@ -30,6 +30,13 @@ test('administrator create writes journal and metadata through one rpc', () => {
   assert.match(migration, /raise exception 'Administrator access is required\.'/);
 });
 
+test('admin rpc enforces publish and schedule readiness server-side', () => {
+  assert.match(migration, /Scheduled posts require a future scheduled date\./);
+  assert.match(migration, /Published posts require a valid publication date\./);
+  assert.match(migration, /p_post->>'status' = 'scheduled'/);
+  assert.match(migration, /p_post->>'status' = 'published'/);
+});
+
 test('CTA pair validation requires both label and URL or neither', () => {
   assert.equal(validateCta('', ''), true);
   assert.equal(validateCta('Help', 'https://example.com'), true);
