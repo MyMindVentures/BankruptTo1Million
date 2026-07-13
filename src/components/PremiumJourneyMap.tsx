@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
@@ -39,7 +39,6 @@ declare global {
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js';
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css';
-
 const MAP_STYLE = {
   version: 8,
   sources: {
@@ -62,7 +61,6 @@ let mapLibrePromise: Promise<MapLibreGlobal> | null = null;
 function loadMapLibre(): Promise<MapLibreGlobal> {
   if (window.maplibregl) return Promise.resolve(window.maplibregl);
   if (mapLibrePromise) return mapLibrePromise;
-
   mapLibrePromise = new Promise((resolve, reject) => {
     if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
       const link = document.createElement('link');
@@ -70,14 +68,12 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
       link.href = MAPLIBRE_CSS;
       document.head.appendChild(link);
     }
-
     const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
     if (existing) {
       existing.addEventListener('load', () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.')), { once: true });
       existing.addEventListener('error', () => reject(new Error('MapLibre failed to load.')), { once: true });
       return;
     }
-
     const script = document.createElement('script');
     script.src = MAPLIBRE_JS;
     script.async = true;
@@ -85,7 +81,6 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
     script.onerror = () => reject(new Error('MapLibre failed to load.'));
     document.head.appendChild(script);
   });
-
   return mapLibrePromise;
 }
 
@@ -118,7 +113,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
-  const [mapError, setMapError] = useStateSafe('');
+  const [mapError, setMapError] = useState('');
   const mapped = useMemo(() => points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude))), [points]);
   const active = mapped.find((point) => point.journey_entry_id === activeId) || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
@@ -134,7 +129,6 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-
       map = new maplibregl.Map({
         container: containerRef.current,
         style: MAP_STYLE,
@@ -146,24 +140,14 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         cooperativeGestures: true,
       });
       mapRef.current = map;
-
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
       map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-
       map.on('load', () => {
-        map.addSource('journey-route', {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            properties: {},
-            geometry: { type: 'LineString', coordinates: mapped.map(coordinates) },
-          },
-        });
+        map.addSource('journey-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mapped.map(coordinates) } } });
         map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#d8aa5f', 'line-width': 8, 'line-opacity': 0.16, 'line-blur': 6 } });
         map.addLayer({ id: 'journey-route-line', type: 'line', source: 'journey-route', paint: { 'line-color': '#f0c979', 'line-width': 3, 'line-opacity': 0.96, 'line-dasharray': [1.2, 1.2] } });
-
         const bounds = new maplibregl.LngLatBounds();
         mapped.forEach((point, index) => {
           bounds.extend(coordinates(point));
@@ -179,7 +163,6 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
             .addTo(map);
           markersRef.current.push(marker);
         });
-
         if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
         else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
       });
@@ -206,9 +189,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 42, duration: 950, essential: true });
   }, [active, mapped]);
 
-  if (!mapped.length) {
-    return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
-  }
+  if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
 
   const current = mapped.find((point) => point.is_current_location) || mapped[mapped.length - 1];
 
@@ -218,7 +199,6 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       <Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout>
       <Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout>
     </div>
-
     <div className="premium-map-layout">
       <Card className="premium-map-card">
         <div className="premium-map-card__topbar">
@@ -235,7 +215,6 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
           <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
         </div>
       </Card>
-
       <Card className="premium-map-detail-card">
         <div className="premium-map-detail-card__meta"><Badge>{personLabel(active.journey_person)}</Badge>{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
         <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
@@ -250,13 +229,4 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       </Card>
     </div>
   </div>;
-}
-
-function useStateSafe(initialValue: string) {
-  const React = requireReactState();
-  return React(initialValue);
-}
-
-function requireReactState(): (initialValue: string) => [string, (value: string) => void] {
-  return (globalThis as unknown as { __reactUseState?: (initialValue: string) => [string, (value: string) => void] }).__reactUseState || (() => [ '', () => undefined ]);
 }
