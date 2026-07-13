@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { supabase } from './supabase';
 
@@ -70,6 +70,7 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   const [language, setLanguageState] = useState(DEFAULT_LANGUAGE);
   const [translations, setTranslations] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const requestSequence = useRef(0);
 
   useEffect(() => {
     readJson<WebsiteLanguage[]>(supabase.from('site_languages').request({
@@ -86,32 +87,44 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    const requestId = ++requestSequence.current;
     let cancelled = false;
     setIsLoading(true);
-
-    readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language }))
-      .then((rows) => {
-        if (cancelled) return;
-        setTranslations(Object.fromEntries(rows.map((row) => [row.translation_key, row.translated_text])));
-      })
-      .catch(() => {
-        if (!cancelled) setTranslations({});
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+    setTranslations({});
 
     const selected = languages.find((item) => item.code === language);
     document.documentElement.lang = language;
     document.documentElement.dir = selected?.is_rtl ? 'rtl' : 'ltr';
     window.localStorage.setItem(STORAGE_KEY, language);
-    window.dispatchEvent(new CustomEvent('b1m:languagechange', { detail: { language } }));
+    window.dispatchEvent(new CustomEvent('b1m:languagechange', { detail: { language, status: 'loading' } }));
+
+    readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language }))
+      .then((rows) => {
+        if (cancelled || requestId !== requestSequence.current) return;
+        const nextTranslations = Object.fromEntries(rows.map((row) => [row.translation_key, row.translated_text]));
+        setTranslations(nextTranslations);
+        window.dispatchEvent(new CustomEvent('b1m:translationsloaded', {
+          detail: { language, translations: nextTranslations },
+        }));
+      })
+      .catch(() => {
+        if (cancelled || requestId !== requestSequence.current) return;
+        setTranslations({});
+        window.dispatchEvent(new CustomEvent('b1m:translationsloaded', {
+          detail: { language, translations: {}, failed: true },
+        }));
+      })
+      .finally(() => {
+        if (!cancelled && requestId === requestSequence.current) setIsLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, [language, languages]);
 
   const setLanguage = useCallback((languageCode: string) => {
-    if (languages.some((item) => item.code === languageCode)) setLanguageState(languageCode);
+    const normalized = languageCode.toLowerCase();
+    const selected = languages.find((item) => item.code.toLowerCase() === normalized);
+    if (selected) setLanguageState(selected.code);
   }, [languages]);
 
   const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => {
