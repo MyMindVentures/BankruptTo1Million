@@ -1,16 +1,19 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { initializeConceptMessageUi } from './lib/conceptMessageUi';
 import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import './styles/global.css';
 import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
+import './styles/conceptMessages.css';
 import './styles/footer.css';
 import './styles/legal.css';
 import './styles/footerLegalPatch.css';
 
 initializeConceptOwnershipUi();
+initializeConceptMessageUi();
 
 const rootPage = window.location.pathname === '/legal' ? <LegalTransparencyPage /> : <App />;
 
