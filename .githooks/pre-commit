@@ -1,0 +1,6 @@
+#!/bin/sh
+
+set -e
+
+printf '\nRunning pre-commit quality checks...\n\n'
+npm run precommit
