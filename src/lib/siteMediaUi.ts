@@ -36,18 +36,21 @@ async function loadSlots() {
 
 function renderLogo(slots: Map<string, WebsiteMediaSlot>) {
   const slot = slots.get('site_logo');
-  const mark = document.querySelector<HTMLElement>('.brand__mark');
-  if (!slot || !mark || mark.dataset.mediaRendered === 'true') return;
+  if (!slot) return;
 
-  const image = document.createElement('img');
-  image.src = storageUrl(slot);
-  image.alt = slot.alt_text || 'Bankrupt to 1 Million logo';
-  image.className = 'brand__logo-image';
-  image.decoding = 'async';
-  image.fetchPriority = 'high';
+  document.querySelectorAll<HTMLElement>('.brand__mark').forEach((mark) => {
+    if (mark.dataset.mediaRendered === 'true') return;
 
-  mark.replaceChildren(image);
-  mark.dataset.mediaRendered = 'true';
+    const image = document.createElement('img');
+    image.src = storageUrl(slot);
+    image.alt = slot.alt_text || 'Bankrupt to 1 Million logo';
+    image.className = 'brand__logo-image';
+    image.decoding = 'async';
+    image.fetchPriority = mark.closest('.site-header') ? 'high' : 'auto';
+
+    mark.replaceChildren(image);
+    mark.dataset.mediaRendered = 'true';
+  });
 }
 
 function renderHomeHero(slots: Map<string, WebsiteMediaSlot>) {

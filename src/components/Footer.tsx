@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowUpRight, Github, HeartHandshake, MapPin, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowUp, ArrowUpRight, Github, HeartHandshake, MapPin, ShieldCheck } from 'lucide-react';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
 const footerGroups = [
@@ -49,23 +49,6 @@ export function Footer() {
     <footer className="site-footer" aria-labelledby="footer-title">
       <div className="site-footer__glow" aria-hidden="true" />
 
-      <section className="site-footer__brand-stage" aria-label="Bankrupt to 1 Million brand">
-        <div className="site-footer__brand-stage-glow" aria-hidden="true" />
-        <div className="site-footer__brand-stage-mark" aria-hidden="true">
-          <span>B1M</span>
-        </div>
-        <div className="site-footer__brand-stage-copy">
-          <p className="eyebrow"><Sparkles size={15} aria-hidden="true" /> The public mission</p>
-          <h2>Bankrupt to 1 Million</h2>
-          <p>From financial rock bottom to freedom — built openly, honestly and together.</p>
-          <div className="site-footer__brand-stage-pills" aria-label="Mission values">
-            <span>Build in public</span>
-            <span>Break the circle</span>
-            <span>Create momentum</span>
-          </div>
-        </div>
-      </section>
-
       <div className="site-footer__inner">
         <section className="site-footer__intro">
           <a
@@ -73,8 +56,8 @@ export function Footer() {
             href="/#top"
             aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')}
           >
-            <span className="brand__mark" aria-hidden="true">B1M</span>
-            <span>
+            <span className="brand__mark site-footer__logo-mark" aria-hidden="true">B1M</span>
+            <span className="site-footer__brand-copy">
               <strong id="footer-title">Bankrupt to 1 Million</strong>
               <small>{t('footer.mission.tagline', 'From financial rock bottom to freedom — built in public.')}</small>
             </span>
