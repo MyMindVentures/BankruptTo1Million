@@ -1,5 +1,4 @@
 import { motion } from 'motion/react';
-import { ComposableMap, Geographies, Geography, Line, Marker, ZoomableGroup } from 'react-simple-maps';
 import { ChevronLeft, ChevronRight, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import { Badge, Card } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
@@ -21,14 +20,24 @@ export type PremiumJourneyPoint = {
   is_current_location: boolean;
 };
 
-const GEO_URL = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json';
-
 function personLabel(person: PremiumJourneyPoint['journey_person']) {
   return person === 'together' ? 'Kevin & Micha' : person === 'kevin' ? 'Kevin' : 'Micha';
 }
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
+}
+
+function projectPoint(point: PremiumJourneyPoint, all: PremiumJourneyPoint[]) {
+  const lats = all.map((item) => Number(item.latitude));
+  const lngs = all.map((item) => Number(item.longitude));
+  const minLat = Math.min(...lats, 37.8);
+  const maxLat = Math.max(...lats, 39.2);
+  const minLng = Math.min(...lngs, -1.2);
+  const maxLng = Math.max(...lngs, 0.4);
+  const x = 12 + ((Number(point.longitude) - minLng) / Math.max(maxLng - minLng, 0.1)) * 76;
+  const y = 18 + (1 - (Number(point.latitude) - minLat) / Math.max(maxLat - minLat, 0.1)) * 64;
+  return { x, y };
 }
 
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
@@ -42,6 +51,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
   }
 
+  const routePoints = mapped.map((point) => {
+    const position = projectPoint(point, mapped);
+    return `${position.x},${position.y}`;
+  }).join(' ');
+
   return <div className="premium-map-layout">
     <Card className="premium-map-card">
       <div className="premium-map-card__topbar">
@@ -49,24 +63,30 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         <Button variant="ghost" size="sm" onClick={() => onSelect(mapped.find((point) => point.is_current_location)?.journey_entry_id || mapped[0].journey_entry_id)}><LocateFixed size={16}/> Current</Button>
       </div>
       <div className="premium-map-stage">
-        <ComposableMap projection="geoMercator" projectionConfig={{ center: [-1.5, 39.5], scale: 1200 }} width={900} height={560}>
-          <ZoomableGroup center={[-1.5, 39.5]} zoom={1} minZoom={1} maxZoom={6}>
-            <Geographies geography={GEO_URL}>
-              {({ geographies }) => geographies.map((geo) => <Geography key={geo.rsmKey} geography={geo} fill="#111923" stroke="rgba(255,255,255,.12)" strokeWidth={0.45} style={{ default: { outline: 'none' }, hover: { fill: '#182332', outline: 'none' }, pressed: { outline: 'none' } }}/>) }
-            </Geographies>
-            {mapped.slice(0, -1).map((point, index) => {
-              const to = mapped[index + 1];
-              return <Line key={`${point.journey_entry_id}-${to.journey_entry_id}`} from={[Number(point.longitude), Number(point.latitude)]} to={[Number(to.longitude), Number(to.latitude)]} stroke="#d9ad63" strokeWidth={2.2} strokeLinecap="round" strokeDasharray="5 6"/>;
-            })}
-            {mapped.map((point, index) => <Marker key={point.journey_entry_id} coordinates={[Number(point.longitude), Number(point.latitude)]} onClick={() => onSelect(point.journey_entry_id)}>
-              <motion.g whileHover={{ scale: 1.14 }} animate={{ scale: active?.journey_entry_id === point.journey_entry_id ? 1.16 : 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} className="premium-map-marker">
-                {point.is_current_location ? <circle r={15} fill="rgba(217,173,99,.18)"/> : null}
-                <circle r={active?.journey_entry_id === point.journey_entry_id ? 9 : 7} fill={point.is_current_location ? '#d9ad63' : '#101720'} stroke="#f3d9a3" strokeWidth={2}/>
-                <text y={3} textAnchor="middle" fill={point.is_current_location ? '#101010' : '#fff'} fontSize="7" fontWeight="800">{index + 1}</text>
-              </motion.g>
-            </Marker>)}
-          </ZoomableGroup>
-        </ComposableMap>
+        <svg viewBox="0 0 100 100" role="img" aria-label="Journey route map">
+          <defs>
+            <radialGradient id="mapGlow" cx="35%" cy="35%" r="70%"><stop offset="0%" stopColor="#19324a" stopOpacity=".7"/><stop offset="100%" stopColor="#071019" stopOpacity="0"/></radialGradient>
+            <filter id="routeGlow"><feGaussianBlur stdDeviation=".6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          </defs>
+          <rect width="100" height="100" fill="#081018"/>
+          <rect width="100" height="100" fill="url(#mapGlow)"/>
+          <g className="premium-map-grid-lines" aria-hidden="true">
+            {[20,40,60,80].map((value)=><line key={`v-${value}`} x1={value} y1="0" x2={value} y2="100"/>)}
+            {[20,40,60,80].map((value)=><line key={`h-${value}`} x1="0" y1={value} x2="100" y2={value}/>) }
+          </g>
+          <path className="premium-map-landmass" d="M10,72 C18,55 24,31 39,22 C50,15 66,18 75,29 C83,39 87,53 82,66 C76,80 57,88 39,85 C25,83 15,79 10,72 Z"/>
+          <path className="premium-map-coastline" d="M22,68 C29,55 34,38 44,31 C54,24 66,27 73,37 C78,45 78,56 73,65 C66,76 52,80 39,77 C31,75 25,72 22,68 Z"/>
+          <polyline points={routePoints} className="premium-map-route-line" filter="url(#routeGlow)"/>
+          {mapped.map((point, index) => {
+            const position = projectPoint(point, mapped);
+            const selected = active?.journey_entry_id === point.journey_entry_id;
+            return <motion.g key={point.journey_entry_id} className="premium-map-marker" onClick={() => onSelect(point.journey_entry_id)} whileHover={{ scale: 1.16 }} animate={{ scale: selected ? 1.18 : 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} style={{ transformOrigin: `${position.x}px ${position.y}px` }}>
+              {point.is_current_location ? <circle cx={position.x} cy={position.y} r="4.2" fill="rgba(217,173,99,.18)"/> : null}
+              <circle cx={position.x} cy={position.y} r={selected ? 2.4 : 1.9} fill={point.is_current_location ? '#d9ad63' : '#101720'} stroke="#f3d9a3" strokeWidth=".7"/>
+              <text x={position.x} y={position.y + .9} textAnchor="middle" fill={point.is_current_location ? '#101010' : '#fff'} fontSize="2.2" fontWeight="800">{index + 1}</text>
+            </motion.g>;
+          })}
+        </svg>
         <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
       </div>
     </Card>
