@@ -22,7 +22,7 @@ export type RoadmapItem = {
 export const navItems: NavItem[] = [
   { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
   { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
-  { label: 'Founders', translationKey: 'navigation.founders', href: '/founders/kevin-de-vlieger' },
+  { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
   { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
   { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
