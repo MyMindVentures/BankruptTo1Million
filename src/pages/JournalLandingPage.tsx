@@ -8,6 +8,7 @@ import { SectionHeading } from '../components/SectionHeading';
 import { filterPosts, getJournalIndex, getPostAuthors, type JournalIndexData, type PublicJournalPost } from '../lib/journal';
 import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
+import './JournalLandingResponsive.css';
 
 type FounderFilter = 'all' | 'kevin' | 'micha' | 'together';
 
