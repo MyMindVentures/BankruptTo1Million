@@ -1,13 +1,35 @@
 import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
+import { useEffect } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { platformFeatures, roadmap } from '../data/siteContent';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
+function setMetaDescription(content: string) {
+  let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'description';
+    document.head.appendChild(meta);
+  }
+  meta.content = content;
+}
+
 export function HomePage() {
   const { t } = useWebsiteI18n();
 
+  const pageTitle = t('home.seo.title', 'Bankrupt to 1 Million — Rebuilding in public');
+  const pageDescription = t(
+    'home.seo.description',
+    'Follow the honest public journey from financial rock bottom toward momentum, community and new ventures.',
+  );
+
+  useEffect(() => {
+    document.title = pageTitle;
+    setMetaDescription(pageDescription);
+  }, [pageDescription, pageTitle]);
+
   return (
-    <main id="top">
+    <main id="top" aria-label={t('home.page_aria', 'Bankrupt to 1 Million homepage')}>
       <section className="hero section-grid" aria-labelledby="hero-title">
         <div className="hero__content">
           <p className="eyebrow">
@@ -88,14 +110,17 @@ export function HomePage() {
             'The long-term platform combines storytelling, community recognition, partnership pathways and a public roadmap into one coherent experience.',
           )}
         </SectionHeading>
-        <div className="feature-grid">
-          {platformFeatures.map((feature, index) => {
+        <div
+          className="feature-grid"
+          aria-label={t('home.platform.features_aria', 'Platform features')}
+        >
+          {platformFeatures.map((feature) => {
             const Icon = feature.icon;
             return (
-              <article className="feature-card" key={feature.title}>
+              <article className="feature-card" key={feature.translationKey}>
                 <Icon aria-hidden="true" />
-                <h3>{t(`home.platform.feature_${index + 1}.title`, feature.title)}</h3>
-                <p>{t(`home.platform.feature_${index + 1}.description`, feature.description)}</p>
+                <h3>{t(`${feature.translationKey}.title`, feature.title)}</h3>
+                <p>{t(`${feature.translationKey}.description`, feature.description)}</p>
               </article>
             );
           })}
@@ -113,12 +138,15 @@ export function HomePage() {
             'The scaffold supports small, focused contributions today while leaving room for future pages, integrations and content systems.',
           )}
         </SectionHeading>
-        <ol className="roadmap-list">
-          {roadmap.map((item, index) => (
-            <li key={item.phase}>
-              <span>{t(`home.roadmap.item_${index + 1}.phase`, item.phase)}</span>
-              <h3>{t(`home.roadmap.item_${index + 1}.title`, item.title)}</h3>
-              <p>{t(`home.roadmap.item_${index + 1}.description`, item.description)}</p>
+        <ol
+          className="roadmap-list"
+          aria-label={t('home.roadmap.list_aria', 'Public build roadmap')}
+        >
+          {roadmap.map((item) => (
+            <li key={item.translationKey}>
+              <span>{t(`${item.translationKey}.phase`, item.phase)}</span>
+              <h3>{t(`${item.translationKey}.title`, item.title)}</h3>
+              <p>{t(`${item.translationKey}.description`, item.description)}</p>
             </li>
           ))}
         </ol>
@@ -137,7 +165,10 @@ export function HomePage() {
             )}
           </p>
         </div>
-        <div className="contribute__actions">
+        <div
+          className="contribute__actions"
+          aria-label={t('home.contribute.actions_aria', 'Contribution calls to action')}
+        >
           <a className="button" href="/issues">
             <Users aria-hidden="true" size={18} />{' '}
             {t('home.contribute.primary_cta', 'Browse open issues')}

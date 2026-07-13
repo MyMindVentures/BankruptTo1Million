@@ -8,12 +8,14 @@ export type NavItem = {
 };
 
 export type FeatureCard = {
+  translationKey: string;
   title: string;
   description: string;
   icon: LucideIcon;
 };
 
 export type RoadmapItem = {
+  translationKey: string;
   phase: string;
   title: string;
   description: string;
@@ -40,31 +42,37 @@ export const navItems: NavItem[] = [
 
 export const platformFeatures: FeatureCard[] = [
   {
+    translationKey: 'home.platform.features.living_documentary',
     title: 'Living documentary',
     description: 'Follow the honest founder journey from rock bottom to momentum through public updates, media and lessons learned.',
     icon: Video,
   },
   {
+    translationKey: 'home.platform.features.founder_journal',
     title: 'Founder journal',
     description: 'Editorial stories turn raw moments, decisions and setbacks into a transparent record of the rebuild.',
     icon: Newspaper,
   },
   {
+    translationKey: 'home.platform.features.interactive_journey_map',
     title: 'Interactive journey map',
     description: 'Milestones, setbacks, partnerships and shipped features become a navigable timeline of progress.',
     icon: Map,
   },
   {
+    translationKey: 'home.platform.features.community_hub',
     title: 'Community hub',
     description: 'Builders, supporters, designers, writers and hosts can find clear ways to contribute one useful piece at a time.',
     icon: Users,
   },
   {
+    translationKey: 'home.platform.features.venture_studio_showcase',
     title: 'Venture studio showcase',
     description: 'Future ventures, collaborations and experiments can be documented as the movement creates new opportunities.',
     icon: Rocket,
   },
   {
+    translationKey: 'home.platform.features.giving_back_platform',
     title: 'Giving-back platform',
     description: 'The long-term goal is to help others rebuild through connections, practical support and visible opportunities.',
     icon: HandHeart,
@@ -73,21 +81,25 @@ export const platformFeatures: FeatureCard[] = [
 
 export const roadmap: RoadmapItem[] = [
   {
+    translationKey: 'home.roadmap.items.foundation',
     phase: 'Foundation',
     title: 'Core website architecture',
     description: 'Establish the responsive application shell, design language, contribution pathways and content structure.',
   },
   {
+    translationKey: 'home.roadmap.items.community',
     phase: 'Community',
     title: 'Founding Builders Wall',
     description: 'Recognize meaningful contributors with profile cards, contribution history and permission-first visibility.',
   },
   {
+    translationKey: 'home.roadmap.items.storytelling',
     phase: 'Storytelling',
     title: 'Founder stories and media archive',
     description: 'Publish journal entries, documentary assets, gallery moments and transparent updates from the journey.',
   },
   {
+    translationKey: 'home.roadmap.items.momentum',
     phase: 'Momentum',
     title: 'Partnership and support flows',
     description: 'Help sponsors, partners, hosts and contributors discover concrete ways to join the mission.',
