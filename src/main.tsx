@@ -10,6 +10,7 @@ import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderProfilePage } from './pages/FounderProfilePage';
+import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import './styles/global.css';
@@ -42,9 +43,11 @@ const rootPage = path === '/legal'
   ? <LegalTransparencyPage />
   : path === '/impact'
     ? <ImpactResultsPage />
-    : founderSlug
-      ? <FounderProfilePage slug={founderSlug} />
-      : <App />;
+    : path === '/founders'
+      ? <FoundersOverviewPage />
+      : founderSlug
+        ? <FounderProfilePage slug={founderSlug} />
+        : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
