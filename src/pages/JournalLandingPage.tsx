@@ -13,6 +13,7 @@ import {
   type JourneyPoint,
 } from '../components/journal/JournalLandingSections';
 import { filterPosts, getJournalIndex, type JournalIndexData } from '../lib/journal';
+import { getJournalDisplayPeople } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
@@ -54,10 +55,16 @@ export function JournalLandingPage() {
         avatarMap[key] = { name: row.display_name, avatarUrl: row.avatar_url };
       });
 
+      const postsBySlug = new Map(journalData.posts.map((post) => [post.slug, post]));
+      const enrichedJourney = journeyRows.map((point) => {
+        const post = postsBySlug.get(point.slug);
+        return post ? { ...point, people: getJournalDisplayPeople(post) } : point;
+      });
+
       setJournal(journalData);
-      setJourney(journeyRows);
+      setJourney(enrichedJourney);
       setFounderAvatars(avatarMap);
-      setActiveId(journeyRows.find((point) => point.is_current_location)?.journey_entry_id || journeyRows[0]?.journey_entry_id);
+      setActiveId(enrichedJourney.find((point) => point.is_current_location)?.journey_entry_id || enrichedJourney[0]?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
   }, []);

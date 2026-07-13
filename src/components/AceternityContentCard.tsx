@@ -2,12 +2,19 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState, type ReactNode } from 'react';
 import './AceternityContentCard.css';
 
+export type ContentCardPerson = {
+  id?: string;
+  name: string;
+  avatarSrc?: string;
+};
+
 export type AceternityContentCardProps = {
   href: string;
   title: string;
   description?: string;
   authorName?: string;
   avatarSrc?: string;
+  people?: ContentCardPerson[];
   imageSrc?: string;
   imageAlt?: string;
   readTime?: string;
@@ -16,19 +23,13 @@ export type AceternityContentCardProps = {
   children?: ReactNode;
 };
 
-/**
- * Adaptation of Aceternity UI's Card Hover Effect pattern.
- * Source: https://ui.aceternity.com/components/card-hover-effect
- *
- * The animated hover background, AnimatePresence transition and layered card
- * structure are retained. Project-specific journal data is mapped through props.
- */
 export function AceternityContentCard({
   href,
   title,
   description,
   authorName = 'Bankrupt to 1 Million',
   avatarSrc = '/og-image.png',
+  people,
   imageSrc,
   imageAlt = '',
   readTime = '4 min read',
@@ -37,6 +38,8 @@ export function AceternityContentCard({
   children,
 }: AceternityContentCardProps) {
   const [hovered, setHovered] = useState(false);
+  const visiblePeople = people?.length ? people : [{ name: authorName, avatarSrc }];
+  const peopleLabel = visiblePeople.map((person) => person.name).join(' & ');
 
   return (
     <a
@@ -81,8 +84,17 @@ export function AceternityContentCard({
 
           <div className="aceternity-hover-card__footer">
             <div className="aceternity-hover-card__author">
-              <img src={avatarSrc} alt="" loading="lazy" />
-              <span>{authorName}</span>
+              <span className="aceternity-hover-card__avatars" aria-hidden="true">
+                {visiblePeople.slice(0, 3).map((person, index) => (
+                  <img
+                    key={person.id || `${person.name}-${index}`}
+                    src={person.avatarSrc || '/og-image.png'}
+                    alt=""
+                    loading="lazy"
+                  />
+                ))}
+              </span>
+              <span>{peopleLabel}</span>
             </div>
             {publishedDate ? <time dateTime={publishedDate}>{children}</time> : null}
             <span className="aceternity-hover-card__arrow" aria-hidden="true">↗</span>
