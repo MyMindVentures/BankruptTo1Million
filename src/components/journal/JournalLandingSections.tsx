@@ -12,6 +12,10 @@ export type JourneyInvolvedPerson = JournalDisplayPerson & {
 };
 
 export type JourneyPoint = PremiumJourneyPoint & {
+  journal_post_id?: string;
+  cover_image_url?: string;
+  cover_image_alt?: string;
+  original_language?: string;
   map_label?: string;
   what_happened?: string;
   why_it_mattered?: string;
