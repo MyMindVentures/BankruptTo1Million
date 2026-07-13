@@ -4,7 +4,7 @@ import { Footer } from './components/Footer';
 import { FounderSupportQrShare } from './components/FounderSupportQrShare';
 import { Header } from './components/Header';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
-import { FounderSupportPage } from './pages/FounderSupportPage';
+import { LocalizedFounderSupportPage } from './pages/LocalizedFounderSupportPage';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/founder-support.css';
@@ -17,7 +17,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Header />
       <div className="page-shell">
         <FounderSupportQrShare />
-        <FounderSupportPage />
+        <LocalizedFounderSupportPage />
       </div>
       <Footer />
     </WebsiteI18nProvider>
