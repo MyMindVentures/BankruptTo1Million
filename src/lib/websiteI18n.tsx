@@ -184,6 +184,8 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (!languages.length || !languages.some((item) => item.code === language)) return;
+
     let cancelled = false;
     const cached = readCachedBundle(language);
 
@@ -236,6 +238,7 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
 
   const setLanguage = useCallback((languageCode: string) => {
     if (!languages.some((item) => item.code === languageCode)) return;
+    window.localStorage.setItem(STORAGE_KEY, languageCode);
     const cached = readCachedBundle(languageCode);
     if (cached) setBundle(cached);
     setLanguageState(languageCode);
