@@ -8,6 +8,7 @@ import { initializeFounderPostOpportunitiesUi } from './lib/founderPostOpportuni
 import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
+import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
@@ -45,6 +46,8 @@ const rootPage = path === '/legal'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    {rootPage}
+    <WebsiteI18nProvider>
+      {rootPage}
+    </WebsiteI18nProvider>
   </StrictMode>,
 );
