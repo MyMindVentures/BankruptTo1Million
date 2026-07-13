@@ -154,7 +154,7 @@ export function JournalArchiveSection({ journal, posts, open, category, search, 
     {open ? <div className="journal-archive-content">
       <div className="journal-archive-toolbar">
         <label><Search size={16} /><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search title, tag or venture" /></label>
-        <label><SlidersHorizontal size={16} /><select value={sort} onChange={(event) => onSearchChange(event.target.value)}><option value="newest">Newest first</option><option value="updated">Recently updated</option><option value="short">Shortest reading time</option><option value="long">Longest reading time</option></select></label>
+        <label><SlidersHorizontal size={16} /><select value={sort} onChange={(event) => onSortChange(event.target.value)}><option value="newest">Newest first</option><option value="updated">Recently updated</option><option value="short">Shortest reading time</option><option value="long">Longest reading time</option></select></label>
         <button type="button" className="button button--ghost button--small" onClick={onReset}><Filter size={16} /> Reset</button>
       </div>
       <div className="chip-group" role="group" aria-label="Archive categories">
