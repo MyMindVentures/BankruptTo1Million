@@ -216,21 +216,22 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (languages.length < 2) return;
 
-    const preload = () => {
-      for (const item of languages) {
-        if (item.code !== language && !readCachedBundle(item.code)) {
-          void loadBundle(item.code).catch(() => undefined);
+    let cancelled = false;
+    const timeoutId = window.setTimeout(() => {
+      void (async () => {
+        for (const item of languages) {
+          if (cancelled) return;
+          if (item.code !== language && !readCachedBundle(item.code)) {
+            await loadBundle(item.code).catch(() => undefined);
+          }
         }
-      }
+      })();
+    }, 1000);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
     };
-
-    if ('requestIdleCallback' in window) {
-      const idleId = window.requestIdleCallback(preload, { timeout: 4000 });
-      return () => window.cancelIdleCallback(idleId);
-    }
-
-    const timeoutId = window.setTimeout(preload, 1000);
-    return () => window.clearTimeout(timeoutId);
   }, [language, languages]);
 
   const setLanguage = useCallback((languageCode: string) => {
