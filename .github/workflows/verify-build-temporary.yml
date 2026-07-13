@@ -5,6 +5,11 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -37,7 +42,40 @@ jobs:
             BUILD_STATUS=99
           fi
           printf 'npm_ci=%s\ntypecheck=%s\nbuild=%s\n' "$CI_STATUS" "$TYPECHECK_STATUS" "$BUILD_STATUS" | tee result.log
-          if [ "$CI_STATUS" -ne 0 ] || [ "$TYPECHECK_STATUS" -ne 0 ] || [ "$BUILD_STATUS" -ne 0 ]; then exit 1; fi
+          printf '%s\n' "$CI_STATUS" > ci-status.txt
+          printf '%s\n' "$TYPECHECK_STATUS" > typecheck-status.txt
+          printf '%s\n' "$BUILD_STATUS" > build-status.txt
+          exit 0
+      - name: Publish diagnostic comment
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        shell: bash
+        run: |
+          {
+            echo '## Automated production-build verification'
+            echo
+            echo '```text'
+            cat result.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo '### npm ci'
+            echo '```text'
+            tail -n 80 npm-ci.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo '### TypeScript'
+            echo '```text'
+            tail -n 160 typecheck.log 2>/dev/null || true
+            echo '```'
+            echo
+            echo '### Production build'
+            echo '```text'
+            tail -n 120 build.log 2>/dev/null || true
+            echo '```'
+          } > ci-comment.md
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file ci-comment.md
       - name: Upload diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -49,3 +87,10 @@ jobs:
             build.log
             result.log
           if-no-files-found: ignore
+      - name: Enforce result
+        shell: bash
+        run: |
+          CI_STATUS=$(cat ci-status.txt)
+          TYPECHECK_STATUS=$(cat typecheck-status.txt)
+          BUILD_STATUS=$(cat build-status.txt)
+          if [ "$CI_STATUS" -ne 0 ] || [ "$TYPECHECK_STATUS" -ne 0 ] || [ "$BUILD_STATUS" -ne 0 ]; then exit 1; fi
