@@ -1,4 +1,4 @@
-import { Camera, ChevronLeft, ChevronRight, FileText, Filter, MapPin, Search, Video, X } from 'lucide-react';
+import { Camera, ChevronLeft, ChevronRight, FileText, Filter, MapPin, RefreshCw, Search, Video, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicMediaAssets } from '../lib/mediaVault';
 import type { MediaVaultKind, PublicMediaAsset } from '../lib/mediaVault';
@@ -16,16 +16,21 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(date);
 }
 
-function MediaKindIcon({ kind }: { kind: MediaVaultKind }) {
-  if (kind === 'video') return <Video size={14} aria-hidden="true" />;
-  if (kind === 'document') return <FileText size={14} aria-hidden="true" />;
-  return <Camera size={14} aria-hidden="true" />;
+function MediaKindIcon({ kind, size = 14 }: { kind: MediaVaultKind; size?: number }) {
+  if (kind === 'video') return <Video size={size} aria-hidden="true" />;
+  if (kind === 'document') return <FileText size={size} aria-hidden="true" />;
+  return <Camera size={size} aria-hidden="true" />;
+}
+
+function MediaPlaceholder({ kind }: { kind: MediaVaultKind }) {
+  return <span className="media-placeholder" aria-hidden="true"><MediaKindIcon kind={kind} size={34} /></span>;
 }
 
 export function MediaVaultPage() {
   const [items, setItems] = useState<PublicMediaAsset[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('All');
   const [kind, setKind] = useState<'all' | MediaVaultKind>('all');
@@ -34,6 +39,9 @@ export function MediaVaultPage() {
 
   useEffect(() => {
     let active = true;
+    setStatus('loading');
+    setError('');
+
     getPublicMediaAssets()
       .then((assets) => {
         if (!active) return;
@@ -45,22 +53,9 @@ export function MediaVaultPage() {
         setError(caught instanceof Error ? caught.message : 'Media Vault could not be loaded.');
         setStatus('error');
       });
-    return () => { active = false; };
-  }, []);
 
-  useEffect(() => {
-    if (!selectedId) return;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setSelectedId(null);
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [selectedId]);
+    return () => { active = false; };
+  }, [reloadKey]);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(items.map((item) => item.category)))], [items]);
   const filtered = useMemo(() => {
@@ -79,10 +74,33 @@ export function MediaVaultPage() {
   const selectedIndex = selectedId ? filtered.findIndex((item) => item.id === selectedId) : -1;
   const selected = selectedIndex >= 0 ? filtered[selectedIndex] : null;
   const featured = items.find((item) => item.featured) || items[0] || null;
+
   const move = (direction: -1 | 1) => {
-    if (!filtered.length || selectedIndex < 0) return;
+    if (filtered.length < 2 || selectedIndex < 0) return;
     setSelectedId(filtered[(selectedIndex + direction + filtered.length) % filtered.length].id);
   };
+
+  useEffect(() => {
+    if (!selectedId) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSelectedId(null);
+      if (event.key === 'ArrowLeft') move(-1);
+      if (event.key === 'ArrowRight') move(1);
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [selectedId, selectedIndex, filtered]);
+
+  useEffect(() => {
+    if (selectedId && !selected) setSelectedId(null);
+  }, [selected, selectedId]);
 
   const photos = items.filter((item) => item.kind === 'photo').length;
   const videos = items.filter((item) => item.kind === 'video').length;
@@ -100,15 +118,17 @@ export function MediaVaultPage() {
           <span><strong>{documents}</strong> Documents</span>
         </div>
       </div>
+
       {featured ? <button className="media-feature" type="button" onClick={() => setSelectedId(featured.id)} aria-label={`Open featured media: ${featured.title}`}>
-        <img src={featured.imageUrl} alt={featured.altText} />
+        {featured.imageUrl ? <img src={featured.imageUrl} alt={featured.altText} onError={(event) => { event.currentTarget.hidden = true; }} /> : <MediaPlaceholder kind={featured.kind} />}
         <span className="media-feature__shade" />
         <span className="media-feature__content">
           <small>Featured media</small>
           <strong>{featured.title}</strong>
+          <span className="media-feature__meta"><MediaKindIcon kind={featured.kind} /> {featured.kind}</span>
           {featured.location ? <span><MapPin size={14} aria-hidden="true" /> {featured.location}</span> : null}
         </span>
-      </button> : <div className="media-feature media-feature--empty" aria-hidden="true" />}
+      </button> : <div className="media-feature media-feature--empty" aria-hidden="true"><MediaPlaceholder kind="photo" /></div>}
     </section>
 
     <section className="media-explorer" aria-labelledby="media-explorer-title">
@@ -117,8 +137,8 @@ export function MediaVaultPage() {
         <p>{filtered.length} of {items.length} public assets</p>
       </div>
 
-      {status === 'loading' ? <div className="media-state" role="status">Loading published media from Supabase…</div> : null}
-      {status === 'error' ? <div className="media-state media-state--error" role="alert"><strong>Media could not be loaded.</strong><span>{error}</span></div> : null}
+      {status === 'loading' ? <div className="media-state" role="status"><RefreshCw className="media-state__spinner" size={24} aria-hidden="true" /><span>Loading published media from Supabase…</span></div> : null}
+      {status === 'error' ? <div className="media-state media-state--error" role="alert"><strong>Media could not be loaded.</strong><span>{error}</span><button className="button button--ghost" type="button" onClick={() => setReloadKey((value) => value + 1)}><RefreshCw size={16} aria-hidden="true" /> Try again</button></div> : null}
 
       {status === 'ready' ? <>
         <div className="media-toolbar">
@@ -128,8 +148,8 @@ export function MediaVaultPage() {
         </div>
         <div className="media-category-strip" aria-label="Media categories">{categories.map((item) => <button key={item} type="button" data-active={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>
 
-        {filtered.length ? <div className="media-grid" role="list">{filtered.map((item, index) => <button className={`media-card ${index % 4 === 0 ? 'media-card--wide' : ''}`} key={item.id} type="button" onClick={() => setSelectedId(item.id)} role="listitem">
-          {item.imageUrl ? <img src={item.imageUrl} alt={item.altText} loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : null}
+        {filtered.length ? <div className="media-grid">{filtered.map((item, index) => <button className={`media-card ${index % 4 === 0 ? 'media-card--wide' : ''}`} key={item.id} type="button" onClick={() => setSelectedId(item.id)}>
+          {item.imageUrl ? <img src={item.imageUrl} alt={item.altText} loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : <MediaPlaceholder kind={item.kind} />}
           <span className="media-card__shade" />
           <span className="media-card__type"><MediaKindIcon kind={item.kind} /> {item.kind === 'video' ? formatDuration(item.durationSeconds) || 'Video' : item.kind === 'document' ? 'Document' : 'Photo'}</span>
           <span className="media-card__content"><small>{item.category}</small><strong>{item.title}</strong>{item.location ? <span><MapPin size={13} aria-hidden="true" /> {item.location}</span> : null}</span>
@@ -139,14 +159,14 @@ export function MediaVaultPage() {
 
     {selected ? <div className="media-viewer" role="dialog" aria-modal="true" aria-label={selected.title} onClick={() => setSelectedId(null)}>
       <button className="media-viewer__close" type="button" onClick={() => setSelectedId(null)} aria-label="Close media viewer"><X aria-hidden="true" /></button>
-      <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Previous media"><ChevronLeft aria-hidden="true" /></button>
+      {filtered.length > 1 ? <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Previous media"><ChevronLeft aria-hidden="true" /></button> : null}
       <div className="media-viewer__panel" onClick={(event) => event.stopPropagation()}>
         <div className="media-viewer__visual">
-          {selected.kind === 'video' ? <video src={selected.mediaUrl} poster={selected.thumbnailUrl || undefined} controls preload="metadata" /> : selected.kind === 'document' ? <a className="media-document-link" href={selected.mediaUrl} target="_blank" rel="noreferrer"><FileText size={42} aria-hidden="true" /><span>Open document</span></a> : <img src={selected.mediaUrl} alt={selected.altText} />}
+          {selected.kind === 'video' ? <video src={selected.mediaUrl} poster={selected.thumbnailUrl || undefined} controls preload="metadata" playsInline /> : selected.kind === 'document' ? <a className="media-document-link" href={selected.mediaUrl} target="_blank" rel="noreferrer"><FileText size={42} aria-hidden="true" /><span>Open document</span></a> : <img src={selected.mediaUrl} alt={selected.altText} />}
         </div>
-        <div className="media-viewer__details"><p className="eyebrow">{selected.category}</p><h2>{selected.title}</h2>{selected.description ? <p>{selected.description}</p> : null}<dl>{selected.location ? <div><dt>Location</dt><dd>{selected.location}</dd></div> : null}<div><dt>Published</dt><dd>{formatDate(selected.capturedAt)}</dd></div><div><dt>Type</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>{selected.width && selected.height ? <div><dt>Dimensions</dt><dd>{selected.width} × {selected.height}</dd></div> : null}</dl><div className="media-viewer__tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></div>
+        <div className="media-viewer__details"><p className="eyebrow">{selected.category}</p><h2>{selected.title}</h2>{selected.description ? <p>{selected.description}</p> : null}{selected.caption ? <p className="media-viewer__caption">{selected.caption}</p> : null}<dl>{selected.location ? <div><dt>Location</dt><dd>{selected.location}</dd></div> : null}<div><dt>Published</dt><dd>{formatDate(selected.capturedAt)}</dd></div><div><dt>Type</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>{selected.width && selected.height ? <div><dt>Dimensions</dt><dd>{selected.width} × {selected.height}</dd></div> : null}</dl>{selected.tags.length ? <div className="media-viewer__tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}</div>
       </div>
-      <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Next media"><ChevronRight aria-hidden="true" /></button>
+      {filtered.length > 1 ? <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Next media"><ChevronRight aria-hidden="true" /></button> : null}
     </div> : null}
   </main>;
 }
