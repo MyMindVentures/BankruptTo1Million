@@ -1,6 +1,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
+import { Footer } from './components/Footer';
+import { Header } from './components/Header';
 import { initializeConceptMessageUi } from './lib/conceptMessageUi';
 import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
 import { initializeFounderPostUi } from './lib/founderPostUi';
@@ -15,6 +17,7 @@ import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
+import { MediaVaultPage } from './pages/MediaVaultPage';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/discovery-responsive.css';
@@ -33,6 +36,7 @@ import './styles/legal.css';
 import './styles/footerLegalPatch.css';
 import './styles/siteMedia.css';
 import './components/PremiumJourneyMapPins.css';
+import './styles/mediaVault.css';
 import './styles/responsive-hardening.css';
 
 initializeConceptOwnershipUi();
@@ -46,17 +50,20 @@ initializeSiteMediaUi();
 
 const path = window.location.pathname;
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
+const mediaPage = path === '/media' || path === '/media-vault';
 const rootPage = path === '/legal'
   ? <LegalTransparencyPage />
   : path === '/impact'
     ? <ImpactResultsPage />
-    : path === '/journal'
-      ? <JournalLandingPage />
-      : path === '/founders'
-        ? <FoundersOverviewPage />
-        : founderSlug
-          ? <FounderProfilePage slug={founderSlug} />
-          : <App />;
+    : mediaPage
+      ? <><Header /><div className="page-shell"><MediaVaultPage /></div><Footer /></>
+      : path === '/journal'
+        ? <JournalLandingPage />
+        : path === '/founders'
+          ? <FoundersOverviewPage />
+          : founderSlug
+            ? <FounderProfilePage slug={founderSlug} />
+            : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
