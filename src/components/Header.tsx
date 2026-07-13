@@ -38,9 +38,6 @@ export function Header() {
 
         <div className="site-header__tools">
           <LanguageSelector />
-          <a className="button button--small site-header__cta" href="/issues">
-            {t('header.view_issues', 'View Issues')}
-          </a>
         </div>
 
         <button
@@ -70,9 +67,6 @@ export function Header() {
         </nav>
         <div className="mobile-nav-panel__actions">
           <LanguageSelector />
-          <a className="button button--small" href="/issues" onClick={closeMobileMenu}>
-            {t('header.view_issues', 'View Issues')}
-          </a>
         </div>
       </div>
     </header>
