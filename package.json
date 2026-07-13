@@ -13,8 +13,7 @@
     "lucide-react": "^0.468.0",
     "motion": "^12.23.12",
     "react": "19.0.0",
-    "react-dom": "19.0.0",
-    "react-simple-maps": "^3.0.0"
+    "react-dom": "19.0.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "4.3.4",
@@ -28,8 +27,7 @@
     "globals": "15.14.0",
     "@types/react": "19.0.0",
     "@types/react-dom": "19.0.0",
-    "@types/node": "22.10.2",
-    "@types/react-simple-maps": "^3.0.6"
+    "@types/node": "22.10.2"
   },
   "engines": {
     "node": "20.x"
