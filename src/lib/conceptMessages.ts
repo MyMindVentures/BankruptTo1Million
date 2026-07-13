@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 export type ProofOfMindConceptMessage = {
   id: string;
   concept_id: string;
+  concept_slug: string;
   message_type: string;
   title: string;
   excerpt: string | null;
@@ -52,6 +53,7 @@ function publicStorageUrl(bucket: string | null, path: string | null) {
 }
 
 function normalize(row: RawRow, language: string): ProofOfMindConceptMessage {
+  const concept = firstObject(row.proof_of_mind_concepts) || {};
   const post = firstObject(row.journal_posts) || {};
   const media = firstObject(row.media_assets) || {};
   const translations = Array.isArray(row.journal_concept_message_translations) ? row.journal_concept_message_translations as RawRow[] : [];
@@ -66,6 +68,7 @@ function normalize(row: RawRow, language: string): ProofOfMindConceptMessage {
   return {
     id: String(row.id),
     concept_id: String(row.concept_id),
+    concept_slug: text(concept.slug) || '',
     message_type: text(row.message_type) || 'founder_message',
     title: text(localizedPost?.title) || text(post.title) || text(localized?.founder_video_title) || text(row.founder_video_title) || 'A personal message from the founder',
     excerpt: text(localizedPost?.excerpt) || text(post.excerpt),
@@ -86,7 +89,7 @@ function normalize(row: RawRow, language: string): ProofOfMindConceptMessage {
 
 export async function getPublishedConceptMessages() {
   const language = preferredLanguage();
-  const query = `select=id,concept_id,message_type,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,video_status,cta_label,cta_url,journal_posts!inner(id,title,excerpt,status,published_at,journal_translations(language_code,title,excerpt,translation_status)),media_assets(id,external_url,storage_bucket,storage_path,thumbnail_url),journal_concept_message_translations(language_code,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,cta_label,translation_status)&order=display_order.asc,created_at.desc`;
+  const query = `select=id,concept_id,message_type,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,video_status,cta_label,cta_url,proof_of_mind_concepts!inner(slug),journal_posts!inner(id,title,excerpt,status,published_at,journal_translations(language_code,title,excerpt,translation_status)),media_assets(id,external_url,storage_bucket,storage_path,thumbnail_url),journal_concept_message_translations(language_code,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,cta_label,translation_status)&order=display_order.asc,created_at.desc`;
   const rows = await readJson<RawRow[]>(supabase.from('journal_concept_messages').request({ query }));
-  return rows.map((row) => normalize(row, language));
+  return rows.map((row) => normalize(row, language)).filter((row) => row.concept_slug);
 }
