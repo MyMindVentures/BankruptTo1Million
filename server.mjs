@@ -1,13 +1,12 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize, resolve, sep } from 'node:path';
+import { handleJourneyRoute } from './journey-routing.mjs';
 
 const host = process.env.HOST || '0.0.0.0';
 const port = Number(process.env.PORT || 3000);
 const distDir = resolve('dist');
 const indexFile = join(distDir, 'index.html');
-
-
 const githubOwner = process.env.GITHUB_OWNER || 'MyMindVentures';
 const githubRepo = process.env.GITHUB_REPO || 'BankruptTo1Million';
 const githubApiBaseUrl = (process.env.GITHUB_API_BASE_URL || 'https://api.github.com').replace(/\/$/, '');
@@ -27,11 +26,7 @@ async function fetchGitHub(path) {
       ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
     },
   });
-
-  if (!response.ok) {
-    throw new Error(`GitHub API request failed: ${response.status}`);
-  }
-
+  if (!response.ok) throw new Error(`GitHub API request failed: ${response.status}`);
   return response.json();
 }
 
@@ -126,7 +121,6 @@ async function buildImpactData() {
     if (category === 'Feature' || category === 'UI') contributor.featuresCompleted += 1;
     if (category === 'Bug fix') contributor.bugFixesCompleted += 1;
     applyContributionDates(contributor, pull.merged_at);
-
     const linkedNumbers = new Set(String(pull.body || '').match(/(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)/gi)?.map((match) => Number(match.match(/\d+/)?.[0])) || []);
     for (const issueNumber of linkedNumbers) {
       const issue = closedIssues.find((candidate) => candidate.number === issueNumber);
@@ -155,9 +149,7 @@ async function buildImpactData() {
     issueNumbersAttributed.add(issue.number);
   }
 
-  const pullReviewLists = await Promise.all(
-    mergedPulls.map((pull) => fetchAllPages(`/pulls/${pull.number}/reviews`, 2).catch(() => [])),
-  );
+  const pullReviewLists = await Promise.all(mergedPulls.map((pull) => fetchAllPages(`/pulls/${pull.number}/reviews`, 2).catch(() => [])));
   const reviewedPullsByContributor = new Map();
   for (const reviews of pullReviewLists) {
     const reviewAuthors = new Set();
@@ -166,25 +158,15 @@ async function buildImpactData() {
       reviewAuthors.add(review.user.login);
       ensureContributor(contributors, review.user);
     }
-    for (const login of reviewAuthors) {
-      reviewedPullsByContributor.set(login, (reviewedPullsByContributor.get(login) || 0) + 1);
-    }
+    for (const login of reviewAuthors) reviewedPullsByContributor.set(login, (reviewedPullsByContributor.get(login) || 0) + 1);
   }
   for (const [login, reviewCount] of reviewedPullsByContributor.entries()) {
     const contributor = contributors.get(login);
     if (contributor) contributor.reviewsPerformed = reviewCount;
   }
 
-  const contributorList = Array.from(contributors.values()).map((contributor) => {
-    addBadges(contributor);
-    return contributor;
-  }).sort((a, b) => (b.mergedPullRequests.length + b.implementedIssues.length) - (a.mergedPullRequests.length + a.implementedIssues.length));
-
-  const humans = contributorList.filter((contributor) => !contributor.isBot);
-  const bots = contributorList.filter((contributor) => contributor.isBot);
-
+  const contributorList = Array.from(contributors.values()).map((contributor) => { addBadges(contributor); return contributor; }).sort((a, b) => (b.mergedPullRequests.length + b.implementedIssues.length) - (a.mergedPullRequests.length + a.implementedIssues.length));
   const successfulWorkflowRuns = workflowRuns.filter((run) => run.conclusion === 'success');
-
   return {
     source: `https://github.com/${githubOwner}/${githubRepo}`,
     refreshedAt: new Date().toISOString(),
@@ -199,8 +181,8 @@ async function buildImpactData() {
       mergedPullRequests: new Set(mergedPulls.map((pull) => pull.number)).size,
       testsPassed: successfulWorkflowRuns.length,
     },
-    contributors: humans,
-    bots,
+    contributors: contributorList.filter((contributor) => !contributor.isBot),
+    bots: contributorList.filter((contributor) => contributor.isBot),
     attributionRules: [
       'GitHub issues are counted from the public repository issues API; pull requests returned in the issues endpoint are removed from issue totals.',
       'Merged pull requests are counted once by unique pull request number.',
@@ -209,92 +191,52 @@ async function buildImpactData() {
       'Reviews are counted from public pull request review records once per reviewed pull request per reviewer.',
       'Successful completed GitHub Actions workflow runs are counted as passed verification checks when workflow data is publicly available.',
       'Bot accounts are excluded from the public Wall of Founding Builders and reported separately.',
-      `Server data is cached for ${Math.round(impactCacheTtlMs / 60000)} minutes to reduce GitHub rate-limit risk; repository owner, repository name and API base URL can be configured server-side, and privileged GitHub tokens are read only on the server when configured.`,
+      `Server data is cached for ${Math.round(impactCacheTtlMs / 60000)} minutes to reduce GitHub rate-limit risk.`,
     ],
   };
 }
 
 async function sendImpactData(response) {
   const now = Date.now();
-
   try {
-    if (!impactCache || now - impactCache.createdAt > impactCacheTtlMs) {
-      impactCache = { createdAt: now, data: await buildImpactData() };
-    }
-
-    const data = { ...impactCache.data, stale: now - impactCache.createdAt > impactCacheTtlMs };
+    if (!impactCache || now - impactCache.createdAt > impactCacheTtlMs) impactCache = { createdAt: now, data: await buildImpactData() };
     response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=300' });
-    response.end(JSON.stringify(data));
+    response.end(JSON.stringify({ ...impactCache.data, stale: now - impactCache.createdAt > impactCacheTtlMs }));
   } catch (error) {
     if (impactCache) {
-      const data = {
-        ...impactCache.data,
-        refreshedAt: impactCache.data.refreshedAt,
-        stale: true,
-        warning: error instanceof Error ? error.message : 'Unknown GitHub synchronization error',
-      };
       response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, max-age=60' });
-      response.end(JSON.stringify(data));
+      response.end(JSON.stringify({ ...impactCache.data, stale: true, warning: error instanceof Error ? error.message : 'Unknown GitHub synchronization error' }));
       return;
     }
-
     response.writeHead(502, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-cache' });
     response.end(JSON.stringify({ message: error instanceof Error ? error.message : 'Unknown GitHub synchronization error' }));
   }
 }
 
 const contentTypes = {
-  '.css': 'text/css; charset=utf-8',
-  '.html': 'text/html; charset=utf-8',
-  '.js': 'text/javascript; charset=utf-8',
-  '.json': 'application/json; charset=utf-8',
-  '.map': 'application/json; charset=utf-8',
-  '.png': 'image/png',
-  '.jpg': 'image/jpeg',
-  '.jpeg': 'image/jpeg',
-  '.svg': 'image/svg+xml',
-  '.webp': 'image/webp',
-  '.ico': 'image/x-icon',
-  '.txt': 'text/plain; charset=utf-8',
+  '.css': 'text/css; charset=utf-8', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8', '.map': 'application/json; charset=utf-8', '.png': 'image/png',
+  '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.ico': 'image/x-icon', '.txt': 'text/plain; charset=utf-8',
 };
 
 function sendFile(response, filePath) {
   const stream = createReadStream(filePath);
-  response.writeHead(200, {
-    'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream',
-    'Cache-Control': filePath === indexFile ? 'no-cache' : 'public, max-age=31536000, immutable',
-  });
+  response.writeHead(200, { 'Content-Type': contentTypes[extname(filePath)] || 'application/octet-stream', 'Cache-Control': filePath === indexFile ? 'no-cache' : 'public, max-age=31536000, immutable' });
   stream.pipe(response);
-  stream.on('error', () => {
-    response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });
-    response.end('Internal server error');
-  });
+  stream.on('error', () => { response.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' }); response.end('Internal server error'); });
 }
 
 createServer((request, response) => {
   const url = new URL(request.url || '/', `http://${request.headers.host || `${host}:${port}`}`);
+  if (url.pathname === '/api/impact') { void sendImpactData(response); return; }
+  if (url.pathname === '/api/journey-route') { void handleJourneyRoute(request, response); return; }
+
   const decodedPath = decodeURIComponent(url.pathname);
   const safePath = normalize(decodedPath).replace(/^(\.\.[/\\])+/, '');
   const requestedFile = resolve(distDir, `.${safePath}`);
   const isInsideDist = requestedFile === distDir || requestedFile.startsWith(`${distDir}${sep}`);
-
-  if (url.pathname === '/api/impact') {
-    void sendImpactData(response);
-    return;
-  }
-
-  if (isInsideDist && existsSync(requestedFile) && statSync(requestedFile).isFile()) {
-    sendFile(response, requestedFile);
-    return;
-  }
-
-  if (existsSync(indexFile)) {
-    sendFile(response, indexFile);
-    return;
-  }
-
+  if (isInsideDist && existsSync(requestedFile) && statSync(requestedFile).isFile()) { sendFile(response, requestedFile); return; }
+  if (existsSync(indexFile)) { sendFile(response, indexFile); return; }
   response.writeHead(503, { 'Content-Type': 'text/plain; charset=utf-8' });
   response.end('Production build not found. Run npm run build before starting the server.');
-}).listen(port, host, () => {
-  console.log(`Serving ${distDir} on http://${host}:${port}`);
-});
+}).listen(port, host, () => console.log(`Serving ${distDir} on http://${host}:${port}`));
