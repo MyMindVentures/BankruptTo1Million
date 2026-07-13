@@ -11,18 +11,21 @@ const STARTER_POINTS: PremiumJourneyPoint[] = [
     excerpt: 'Kevin and Micha choose to stop hiding the struggle and begin rebuilding openly from the Costa Blanca.',
     occurred_at: '2026-07-09', country_name: 'Spain', city_name: 'Santa Pola', location_name: 'Santa Pola',
     latitude: 38.1917, longitude: -0.5658, journey_person: 'together', is_milestone: true, is_current_location: false,
+    involved_people: [],
   },
   {
     journey_entry_id: 'starter-alicante', slug: '', title: 'Building the platform and the story',
     excerpt: 'The Journal, venture concepts and public mission begin to take shape as one visible ecosystem.',
     occurred_at: '2026-07-10', country_name: 'Spain', city_name: 'Alicante', location_name: 'Alicante',
     latitude: 38.3452, longitude: -0.481, journey_person: 'kevin', is_milestone: true, is_current_location: false,
+    involved_people: [],
   },
   {
     journey_entry_id: 'starter-open-road', slug: '', title: 'The next chapter is still open',
     excerpt: 'The road ahead will be shaped by hosts, builders, partners and people willing to believe before the proof exists.',
     occurred_at: '2026-07-13', country_name: 'Spain', city_name: 'Costa Blanca', location_name: 'Open road',
     latitude: 38.57, longitude: -0.12, journey_person: 'together', is_milestone: false, is_current_location: true,
+    involved_people: [],
   },
 ];
 
