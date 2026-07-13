@@ -1,8 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { FounderSupportQrShare } from './components/FounderSupportQrShare';
+import { FounderSupportUpcomingTimeline } from './components/FounderSupportUpcomingTimeline';
+import { Header } from './components/Header';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderSupportPage } from './pages/FounderSupportPage';
 import './styles/global.css';
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <Header />
       <div className="page-shell">
         <FounderSupportQrShare />
+        <FounderSupportUpcomingTimeline />
         <FounderSupportPage />
       </div>
       <Footer />
