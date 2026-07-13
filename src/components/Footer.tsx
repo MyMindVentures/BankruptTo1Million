@@ -1,4 +1,4 @@
-import { ArrowUp, ArrowUpRight, Github, HeartHandshake, MapPin, ShieldCheck } from 'lucide-react';
+import { ArrowRight, ArrowUp, ArrowUpRight, Github, MapPin, ShieldCheck } from 'lucide-react';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
 const footerGroups = [
@@ -47,10 +47,12 @@ export function Footer() {
 
   return (
     <footer className="site-footer" aria-labelledby="footer-title">
-      <div className="site-footer__glow" aria-hidden="true" />
+      <div className="site-footer__ambient" aria-hidden="true" />
 
       <div className="site-footer__inner">
-        <section className="site-footer__intro">
+        <section className="site-footer__brand-panel">
+          <p className="site-footer__kicker">A public rebuild in motion</p>
+
           <a
             className="site-footer__brand"
             href="/#top"
@@ -63,31 +65,31 @@ export function Footer() {
             </span>
           </a>
 
-          <p>{t(
+          <p className="site-footer__mission">{t(
             'footer.mission.description',
             'A transparent founder journey, venture archive and community mission by Kevin De Vlieger and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.',
           )}</p>
 
+          <div className="site-footer__primary-links">
+            <a href="/support">
+              {t('footer.actions.support', 'Support the mission')}
+              <ArrowRight size={16} aria-hidden="true" />
+            </a>
+            <a href="/proof-of-mind">
+              {t('footer.actions.explore_concepts', 'Explore the concepts')}
+              <ArrowRight size={16} aria-hidden="true" />
+            </a>
+          </div>
+
           <div className="site-footer__trust">
             <a href="/legal#ownership">
-              <ShieldCheck size={16} aria-hidden="true" />
+              <ShieldCheck size={15} aria-hidden="true" />
               {t('footer.trust.original_concepts', 'Original concepts protected')}
             </a>
             <span>
-              <MapPin size={16} aria-hidden="true" />
+              <MapPin size={15} aria-hidden="true" />
               {t('footer.trust.location', 'Based in Alicante, Spain')}
             </span>
-          </div>
-
-          <div className="site-footer__actions">
-            <a className="button" href="/support">
-              <HeartHandshake size={18} aria-hidden="true" />
-              {t('footer.actions.support', 'Support the mission')}
-            </a>
-            <a className="button button--ghost" href="/proof-of-mind">
-              {t('footer.actions.explore_concepts', 'Explore the concepts')}
-              <ArrowUpRight size={16} aria-hidden="true" />
-            </a>
           </div>
         </section>
 
@@ -108,7 +110,7 @@ export function Footer() {
                         {...('external' in link && link.external ? { target: '_blank', rel: 'noreferrer' } : {})}
                       >
                         <span>{t(link.key, link.label)}</span>
-                        {'external' in link && link.external ? <ArrowUpRight size={14} aria-hidden="true" /> : null}
+                        {'external' in link && link.external ? <ArrowUpRight size={13} aria-hidden="true" /> : null}
                       </a>
                     </li>
                   ))}
@@ -127,13 +129,12 @@ export function Footer() {
         )}</p>
         <div className="site-footer__bottom-links">
           <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer">
-            <Github size={16} aria-hidden="true" /> GitHub
+            <Github size={15} aria-hidden="true" /> GitHub
           </a>
-          <a href="/legal#ownership">{t('footer.bottom.ownership_notice', 'Ownership notice')}</a>
           <a href="/legal#privacy">{t('footer.bottom.privacy', 'Privacy')}</a>
           <a href="#top">
-            <ArrowUp size={15} aria-hidden="true" />
             {t('footer.bottom.back_to_top', 'Back to top')}
+            <ArrowUp size={14} aria-hidden="true" />
           </a>
         </div>
       </div>
