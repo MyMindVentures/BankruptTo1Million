@@ -1,6 +1,8 @@
-import { motion } from 'motion/react';
-import { ChevronLeft, ChevronRight, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
-import { Badge, Card } from './ui/card';
+import maplibregl, { type Map as MapLibreMap, type Marker as MapLibreMarker, type StyleSpecification } from 'maplibre-gl';
+import 'maplibre-gl/dist/maplibre-gl.css';
+import { useEffect, useMemo, useRef } from 'react';
+import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
+import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
 import './PremiumJourneyMap.css';
 
@@ -20,6 +22,23 @@ export type PremiumJourneyPoint = {
   is_current_location: boolean;
 };
 
+const MAP_STYLE: StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap contributors © CARTO',
+    },
+  },
+  layers: [{ id: 'carto-dark', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
+};
+
 function personLabel(person: PremiumJourneyPoint['journey_person']) {
   return person === 'together' ? 'Kevin & Micha' : person === 'kevin' ? 'Kevin' : 'Micha';
 }
@@ -28,78 +47,155 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 }
 
-function projectPoint(point: PremiumJourneyPoint, all: PremiumJourneyPoint[]) {
-  const lats = all.map((item) => Number(item.latitude));
-  const lngs = all.map((item) => Number(item.longitude));
-  const minLat = Math.min(...lats, 37.8);
-  const maxLat = Math.max(...lats, 39.2);
-  const minLng = Math.min(...lngs, -1.2);
-  const maxLng = Math.max(...lngs, 0.4);
-  const x = 12 + ((Number(point.longitude) - minLng) / Math.max(maxLng - minLng, 0.1)) * 76;
-  const y = 18 + (1 - (Number(point.latitude) - minLat) / Math.max(maxLat - minLat, 0.1)) * 64;
-  return { x, y };
+function coordinates(point: PremiumJourneyPoint): [number, number] {
+  return [Number(point.longitude), Number(point.latitude)];
+}
+
+function popupContent(point: PremiumJourneyPoint) {
+  const root = document.createElement('div');
+  root.className = 'premium-map-popup';
+  const eyebrow = document.createElement('span');
+  eyebrow.textContent = point.is_current_location ? 'Current location' : personLabel(point.journey_person);
+  const title = document.createElement('strong');
+  title.textContent = point.title;
+  const location = document.createElement('small');
+  location.textContent = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
+  root.append(eyebrow, title, location);
+  return root;
 }
 
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
-  const mapped = points.filter((point) => point.latitude != null && point.longitude != null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const markersRef = useRef<MapLibreMarker[]>([]);
+  const mapped = useMemo(() => points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude))), [points]);
   const active = mapped.find((point) => point.journey_entry_id === activeId) || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
   const previous = mapped[(activeIndex - 1 + mapped.length) % mapped.length];
   const next = mapped[(activeIndex + 1) % mapped.length];
+  const routeProgress = mapped.length > 1 ? ((activeIndex + 1) / mapped.length) * 100 : 100;
+
+  useEffect(() => {
+    if (!containerRef.current || !mapped.length) return;
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: MAP_STYLE,
+      center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]),
+      zoom: 8.5,
+      pitch: 36,
+      bearing: -8,
+      attributionControl: false,
+      cooperativeGestures: true,
+    });
+    mapRef.current = map;
+
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+    map.on('load', () => {
+      map.addSource('journey-route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'LineString', coordinates: mapped.map(coordinates) },
+        },
+      });
+      map.addLayer({
+        id: 'journey-route-glow',
+        type: 'line',
+        source: 'journey-route',
+        paint: { 'line-color': '#d8aa5f', 'line-width': 8, 'line-opacity': 0.16, 'line-blur': 6 },
+      });
+      map.addLayer({
+        id: 'journey-route-line',
+        type: 'line',
+        source: 'journey-route',
+        paint: { 'line-color': '#f0c979', 'line-width': 3, 'line-opacity': 0.96, 'line-dasharray': [1.2, 1.2] },
+      });
+
+      const bounds = new maplibregl.LngLatBounds();
+      mapped.forEach((point, index) => {
+        bounds.extend(coordinates(point));
+        const element = document.createElement('button');
+        element.type = 'button';
+        element.className = `premium-map-dom-marker${point.is_current_location ? ' is-current' : ''}${point.journey_entry_id === activeId ? ' is-active' : ''}`;
+        element.setAttribute('aria-label', `Open ${point.title}`);
+        element.innerHTML = `<span>${index + 1}</span>`;
+        element.addEventListener('click', () => onSelect(point.journey_entry_id));
+        const marker = new maplibregl.Marker({ element, anchor: 'center' })
+          .setLngLat(coordinates(point))
+          .setPopup(new maplibregl.Popup({ offset: 22, closeButton: false }).setDOMContent(popupContent(point)))
+          .addTo(map);
+        markersRef.current.push(marker);
+      });
+
+      if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
+      else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
+    });
+
+    return () => {
+      markersRef.current.forEach((marker) => marker.remove());
+      markersRef.current = [];
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [mapped, onSelect]);
+
+  useEffect(() => {
+    if (!active || !mapRef.current) return;
+    markersRef.current.forEach((marker) => {
+      const element = marker.getElement();
+      const markerPoint = mapped.find((point) => coordinates(point).join(',') === marker.getLngLat().toArray().join(','));
+      element.classList.toggle('is-active', markerPoint?.journey_entry_id === active.journey_entry_id);
+    });
+    mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 42, duration: 950, essential: true });
+  }, [active, mapped]);
 
   if (!mapped.length) {
     return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
   }
 
-  const routePoints = mapped.map((point) => {
-    const position = projectPoint(point, mapped);
-    return `${position.x},${position.y}`;
-  }).join(' ');
+  const current = mapped.find((point) => point.is_current_location) || mapped[mapped.length - 1];
 
-  return <div className="premium-map-layout">
-    <Card className="premium-map-card">
-      <div className="premium-map-card__topbar">
-        <div><Badge>Interactive route</Badge><span>{mapped.length} mapped chapter{mapped.length === 1 ? '' : 's'}</span></div>
-        <Button variant="ghost" size="sm" onClick={() => onSelect(mapped.find((point) => point.is_current_location)?.journey_entry_id || mapped[0].journey_entry_id)}><LocateFixed size={16}/> Current</Button>
-      </div>
-      <div className="premium-map-stage">
-        <svg viewBox="0 0 100 100" role="img" aria-label="Journey route map">
-          <defs>
-            <radialGradient id="mapGlow" cx="35%" cy="35%" r="70%"><stop offset="0%" stopColor="#19324a" stopOpacity=".7"/><stop offset="100%" stopColor="#071019" stopOpacity="0"/></radialGradient>
-            <filter id="routeGlow"><feGaussianBlur stdDeviation=".6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-          </defs>
-          <rect width="100" height="100" fill="#081018"/>
-          <rect width="100" height="100" fill="url(#mapGlow)"/>
-          <g className="premium-map-grid-lines" aria-hidden="true">
-            {[20,40,60,80].map((value)=><line key={`v-${value}`} x1={value} y1="0" x2={value} y2="100"/>)}
-            {[20,40,60,80].map((value)=><line key={`h-${value}`} x1="0" y1={value} x2="100" y2={value}/>) }
-          </g>
-          <path className="premium-map-landmass" d="M10,72 C18,55 24,31 39,22 C50,15 66,18 75,29 C83,39 87,53 82,66 C76,80 57,88 39,85 C25,83 15,79 10,72 Z"/>
-          <path className="premium-map-coastline" d="M22,68 C29,55 34,38 44,31 C54,24 66,27 73,37 C78,45 78,56 73,65 C66,76 52,80 39,77 C31,75 25,72 22,68 Z"/>
-          <polyline points={routePoints} className="premium-map-route-line" filter="url(#routeGlow)"/>
-          {mapped.map((point, index) => {
-            const position = projectPoint(point, mapped);
-            const selected = active?.journey_entry_id === point.journey_entry_id;
-            return <motion.g key={point.journey_entry_id} className="premium-map-marker" onClick={() => onSelect(point.journey_entry_id)} whileHover={{ scale: 1.16 }} animate={{ scale: selected ? 1.18 : 1 }} transition={{ type: 'spring', stiffness: 260, damping: 18 }} style={{ transformOrigin: `${position.x}px ${position.y}px` }}>
-              {point.is_current_location ? <circle cx={position.x} cy={position.y} r="4.2" fill="rgba(217,173,99,.18)"/> : null}
-              <circle cx={position.x} cy={position.y} r={selected ? 2.4 : 1.9} fill={point.is_current_location ? '#d9ad63' : '#101720'} stroke="#f3d9a3" strokeWidth=".7"/>
-              <text x={position.x} y={position.y + .9} textAnchor="middle" fill={point.is_current_location ? '#101010' : '#fff'} fontSize="2.2" fontWeight="800">{index + 1}</text>
-            </motion.g>;
-          })}
-        </svg>
-        <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
-      </div>
-    </Card>
+  return <div className="premium-map-shell">
+    <div className="premium-map-kpis">
+      <Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout>
+      <Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout>
+      <Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout>
+    </div>
 
-    <Card className="premium-map-detail-card">
-      <div className="premium-map-detail-card__meta"><Badge>{personLabel(active.journey_person)}</Badge>{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
-      <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
-      <time>{formatDate(active.occurred_at)}</time>
-      <h3>{active.title}</h3>
-      <p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p>
-      <p>{active.excerpt}</p>
-      {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>Read this chapter <ChevronRight size={16}/></ButtonLink> : null}
-      <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" onClick={() => onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> Previous</Button><Button variant="ghost" size="sm" onClick={() => onSelect(next.journey_entry_id)}>Next <ChevronRight size={16}/></Button></div>
-    </Card>
+    <div className="premium-map-layout">
+      <Card className="premium-map-card">
+        <div className="premium-map-card__topbar">
+          <div><Badge>Live journey map</Badge><span>Real map underlay · interactive route</span></div>
+          <div className="premium-map-top-actions">
+            <Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button>
+            <Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button>
+          </div>
+        </div>
+        <div className="premium-map-stage">
+          <div ref={containerRef} className="premium-map-canvas" />
+          <div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Costa Blanca expedition view</span></div>
+          <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
+        </div>
+      </Card>
+
+      <Card className="premium-map-detail-card">
+        <div className="premium-map-detail-card__meta"><Badge>{personLabel(active.journey_person)}</Badge>{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
+        <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
+        <time>{formatDate(active.occurred_at)}</time>
+        <h3>{active.title}</h3>
+        <p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p>
+        <p>{active.excerpt}</p>
+        <div className="premium-map-progress"><div><span>Journey progress</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
+        <div className="premium-map-coordinates"><Crosshair size={15}/><span>{Number(active.latitude).toFixed(4)}, {Number(active.longitude).toFixed(4)}</span></div>
+        {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>Read this chapter <ChevronRight size={16}/></ButtonLink> : null}
+        <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" onClick={() => onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> Previous</Button><Button variant="ghost" size="sm" onClick={() => onSelect(next.journey_entry_id)}>Next <ChevronRight size={16}/></Button></div>
+      </Card>
+    </div>
   </div>;
 }
