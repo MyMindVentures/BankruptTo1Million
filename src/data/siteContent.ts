@@ -24,7 +24,6 @@ export const navItems: NavItem[] = [
   { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
   { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
   { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
-  { label: 'Media', translationKey: 'navigation.media', href: '/media' },
   { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
   { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support.html' },
