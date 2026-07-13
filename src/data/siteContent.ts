@@ -3,6 +3,7 @@ import type { LucideIcon } from 'lucide-react';
 
 export type NavItem = {
   label: string;
+  translationKey: string;
   href: string;
 };
 
@@ -19,21 +20,21 @@ export type RoadmapItem = {
 };
 
 export const navItems: NavItem[] = [
-  { label: 'Home', href: '/#top' },
-  { label: 'Story', href: '/#story' },
-  { label: 'Founders', href: '/founders/kevin-de-vlieger' },
-  { label: 'Journal', href: '/journal' },
-  { label: 'Proof of Mind', href: '/proof-of-mind' },
-  { label: 'Break the Circle', href: '/break-the-circle' },
-  { label: 'Founder Support', href: '/founder-support.html' },
-  { label: 'Platform', href: '/#platform' },
-  { label: 'Roadmap', href: '/#roadmap' },
-  { label: 'Impact', href: '/impact' },
-  { label: 'Founding Heroes', href: '/founding-heroes' },
-  { label: 'Apply', href: '/become-a-founding-hero' },
-  { label: 'Support', href: '/support' },
-  { label: 'Issues', href: '/issues' },
-  { label: 'Profile', href: '/profile/issues' },
+  { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
+  { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
+  { label: 'Founders', translationKey: 'navigation.founders', href: '/founders/kevin-de-vlieger' },
+  { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
+  { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
+  { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
+  { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support.html' },
+  { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
+  { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
+  { label: 'Impact', translationKey: 'navigation.impact', href: '/impact' },
+  { label: 'Founding Heroes', translationKey: 'navigation.founding_heroes', href: '/founding-heroes' },
+  { label: 'Apply', translationKey: 'navigation.apply', href: '/become-a-founding-hero' },
+  { label: 'Support', translationKey: 'navigation.support', href: '/support' },
+  { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
+  { label: 'Profile', translationKey: 'navigation.profile', href: '/profile/issues' },
 ];
 
 export const platformFeatures: FeatureCard[] = [
