@@ -74,7 +74,7 @@ async function readJson<T>(response: Response): Promise<T> {
 
 export async function getFounderProfiles() {
   const response = await supabase.from('founder_profiles').request({
-    query: 'select=id,slug,display_name,role_title,portrait_url&is_public=eq.true&order=display_order.asc',
+    query: 'select=id,slug,display_name&order=display_order.asc',
   });
   return readJson<FounderProfile[]>(response);
 }
@@ -157,7 +157,7 @@ export async function addFounderSupportReaction(input: {
 export async function getFounderMappings(accessToken: string) {
   const response = await supabase.from('founder_profile_users').request({
     accessToken,
-    query: 'select=founder_profile_id,access_role,is_active,founder_profiles(id,slug,display_name,role_title)&is_active=eq.true',
+    query: 'select=founder_profile_id,access_role,is_active,founder_profiles(id,slug,display_name)&is_active=eq.true',
   });
   return readJson<Array<{
     founder_profile_id: string;
