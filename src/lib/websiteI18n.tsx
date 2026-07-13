@@ -13,8 +13,6 @@ export type WebsiteLanguage = {
 type TranslationRow = {
   translation_key: string;
   translated_text: string;
-  resolved_language_code: string;
-  used_fallback: boolean;
 };
 
 type TranslationKeyRow = {
@@ -30,6 +28,11 @@ type TranslationValueRow = {
 
 type TranslationVariables = Record<string, string | number>;
 
+type TranslationBundle = {
+  byKey: Record<string, string>;
+  bySource: Record<string, string>;
+};
+
 type WebsiteI18nContextValue = {
   language: string;
   languages: WebsiteLanguage[];
@@ -42,13 +45,13 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v2.';
 const DEFAULT_LANGUAGE = 'en';
-const TRANSLATABLE_ATTRIBUTES = ['aria-label', 'title', 'placeholder', 'alt'] as const;
-const SKIPPED_TAGS = new Set(['SCRIPT', 'STYLE', 'CODE', 'PRE', 'NOSCRIPT']);
+const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 
 const WebsiteI18nContext = createContext<WebsiteI18nContextValue | null>(null);
-const originalTextNodes = new WeakMap<Text, string>();
-const originalAttributes = new WeakMap<Element, Map<string, string>>();
+const bundleCache = new Map<string, TranslationBundle>();
+let translationKeysPromise: Promise<TranslationKeyRow[]> | null = null;
 
 async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
   const resolved = await response;
@@ -68,12 +71,6 @@ function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
-function preserveOuterWhitespace(original: string, translated: string) {
-  const leading = original.match(/^\s*/)?.[0] || '';
-  const trailing = original.match(/\s*$/)?.[0] || '';
-  return `${leading}${translated}${trailing}`;
-}
-
 function detectPreferredLanguage(languages: WebsiteLanguage[]) {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored && languages.some((language) => language.code === stored)) return stored;
@@ -91,150 +88,121 @@ function detectPreferredLanguage(languages: WebsiteLanguage[]) {
   return DEFAULT_LANGUAGE;
 }
 
-function resolveEnglishSource(
-  current: string,
-  sourceTranslations: Map<string, string>,
-  translatedToSource: Map<string, string>,
-) {
-  const normalized = normalizeText(current);
-  if (!normalized) return current;
-  if (sourceTranslations.has(normalized)) return normalized;
-  return translatedToSource.get(normalized) || current;
+function readCachedBundle(language: string): TranslationBundle | null {
+  const memory = bundleCache.get(language);
+  if (memory) return memory;
+
+  try {
+    const raw = window.sessionStorage.getItem(`${BUNDLE_CACHE_PREFIX}${language}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as TranslationBundle;
+    if (!parsed?.byKey || !parsed?.bySource) return null;
+    bundleCache.set(language, parsed);
+    return parsed;
+  } catch {
+    return null;
+  }
 }
 
-function applyDocumentTranslations(
-  language: string,
-  sourceTranslations: Map<string, string>,
-  translatedToSource: Map<string, string>,
-) {
-  const root = document.getElementById('root');
-  if (!root) return;
+function cacheBundle(language: string, bundle: TranslationBundle) {
+  bundleCache.set(language, bundle);
+  try {
+    window.sessionStorage.setItem(`${BUNDLE_CACHE_PREFIX}${language}`, JSON.stringify(bundle));
+  } catch {
+    // Session storage can be unavailable or full; the in-memory cache still works.
+  }
+}
 
-  const translateNode = (node: Text) => {
-    const parent = node.parentElement;
-    if (!parent || SKIPPED_TAGS.has(parent.tagName) || parent.closest('[data-i18n-skip="true"]')) return;
+function getTranslationKeys() {
+  if (!translationKeysPromise) {
+    translationKeysPromise = readJson<TranslationKeyRow[]>(supabase.from('website_translation_keys').request({
+      query: 'select=id,translation_key,default_text&order=translation_key.asc',
+    })).catch((error) => {
+      translationKeysPromise = null;
+      throw error;
+    });
+  }
+  return translationKeysPromise;
+}
 
-    const current = node.nodeValue || '';
-    if (!normalizeText(current)) return;
+async function loadBundle(language: string): Promise<TranslationBundle> {
+  const cached = readCachedBundle(language);
+  if (cached) return cached;
 
-    const knownOriginal = originalTextNodes.get(node);
-    const englishSource = knownOriginal || resolveEnglishSource(current, sourceTranslations, translatedToSource);
-    originalTextNodes.set(node, englishSource);
+  const [resolvedRows, keyRows, valueRows] = await Promise.all([
+    readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language })),
+    getTranslationKeys(),
+    language === DEFAULT_LANGUAGE
+      ? Promise.resolve([] as TranslationValueRow[])
+      : readJson<TranslationValueRow[]>(supabase.from('website_translations').request({
+          query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}`,
+        })),
+  ]);
 
-    const normalizedSource = normalizeText(englishSource);
-    const next = language === DEFAULT_LANGUAGE
-      ? englishSource
-      : sourceTranslations.get(normalizedSource) || current;
+  const byKey = Object.fromEntries(resolvedRows.map((row) => [row.translation_key, row.translated_text]));
+  const valuesByKeyId = new Map(valueRows.map((row) => [row.translation_key_id, row.translated_text]));
+  const bySource: Record<string, string> = {};
 
-    const rendered = preserveOuterWhitespace(current, next);
-    if (node.nodeValue !== rendered) node.nodeValue = rendered;
-  };
-
-  const translateElementAttributes = (element: Element) => {
-    if (SKIPPED_TAGS.has(element.tagName) || element.closest('[data-i18n-skip="true"]')) return;
-
-    let originals = originalAttributes.get(element);
-    if (!originals) {
-      originals = new Map<string, string>();
-      originalAttributes.set(element, originals);
-    }
-
-    for (const attribute of TRANSLATABLE_ATTRIBUTES) {
-      const current = element.getAttribute(attribute);
-      if (!current || !normalizeText(current)) continue;
-
-      const knownOriginal = originals.get(attribute);
-      const englishSource = knownOriginal || resolveEnglishSource(current, sourceTranslations, translatedToSource);
-      originals.set(attribute, englishSource);
-
-      const next = language === DEFAULT_LANGUAGE
-        ? englishSource
-        : sourceTranslations.get(normalizeText(englishSource)) || current;
-
-      if (current !== next) element.setAttribute(attribute, next);
-    }
-  };
-
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  let textNode = walker.nextNode();
-  while (textNode) {
-    translateNode(textNode as Text);
-    textNode = walker.nextNode();
+  for (const keyRow of keyRows) {
+    const source = normalizeText(keyRow.default_text || '');
+    if (!source) continue;
+    const translated = language === DEFAULT_LANGUAGE
+      ? keyRow.default_text
+      : valuesByKeyId.get(keyRow.id);
+    if (translated) bySource[source] = translated;
   }
 
-  root.querySelectorAll('*').forEach(translateElementAttributes);
+  const bundle = { byKey, bySource };
+  cacheBundle(language, bundle);
+  return bundle;
 }
 
 export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   const [languages, setLanguages] = useState<WebsiteLanguage[]>([]);
   const [language, setLanguageState] = useState(DEFAULT_LANGUAGE);
-  const [translations, setTranslations] = useState<Record<string, string>>({});
-  const [translationsBySource, setTranslationsBySource] = useState<Map<string, string>>(new Map());
-  const [translatedToSource, setTranslatedToSource] = useState<Map<string, string>>(new Map());
-  const [isLoading, setIsLoading] = useState(true);
+  const [bundle, setBundle] = useState<TranslationBundle>(() => readCachedBundle(DEFAULT_LANGUAGE) || EMPTY_BUNDLE);
+  const [isLoading, setIsLoading] = useState(() => !readCachedBundle(DEFAULT_LANGUAGE));
 
   useEffect(() => {
+    let cancelled = false;
+
     readJson<WebsiteLanguage[]>(supabase.from('site_languages').request({
       query: 'select=code,english_name,native_name,is_rtl,display_order&is_active=eq.true&order=display_order.asc,code.asc',
     }))
       .then((rows) => {
+        if (cancelled) return;
         setLanguages(rows);
         setLanguageState(detectPreferredLanguage(rows));
       })
       .catch(() => {
+        if (cancelled) return;
         setLanguages([{ code: 'en', english_name: 'English', native_name: 'English', is_rtl: false, display_order: 0 }]);
         setLanguageState(DEFAULT_LANGUAGE);
       });
+
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     let cancelled = false;
-    setIsLoading(true);
+    const cached = readCachedBundle(language);
 
-    Promise.all([
-      readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language })),
-      readJson<TranslationKeyRow[]>(supabase.from('website_translation_keys').request({
-        query: 'select=id,translation_key,default_text&order=translation_key.asc',
-      })),
-      language === DEFAULT_LANGUAGE
-        ? Promise.resolve([] as TranslationValueRow[])
-        : readJson<TranslationValueRow[]>(supabase.from('website_translations').request({
-            query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}`,
-          })),
-    ])
-      .then(([resolvedRows, keyRows, valueRows]) => {
-        if (cancelled) return;
-
-        setTranslations(Object.fromEntries(resolvedRows.map((row) => [row.translation_key, row.translated_text])));
-
-        const valuesByKeyId = new Map(valueRows.map((row) => [row.translation_key_id, row.translated_text]));
-        const bySource = new Map<string, string>();
-        const reverse = new Map<string, string>();
-
-        for (const keyRow of keyRows) {
-          const source = normalizeText(keyRow.default_text || '');
-          if (!source) continue;
-          const translated = language === DEFAULT_LANGUAGE
-            ? keyRow.default_text
-            : valuesByKeyId.get(keyRow.id);
-          if (!translated) continue;
-          bySource.set(source, translated);
-          reverse.set(normalizeText(translated), keyRow.default_text);
-        }
-
-        setTranslationsBySource(bySource);
-        setTranslatedToSource(reverse);
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setTranslations({});
-          setTranslationsBySource(new Map());
-          setTranslatedToSource(new Map());
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoading(false);
-      });
+    if (cached) {
+      setBundle(cached);
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+      loadBundle(language)
+        .then((nextBundle) => {
+          if (!cancelled) setBundle(nextBundle);
+        })
+        .catch(() => {
+          if (!cancelled) setBundle(EMPTY_BUNDLE);
+        })
+        .finally(() => {
+          if (!cancelled) setIsLoading(false);
+        });
+    }
 
     const selected = languages.find((item) => item.code === language);
     document.documentElement.lang = language;
@@ -246,52 +214,42 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   }, [language, languages]);
 
   useEffect(() => {
-    let frame = 0;
-    const root = document.getElementById('root');
-    if (!root) return undefined;
+    if (languages.length < 2) return;
 
-    const apply = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => {
-        applyDocumentTranslations(language, translationsBySource, translatedToSource);
-      });
-    };
-
-    apply();
-
-    // Only observe newly mounted content. Watching characterData and attributes here
-    // causes the observer to react to the translation mutations it performs itself,
-    // which can create a costly feedback loop and freeze the page on language change.
-    const observer = new MutationObserver((mutations) => {
-      if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) {
-        apply();
+    const preload = () => {
+      for (const item of languages) {
+        if (item.code !== language && !readCachedBundle(item.code)) {
+          void loadBundle(item.code).catch(() => undefined);
+        }
       }
-    });
-    observer.observe(root, {
-      childList: true,
-      subtree: true,
-    });
-
-    return () => {
-      cancelAnimationFrame(frame);
-      observer.disconnect();
     };
-  }, [language, translatedToSource, translationsBySource]);
+
+    if ('requestIdleCallback' in window) {
+      const idleId = window.requestIdleCallback(preload, { timeout: 4000 });
+      return () => window.cancelIdleCallback(idleId);
+    }
+
+    const timeoutId = window.setTimeout(preload, 1000);
+    return () => window.clearTimeout(timeoutId);
+  }, [language, languages]);
 
   const setLanguage = useCallback((languageCode: string) => {
-    if (languages.some((item) => item.code === languageCode)) setLanguageState(languageCode);
+    if (!languages.some((item) => item.code === languageCode)) return;
+    const cached = readCachedBundle(languageCode);
+    if (cached) setBundle(cached);
+    setLanguageState(languageCode);
   }, [languages]);
 
   const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => {
-    return interpolate(translations[key] || fallback, variables);
-  }, [translations]);
+    return interpolate(bundle.byKey[key] || fallback, variables);
+  }, [bundle]);
 
   const translateText = useCallback((fallback: string, variables?: TranslationVariables) => {
     const translated = language === DEFAULT_LANGUAGE
       ? fallback
-      : translationsBySource.get(normalizeText(fallback)) || fallback;
+      : bundle.bySource[normalizeText(fallback)] || fallback;
     return interpolate(translated, variables);
-  }, [language, translationsBySource]);
+  }, [bundle, language]);
 
   const locale = language === 'en' ? 'en-GB' : language;
   const formatDate = useCallback((value: string | Date, options?: Intl.DateTimeFormatOptions) => {
