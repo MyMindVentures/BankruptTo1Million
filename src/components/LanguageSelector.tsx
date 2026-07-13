@@ -2,7 +2,7 @@ import { Globe2 } from 'lucide-react';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
 export function LanguageSelector() {
-  const { language, languages, isLoading, setLanguage, t } = useWebsiteI18n();
+  const { language, languages, setLanguage, t } = useWebsiteI18n();
   const selectedLanguage = languages.find((item) => item.code === language);
 
   return (
@@ -12,7 +12,7 @@ export function LanguageSelector() {
       <select
         aria-label={t('header.language_label', 'Language')}
         value={language}
-        disabled={isLoading || languages.length === 0}
+        disabled={languages.length === 0}
         onChange={(event) => setLanguage(event.target.value)}
       >
         {languages.map((item) => (
