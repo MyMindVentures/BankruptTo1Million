@@ -5,6 +5,11 @@ import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
 import './PremiumJourneyMap.css';
 
+export type JourneyInvolvedPerson = JournalDisplayPerson & {
+  relation_role?: string;
+  display_order?: number;
+};
+
 export type PremiumJourneyPoint = {
   journey_entry_id: string;
   slug: string;
@@ -16,13 +21,11 @@ export type PremiumJourneyPoint = {
   location_name?: string;
   latitude?: number | string;
   longitude?: number | string;
-  journey_person: 'kevin' | 'micha' | 'together';
+  journey_person?: 'kevin' | 'micha' | 'together';
   is_milestone: boolean;
   is_current_location: boolean;
-  people?: JournalDisplayPerson[];
+  involved_people: JourneyInvolvedPerson[];
 };
-
-export type FounderAvatarMap = Partial<Record<'kevin' | 'micha', { name: string; avatarUrl: string | null }>>;
 
 type MapLibreGlobal = {
   Map: new (options: Record<string, unknown>) => any;
@@ -68,10 +71,6 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
   return mapLibrePromise;
 }
 
-function personLabel(person: PremiumJourneyPoint['journey_person']) {
-  return person === 'together' ? 'Kevin & Micha' : person === 'kevin' ? 'Kevin' : 'Micha';
-}
-
 function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 }
@@ -80,47 +79,55 @@ function coordinates(point: PremiumJourneyPoint): [number, number] {
   return [Number(point.longitude), Number(point.latitude)];
 }
 
-function legacyPeople(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap): JournalDisplayPerson[] {
-  if (point.journey_person === 'together') {
-    return [
-      { id: 'kevin', slug: 'kevin-de-vlieger', display_name: founderAvatars.kevin?.name || 'Kevin', avatar_url: founderAvatars.kevin?.avatarUrl || undefined },
-      { id: 'micha', slug: 'micha', display_name: founderAvatars.micha?.name || 'Micha', avatar_url: founderAvatars.micha?.avatarUrl || undefined },
-    ];
-  }
-  const fallback = founderAvatars[point.journey_person];
-  return [{ id: point.journey_person, slug: point.journey_person, display_name: fallback?.name || personLabel(point.journey_person), avatar_url: fallback?.avatarUrl || undefined }];
+function sortedPeople(point: PremiumJourneyPoint) {
+  return [...(point.involved_people || [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
 }
 
-function pointPeople(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
-  return point.people?.length ? point.people : legacyPeople(point, founderAvatars);
+function peopleLabel(point: PremiumJourneyPoint) {
+  return sortedPeople(point).map((person) => person.display_name).join(' & ');
 }
 
-function peopleLabel(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
-  return pointPeople(point, founderAvatars).map((person) => person.display_name).join(' & ');
+function markerVariant(point: PremiumJourneyPoint) {
+  const slugs = sortedPeople(point).map((person) => person.slug);
+  if (slugs.includes('kevin-de-vlieger') && slugs.includes('micha')) return 'together';
+  if (slugs.includes('kevin-de-vlieger')) return 'kevin';
+  if (slugs.includes('micha')) return 'micha';
+  return 'person';
 }
 
-function addAvatar(container: HTMLElement, person: JournalDisplayPerson) {
+function addAvatar(container: HTMLElement, person: JourneyInvolvedPerson) {
   if (person.avatar_url) {
     const image = document.createElement('img');
-    image.src = person.avatar_url; image.alt = ''; image.loading = 'eager'; image.decoding = 'async';
+    image.src = person.avatar_url;
+    image.alt = '';
+    image.loading = 'eager';
+    image.decoding = 'async';
     container.appendChild(image);
-  } else {
-    const span = document.createElement('span'); span.textContent = person.display_name.slice(0, 1).toUpperCase(); container.appendChild(span);
+    return;
   }
+  const fallback = document.createElement('span');
+  fallback.textContent = person.display_name.slice(0, 1).toUpperCase();
+  container.appendChild(fallback);
 }
 
-function createMarkerElement(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
+function createMarkerElement(point: PremiumJourneyPoint) {
   const element = document.createElement('button');
-  const people = pointPeople(point, founderAvatars);
+  const people = sortedPeople(point);
   element.type = 'button';
-  element.className = `premium-map-dom-marker premium-map-dom-marker--${point.journey_person}${point.is_current_location ? ' is-current' : ''}`;
-  element.setAttribute('aria-label', `Open ${point.title} — ${peopleLabel(point, founderAvatars)}`);
+  element.className = `premium-map-dom-marker premium-map-dom-marker--${markerVariant(point)}${point.is_current_location ? ' is-current' : ''}`;
+  element.setAttribute('aria-label', people.length ? `Open ${point.title} — ${peopleLabel(point)}` : `Open ${point.title}`);
 
   if (people.length > 1) {
     const split = document.createElement('span'); split.className = 'premium-map-dom-marker__split';
     people.slice(0, 2).forEach((person) => { const holder = document.createElement('span'); addAvatar(holder, person); split.appendChild(holder); });
     element.appendChild(split);
-  } else if (people[0]) addAvatar(element, people[0]);
+  } else if (people[0]) {
+    addAvatar(element, people[0]);
+  } else {
+    const fallback = document.createElement('span');
+    fallback.textContent = '•';
+    element.appendChild(fallback);
+  }
 
   if (point.is_milestone) {
     const badge = document.createElement('i'); badge.className = 'premium-map-dom-marker__badge'; badge.textContent = '★'; element.appendChild(badge);
@@ -128,23 +135,26 @@ function createMarkerElement(point: PremiumJourneyPoint, founderAvatars: Founder
   return element;
 }
 
-function popupContent(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
-  const people = pointPeople(point, founderAvatars);
+function popupContent(point: PremiumJourneyPoint) {
+  const people = sortedPeople(point);
   const root = document.createElement('div'); root.className = 'premium-map-popup';
   const head = document.createElement('div'); head.className = 'premium-map-popup__head';
-  const avatars = document.createElement('div'); avatars.className = 'premium-map-popup__avatars';
-  people.slice(0, 3).forEach((person) => { const holder = document.createElement('span'); addAvatar(holder, person); avatars.appendChild(holder); });
+  if (people.length) {
+    const avatars = document.createElement('div'); avatars.className = 'premium-map-popup__avatars';
+    people.slice(0, 3).forEach((person) => { const holder = document.createElement('span'); addAvatar(holder, person); avatars.appendChild(holder); });
+    head.appendChild(avatars);
+  }
   const meta = document.createElement('div');
-  const eyebrow = document.createElement('span'); eyebrow.textContent = point.is_current_location ? 'Current location' : people.map((person) => person.display_name).join(' & ');
+  const eyebrow = document.createElement('span'); eyebrow.textContent = point.is_current_location ? 'Current location' : peopleLabel(point);
   const date = document.createElement('small'); date.textContent = formatDate(point.occurred_at);
-  meta.append(eyebrow, date); head.append(avatars, meta);
+  meta.append(eyebrow, date); head.appendChild(meta);
   const title = document.createElement('strong'); title.textContent = point.title;
   const location = document.createElement('small'); location.textContent = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
   root.append(head, title, location);
   return root;
 }
 
-export function PremiumJourneyMap({ points, activeId, onSelect, founderAvatars = {} }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void; founderAvatars?: FounderAvatarMap }) {
+export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -183,10 +193,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect, founderAvatars =
         const bounds = new maplibregl.LngLatBounds();
         mapped.forEach((point) => {
           bounds.extend(coordinates(point));
-          const element = createMarkerElement(point, founderAvatars);
+          const element = createMarkerElement(point);
           element.classList.toggle('is-active', point.journey_entry_id === activeId);
           element.addEventListener('click', () => onSelect(point.journey_entry_id));
-          const marker = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(coordinates(point)).setPopup(new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(popupContent(point, founderAvatars))).addTo(map);
+          const marker = new maplibregl.Marker({ element, anchor: 'center' })
+            .setLngLat(coordinates(point))
+            .setPopup(new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(popupContent(point)))
+            .addTo(map);
           markersRef.current.push(marker);
         });
         if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
@@ -199,7 +212,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect, founderAvatars =
       markersRef.current.forEach((marker) => marker.remove()); markersRef.current = [];
       if (map) map.remove(); mapRef.current = null;
     };
-  }, [mapped, onSelect, activeId, founderAvatars]);
+  }, [mapped, onSelect, activeId]);
 
   useEffect(() => {
     if (!active || !mapRef.current) return;
@@ -216,20 +229,18 @@ export function PremiumJourneyMap({ points, activeId, onSelect, founderAvatars =
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
   const current = mapped.find((point) => point.is_current_location) || mapped[mapped.length - 1];
-  const activePeople = pointPeople(active, founderAvatars);
+  const activePeople = sortedPeople(active);
 
   return <div className="premium-map-shell">
     <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
     <div className="premium-map-layout">
       <Card className="premium-map-card">
-        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Profile photo pins · completed route · next chapters</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
-        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Kevin & Micha journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin</span><span><i className="is-micha"/> Micha</span><span><i className="is-together"/> Together</span><span><i className="is-route"/> Completed route</span></div></div>
+        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Database-linked profile pins · completed route · next chapters</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
+        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin</span><span><i className="is-micha"/> Micha</span><span><i className="is-together"/> Multiple people</span><span><i className="is-route"/> Completed route</span></div></div>
       </Card>
       <Card className="premium-map-detail-card">
-        <div className="premium-map-detail-card__meta"><Badge>{activePeople.map((person) => person.display_name).join(' & ')}</Badge>{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
-        <div className="premium-map-detail-founder">
-          {activePeople.slice(0, 3).map((person) => person.avatar_url ? <img key={person.id} src={person.avatar_url} alt={person.display_name}/> : <span key={person.id} className="premium-map-detail-founder__fallback">{person.display_name.slice(0, 1)}</span>)}
-        </div>
+        <div className="premium-map-detail-card__meta">{activePeople.length ? <Badge>{peopleLabel(active)}</Badge> : null}{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
+        {activePeople.length ? <div className="premium-map-detail-founder">{activePeople.slice(0, 3).map((person) => person.avatar_url ? <img key={person.id} src={person.avatar_url} alt={person.display_name}/> : <span key={person.id} className="premium-map-detail-founder__fallback">{person.display_name.slice(0, 1)}</span>)}</div> : null}
         <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
         <time>{formatDate(active.occurred_at)}</time><h3>{active.title}</h3><p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p><p>{active.excerpt}</p>
         <div className="premium-map-progress"><div><span>Journey progress</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
