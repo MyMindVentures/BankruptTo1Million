@@ -62,12 +62,14 @@ function getStoredActiveId() {
 
 export function JournalJourneyMapSection() {
   const [livePoints, setLivePoints] = useState<PremiumJourneyPoint[]>([]);
+  const [mapFeedError, setMapFeedError] = useState('');
   const [filter, setFilter] = useState<'all' | PremiumJourneyPoint['journey_person']>('all');
   const [activeId, setActiveId] = useState(() => getStoredActiveId() || STARTER_POINTS[0].journey_entry_id);
 
   useEffect(() => {
     readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc' }))
       .then((rows) => {
+        setMapFeedError('');
         setLivePoints(rows);
         const storedActiveId = getStoredActiveId();
         const storedPointStillExists = storedActiveId && rows.some((point) => point.journey_entry_id === storedActiveId);
@@ -78,7 +80,10 @@ export function JournalJourneyMapSection() {
         const newest = newestPoint(rows, 'all');
         if (newest) setActiveId(newest.journey_entry_id);
       })
-      .catch(() => setLivePoints([]));
+      .catch((error: unknown) => {
+        setLivePoints([]);
+        setMapFeedError(error instanceof Error ? error.message : 'The live map feed could not be loaded.');
+      });
   }, []);
 
   useEffect(() => {
@@ -98,17 +103,28 @@ export function JournalJourneyMapSection() {
   }, [activeId, filter, points]);
 
   const selectPoint = (journeyEntryId: string) => {
+    const selectedPoint = source.find((point) => point.journey_entry_id === journeyEntryId);
     setActiveId(journeyEntryId);
     if (typeof window !== 'undefined') {
       window.sessionStorage.setItem(JOURNEY_ACTIVE_STORAGE_KEY, journeyEntryId);
+      if (selectedPoint?.slug) {
+        window.location.assign(`/journal/${encodeURIComponent(selectedPoint.slug)}`);
+      }
     }
+  };
+
+  const selectFilter = (value: 'all' | PremiumJourneyPoint['journey_person']) => {
+    setFilter(value);
+    const next = newestPoint(source, value);
+    if (next) setActiveId(next.journey_entry_id);
   };
 
   return <div className="journey-map-only">
     <Callout className="journey-map-only__toolbar">
-      <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries and timeline locations' : 'Mission preview until the first journey entries are published'}</span></div>
-      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = newestPoint(source, value); if (next) selectPoint(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
+      <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries and timeline locations' : 'Mission preview until the live map feed is available'}</span></div>
+      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => selectFilter(value)}>{label(value)}</Button>)}</div>
     </Callout>
+    {mapFeedError ? <Callout><strong>Live map feed unavailable</strong><span>{mapFeedError}</span></Callout> : null}
     <PremiumJourneyMap points={points} activeId={activeId} onSelect={selectPoint}/>
     <JourneyCalendarPlanner />
   </div>;
