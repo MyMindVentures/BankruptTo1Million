@@ -40,6 +40,8 @@ export type TimelineExchangeItem = {
   } | null;
 };
 
+type ExchangePeriod = 'past' | 'current' | 'upcoming';
+
 export function formatJournalDate(value?: string) {
   if (!value) return '';
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
@@ -61,6 +63,35 @@ function normalizeLocation(value?: string | null) {
   return (value || '').trim().toLocaleLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ');
 }
 
+function startOfToday() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+}
+
+function exchangePeriod(item: TimelineExchangeItem): ExchangePeriod {
+  const today = startOfToday();
+  const starts = item.calendar_entry?.starts_on ? new Date(`${item.calendar_entry.starts_on}T00:00:00`).getTime() : NaN;
+  const ends = item.calendar_entry?.ends_on ? new Date(`${item.calendar_entry.ends_on}T23:59:59`).getTime() : NaN;
+
+  if (!Number.isNaN(ends) && ends < today) return 'past';
+  if (!Number.isNaN(starts) && starts > today) return 'upcoming';
+  return 'current';
+}
+
+function exchangePeriodLabel(period: ExchangePeriod) {
+  if (period === 'past') return 'Passed';
+  if (period === 'upcoming') return 'Upcoming';
+  return 'Now';
+}
+
+function exchangeDateLabel(item: TimelineExchangeItem) {
+  const starts = item.calendar_entry?.starts_on;
+  const ends = item.calendar_entry?.ends_on;
+  if (!starts && !ends) return '';
+  if (starts && ends && starts !== ends) return `${formatJournalDate(starts)} – ${formatJournalDate(ends)}`;
+  return formatJournalDate(starts || ends || '');
+}
+
 function exchangeItemsForPoint(point: JourneyPoint, items: TimelineExchangeItem[]) {
   const pointLocations = [point.city_name, point.location_name, point.map_label, point.region_name]
     .map(normalizeLocation)
@@ -71,23 +102,32 @@ function exchangeItemsForPoint(point: JourneyPoint, items: TimelineExchangeItem[
     const calendarLocations = [calendar?.city_name, calendar?.location_name, calendar?.region_name]
       .map(normalizeLocation)
       .filter(Boolean);
-    const locationMatches = calendarLocations.some((calendarLocation) => pointLocations.some(
+    return calendarLocations.some((calendarLocation) => pointLocations.some(
       (pointLocation) => calendarLocation.includes(pointLocation) || pointLocation.includes(calendarLocation),
     ));
-    if (!locationMatches) return false;
-
-    const occurred = point.occurred_at ? new Date(point.occurred_at).getTime() : NaN;
-    const starts = calendar?.starts_on ? new Date(`${calendar.starts_on}T00:00:00Z`).getTime() : NaN;
-    const ends = calendar?.ends_on ? new Date(`${calendar.ends_on}T23:59:59Z`).getTime() : NaN;
-    const isCurrent = Boolean(point.is_current_location);
-    const dateMatches = isCurrent || Number.isNaN(occurred) || (Number.isNaN(starts) || occurred >= starts) && (Number.isNaN(ends) || occurred <= ends);
-    return dateMatches;
+  }).sort((a, b) => {
+    const order: Record<ExchangePeriod, number> = { current: 0, upcoming: 1, past: 2 };
+    return order[exchangePeriod(a)] - order[exchangePeriod(b)];
   });
 }
 
 function exchangeHref(item: TimelineExchangeItem) {
   if (item.item_type === 'offer') return item.slug ? `/offers/${item.slug}` : '/offers';
   return `/support?need=${encodeURIComponent(item.id)}`;
+}
+
+function ExchangeBullet({ item }: { item: TimelineExchangeItem }) {
+  const period = exchangePeriod(item);
+  const dateLabel = exchangeDateLabel(item);
+  return <li className={`journal-timeline-card__exchange-item is-${period}`}>
+    <a href={exchangeHref(item)}>
+      <span className="journal-timeline-card__exchange-copy">
+        <span className="journal-timeline-card__exchange-row"><span>• {item.title}</span><span className={`journal-timeline-card__period is-${period}`}>{exchangePeriodLabel(period)}</span></span>
+        {dateLabel ? <small>{dateLabel}</small> : null}
+      </span>
+      <ArrowRight size={13} />
+    </a>
+  </li>;
 }
 
 export function JournalArticleCard({ post }: { post: PublicJournalPost }) {
@@ -148,7 +188,8 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
   onSelect: (id: string) => void;
 }) {
   return <section className="journal-timeline-section" aria-labelledby="journal-timeline-title">
-    <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Select a moment to move the map and open its current context.</SectionHeading>
+    <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Past chapters, current needs and upcoming opportunities are separated clearly.</SectionHeading>
+    <div className="journal-timeline-legend" aria-label="Timeline status legend"><span className="is-past">Passed</span><span className="is-current">Now</span><span className="is-upcoming">Upcoming</span></div>
     <FounderSwitch value={founder} onChange={onFounderChange} className="journal-founder-switch--timeline" />
     <div className="journal-priority-timeline">
       {points.map((point) => {
@@ -158,13 +199,14 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
         const needs = linkedItems.filter((item) => item.item_type === 'need');
         const offers = linkedItems.filter((item) => item.item_type === 'offer');
         const isActive = activePoint?.journey_entry_id === point.journey_entry_id;
+        const pointPeriod: ExchangePeriod = point.is_current_location ? 'current' : new Date(point.occurred_at).getTime() > Date.now() ? 'upcoming' : 'past';
 
-        return <article key={point.journey_entry_id} className={`journal-priority-timeline__card ${isActive ? 'is-active' : ''}`}>
+        return <article key={point.journey_entry_id} className={`journal-priority-timeline__card is-${pointPeriod} ${isActive ? 'is-active' : ''}`}>
           <span className="journal-priority-timeline__dot" />
           <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}>
             <div className="journal-timeline-card__topline">
               <time>{formatJournalDate(point.occurred_at)}</time>
-              {point.is_current_location ? <em>Current</em> : null}
+              <em className={`journal-timeline-card__status is-${pointPeriod}`}>{exchangePeriodLabel(pointPeriod)}</em>
             </div>
             {people.length ? <div className="journal-timeline-card__people">
               <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
@@ -180,11 +222,11 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
           {linkedItems.length ? <div className="journal-timeline-card__exchange">
             {needs.length ? <div className="journal-timeline-card__exchange-group">
               <span className="journal-timeline-card__exchange-title"><HandHeart size={14} /> What We Need</span>
-              <ul>{needs.map((item) => <li key={item.id}><a href={exchangeHref(item)}>• {item.title}<ArrowRight size={13} /></a></li>)}</ul>
+              <ul>{needs.map((item) => <ExchangeBullet key={item.id} item={item} />)}</ul>
             </div> : null}
             {offers.length ? <div className="journal-timeline-card__exchange-group">
               <span className="journal-timeline-card__exchange-title"><Gift size={14} /> What We Offer</span>
-              <ul>{offers.map((item) => <li key={item.id}><a href={exchangeHref(item)}>• {item.title}<ArrowRight size={13} /></a></li>)}</ul>
+              <ul>{offers.map((item) => <ExchangeBullet key={item.id} item={item} />)}</ul>
             </div> : null}
           </div> : null}
         </article>;
