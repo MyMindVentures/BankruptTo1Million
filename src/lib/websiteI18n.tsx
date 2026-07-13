@@ -258,13 +258,18 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
     };
 
     apply();
-    const observer = new MutationObserver(apply);
+
+    // Only observe newly mounted content. Watching characterData and attributes here
+    // causes the observer to react to the translation mutations it performs itself,
+    // which can create a costly feedback loop and freeze the page on language change.
+    const observer = new MutationObserver((mutations) => {
+      if (mutations.some((mutation) => mutation.type === 'childList' && mutation.addedNodes.length > 0)) {
+        apply();
+      }
+    });
     observer.observe(root, {
       childList: true,
       subtree: true,
-      characterData: true,
-      attributes: true,
-      attributeFilter: [...TRANSLATABLE_ATTRIBUTES],
     });
 
     return () => {
