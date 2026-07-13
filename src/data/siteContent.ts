@@ -21,18 +21,18 @@ export type RoadmapItem = {
 export const navItems: NavItem[] = [
   { label: 'Home', href: '/#top' },
   { label: 'Story', href: '/#story' },
-  { label: 'Platform', href: '/#platform' },
-  { label: 'Roadmap', href: '/#roadmap' },
+  { label: 'Founders', href: '/founders/kevin-de-vlieger' },
   { label: 'Journal', href: '/journal' },
   { label: 'Proof of Mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', href: '/break-the-circle' },
-  { label: 'Founders', href: '/founders/kevin-de-vlieger' },
-  { label: 'Founding Heroes', href: '/founding-heroes' },
-  { label: 'Support', href: '/support' },
+  { label: 'Platform', href: '/#platform' },
+  { label: 'Roadmap', href: '/#roadmap' },
   { label: 'Impact', href: '/impact' },
+  { label: 'Founding Heroes', href: '/founding-heroes' },
+  { label: 'Apply', href: '/become-a-founding-hero' },
+  { label: 'Support', href: '/support' },
   { label: 'Issues', href: '/issues' },
   { label: 'Profile', href: '/profile/issues' },
-  { label: 'Apply', href: '/become-a-founding-hero' },
 ];
 
 export const platformFeatures: FeatureCard[] = [
