@@ -75,6 +75,10 @@ export function MediaVaultPage() {
   const selectedIndex = selectedId ? filtered.findIndex((item) => item.id === selectedId) : -1;
   const selected = selectedIndex >= 0 ? filtered[selectedIndex] : null;
   const featured = items.find((item) => item.featured) || items[0] || null;
+  const explorerItems = useMemo(
+    () => filtered.filter((item) => item.id !== featured?.id),
+    [featured?.id, filtered],
+  );
 
   const openMedia = (id: string) => {
     setMetadataOpen(false);
@@ -155,12 +159,12 @@ export function MediaVaultPage() {
         </div>
         <div className="media-category-strip" aria-label="Media categories">{categories.map((item) => <button key={item} type="button" data-active={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>
 
-        {filtered.length ? <div className="media-grid">{filtered.map((item, index) => <button className={`media-card ${index % 4 === 0 ? 'media-card--wide' : ''}`} key={item.id} type="button" onClick={() => openMedia(item.id)}>
+        {explorerItems.length ? <div className="media-grid">{explorerItems.map((item, index) => <button className={`media-card ${index % 4 === 0 ? 'media-card--wide' : ''}`} key={item.id} type="button" onClick={() => openMedia(item.id)}>
           {item.imageUrl ? <img src={item.imageUrl} alt={item.altText} loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : <MediaPlaceholder kind={item.kind} />}
           <span className="media-card__shade" />
           <span className="media-card__type"><MediaKindIcon kind={item.kind} /> {item.kind === 'video' ? formatDuration(item.durationSeconds) || 'Video' : item.kind === 'document' ? 'Document' : 'Photo'}</span>
           <span className="media-card__content"><small>{item.category}</small><strong>{item.title}</strong>{item.location ? <span><MapPin size={13} aria-hidden="true" /> {item.location}</span> : null}</span>
-        </button>)}</div> : <div className="media-empty"><h3>No public media found.</h3><p>Try clearing one or more filters.</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>Clear filters</button></div>}
+        </button>)}</div> : filtered.length ? <div className="media-empty"><h3>No additional media.</h3><p>The matching asset is already shown as the featured item above.</p></div> : <div className="media-empty"><h3>No public media found.</h3><p>Try clearing one or more filters.</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>Clear filters</button></div>}
       </> : null}
     </section>
 
