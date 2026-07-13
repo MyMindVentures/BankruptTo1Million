@@ -1,4 +1,5 @@
 import { MISSION_BRAND } from '../lib/brandAssets';
+import './MissionLogo.css';
 
 type MissionLogoProps = {
   className?: string;
