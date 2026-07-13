@@ -14,6 +14,7 @@ import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
+import { HomePage } from './pages/HomePage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
@@ -53,19 +54,21 @@ initializeSiteMediaUi();
 const path = window.location.pathname;
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const mediaPage = path === '/media' || path === '/media-vault';
-const rootPage = path === '/legal'
-  ? <LegalTransparencyPage />
-  : path === '/impact'
-    ? <ImpactResultsPage />
-    : mediaPage
-      ? <><Header /><div className="page-shell"><MediaVaultPage /></div><Footer /></>
-      : path === '/journal'
-        ? <JournalLandingPage />
-        : path === '/founders'
-          ? <FoundersOverviewPage />
-          : founderSlug
-            ? <FounderProfilePage slug={founderSlug} />
-            : <App />;
+const rootPage = path === '/'
+  ? <><Header /><div className="page-shell"><HomePage /></div><Footer /></>
+  : path === '/legal'
+    ? <LegalTransparencyPage />
+    : path === '/impact'
+      ? <ImpactResultsPage />
+      : mediaPage
+        ? <><Header /><div className="page-shell"><MediaVaultPage /></div><Footer /></>
+        : path === '/journal'
+          ? <JournalLandingPage />
+          : path === '/founders'
+            ? <FoundersOverviewPage />
+            : founderSlug
+              ? <FounderProfilePage slug={founderSlug} />
+              : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
