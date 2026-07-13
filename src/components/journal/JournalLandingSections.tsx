@@ -17,6 +17,7 @@ export type JourneyPoint = PremiumJourneyPoint & {
   cover_image_alt?: string;
   original_language?: string;
   map_label?: string;
+  region_name?: string;
   what_happened?: string;
   why_it_mattered?: string;
   mood?: string;
