@@ -8,6 +8,7 @@ import { initializeFounderPostOpportunitiesUi } from './lib/founderPostOpportuni
 import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
+import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
@@ -30,6 +31,7 @@ import './styles/platformUpdates.css';
 import './styles/footer.css';
 import './styles/legal.css';
 import './styles/footerLegalPatch.css';
+import './styles/siteMedia.css';
 import './styles/responsive-hardening.css';
 
 initializeConceptOwnershipUi();
@@ -39,6 +41,7 @@ initializeFounderPostOpportunitiesUi();
 initializeJournalMetadataUi();
 initializeLatestThreeUi();
 initializePlatformUpdatesUi();
+initializeSiteMediaUi();
 
 const path = window.location.pathname;
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
