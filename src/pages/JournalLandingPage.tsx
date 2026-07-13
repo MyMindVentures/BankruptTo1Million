@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
-import type { FounderAvatarMap } from '../components/PremiumJourneyMap';
 import {
   JournalArchiveSection,
   JournalIntroSection,
@@ -13,17 +12,10 @@ import {
   type JourneyPoint,
 } from '../components/journal/JournalLandingSections';
 import { filterPosts, getJournalIndex, type JournalIndexData } from '../lib/journal';
-import { getJournalDisplayPeople } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
 import './JournalViewportFix.css';
-
-type FounderProfileRow = {
-  slug: string;
-  display_name: string;
-  avatar_url: string | null;
-};
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
   const response = await responseOrPromise;
@@ -31,10 +23,16 @@ async function readJson<T>(responseOrPromise: Response | Promise<Response>): Pro
   return response.json() as Promise<T>;
 }
 
+function matchesFounder(point: JourneyPoint, founder: FounderFilter) {
+  if (founder === 'all') return true;
+  const slugs = (point.involved_people || []).map((person) => person.slug);
+  if (founder === 'together') return slugs.includes('kevin-de-vlieger') && slugs.includes('micha');
+  return slugs.includes(founder === 'kevin' ? 'kevin-de-vlieger' : 'micha');
+}
+
 export function JournalLandingPage() {
   const [journal, setJournal] = useState<JournalIndexData | null>(null);
   const [journey, setJourney] = useState<JourneyPoint[]>([]);
-  const [founderAvatars, setFounderAvatars] = useState<FounderAvatarMap>({});
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [founder, setFounder] = useState<FounderFilter>('all');
   const [activeId, setActiveId] = useState<string>();
@@ -46,31 +44,19 @@ export function JournalLandingPage() {
   useEffect(() => {
     Promise.all([
       getJournalIndex(),
-      readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({ query: 'select=*&order=effective_journey_order.asc,occurred_at.asc' })),
-      readJson<FounderProfileRow[]>(supabase.from('founder_profiles_public').request({ query: 'select=slug,display_name,avatar_url&slug=in.(kevin-de-vlieger,micha)' })),
-    ]).then(([journalData, journeyRows, founderRows]) => {
-      const avatarMap: FounderAvatarMap = {};
-      founderRows.forEach((row) => {
-        const key: keyof FounderAvatarMap = row.slug === 'kevin-de-vlieger' ? 'kevin' : 'micha';
-        avatarMap[key] = { name: row.display_name, avatarUrl: row.avatar_url };
-      });
-
-      const postsBySlug = new Map(journalData.posts.map((post) => [post.slug, post]));
-      const enrichedJourney = journeyRows.map((point) => {
-        const post = postsBySlug.get(point.slug);
-        return post ? { ...point, people: getJournalDisplayPeople(post) } : point;
-      });
-
+      readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({
+        query: 'select=*&order=effective_journey_order.asc,occurred_at.asc',
+      })),
+    ]).then(([journalData, journeyRows]) => {
       setJournal(journalData);
-      setJourney(enrichedJourney);
-      setFounderAvatars(avatarMap);
-      setActiveId(enrichedJourney.find((point) => point.is_current_location)?.journey_entry_id || enrichedJourney[0]?.journey_entry_id);
+      setJourney(journeyRows);
+      setActiveId(journeyRows.find((point) => point.is_current_location)?.journey_entry_id || journeyRows[0]?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
   }, []);
 
   const filteredJourney = useMemo(
-    () => journey.filter((point) => founder === 'all' || point.journey_person === founder || point.journey_person === 'together'),
+    () => journey.filter((point) => matchesFounder(point, founder)),
     [journey, founder],
   );
   const activePoint = filteredJourney.find((point) => point.journey_entry_id === activeId)
@@ -84,7 +70,7 @@ export function JournalLandingPage() {
 
   useEffect(() => {
     if (activePoint && activePoint.journey_entry_id !== activeId) setActiveId(activePoint.journey_entry_id);
-  }, [founder, activeId, activePoint]);
+  }, [activeId, activePoint]);
 
   const resetArchiveFilters = () => {
     setCategory('all');
@@ -97,23 +83,9 @@ export function JournalLandingPage() {
     <main className="journal-priority-page">
       <JournalIntroSection />
       <JournalStatusState status={status} />
-
       {status === 'ready' && journal ? <>
-        <JournalMapSection
-          points={filteredJourney}
-          activePoint={activePoint}
-          founder={founder}
-          founderAvatars={founderAvatars}
-          onFounderChange={setFounder}
-          onSelect={setActiveId}
-        />
-        <JournalTimelineSection
-          points={filteredJourney}
-          activePoint={activePoint}
-          founder={founder}
-          onFounderChange={setFounder}
-          onSelect={setActiveId}
-        />
+        <JournalMapSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
+        <JournalTimelineSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
         <JournalLatestSection posts={latestPosts} />
         <JournalArchiveSection
           journal={journal}
