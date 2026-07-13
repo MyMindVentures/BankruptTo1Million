@@ -17,6 +17,7 @@ import { getJournalDisplayPeople } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
+import './JournalTimelineExchange.css';
 import './JournalViewportFix.css';
 
 type JourneyExchangeItem = {
@@ -31,6 +32,13 @@ type JourneyExchangeItem = {
   priority: string | null;
   status: string;
   is_featured: boolean;
+  calendar_entry?: {
+    city_name?: string | null;
+    location_name?: string | null;
+    region_name?: string | null;
+    starts_on?: string | null;
+    ends_on?: string | null;
+  } | null;
 };
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
@@ -143,7 +151,7 @@ export function JournalLandingPage() {
         query: 'select=*&order=occurred_at.asc',
       })),
       readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
-        query: 'select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc',
+        query: 'select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured,calendar_entry:journey_calendar_entries(city_name,location_name,region_name,starts_on,ends_on)&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc',
       })),
     ]).then(([journalData, journeyRows, exchangeRows]) => {
       const postsBySlug = new Map(journalData.posts.map((post) => [post.slug, post]));
@@ -191,7 +199,7 @@ export function JournalLandingPage() {
       {status === 'ready' && journal ? <>
         <JournalExchangeSection items={exchangeItems} />
         <JournalMapSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
-        <JournalTimelineSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
+        <JournalTimelineSection points={filteredJourney} exchangeItems={exchangeItems} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
         <JournalLatestSection posts={latestPosts} />
         <JournalArchiveSection
           journal={journal}
