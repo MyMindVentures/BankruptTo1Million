@@ -92,7 +92,13 @@ function markerVariant(point: PremiumJourneyPoint) {
   if (slugs.includes('kevin-de-vlieger') && slugs.includes('micha')) return 'together';
   if (slugs.includes('kevin-de-vlieger')) return 'kevin';
   if (slugs.includes('micha')) return 'micha';
-  return 'person';
+  return point.journey_person || 'person';
+}
+
+function newestPoint(points: PremiumJourneyPoint[]) {
+  return [...points].sort(
+    (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
+  )[0];
 }
 
 function addAvatar(container: HTMLElement, person: JourneyInvolvedPerson) {
@@ -159,8 +165,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const [mapError, setMapError] = useState('');
-  const mapped = useMemo(() => points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude))), [points]);
-  const active = mapped.find((point) => point.journey_entry_id === activeId) || mapped[0];
+  const mapped = useMemo(() => points
+    .filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)))
+    .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()), [points]);
+  const current = newestPoint(mapped.filter((point) => point.is_current_location)) || mapped[mapped.length - 1];
+  const active = mapped.find((point) => point.journey_entry_id === activeId) || current || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
   const previous = mapped[(activeIndex - 1 + mapped.length) % mapped.length];
   const next = mapped[(activeIndex + 1) % mapped.length];
@@ -174,7 +183,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]), zoom: 8.5, pitch: 28, bearing: -4, attributionControl: false, cooperativeGestures: true });
+      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(current || mapped[0]), zoom: 8.5, pitch: 28, bearing: -4, attributionControl: false, cooperativeGestures: true });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
@@ -194,7 +203,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         mapped.forEach((point) => {
           bounds.extend(coordinates(point));
           const element = createMarkerElement(point);
-          element.classList.toggle('is-active', point.journey_entry_id === activeId);
+          element.classList.toggle('is-active', point.journey_entry_id === active?.journey_entry_id);
           element.addEventListener('click', () => onSelect(point.journey_entry_id));
           const marker = new maplibregl.Marker({ element, anchor: 'center' })
             .setLngLat(coordinates(point))
@@ -212,7 +221,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       markersRef.current.forEach((marker) => marker.remove()); markersRef.current = [];
       if (map) map.remove(); mapRef.current = null;
     };
-  }, [mapped, onSelect, activeId]);
+  }, [mapped, onSelect]);
 
   useEffect(() => {
     if (!active || !mapRef.current) return;
@@ -228,7 +237,6 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   }, [active, activeIndex, mapped]);
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
-  const current = mapped.find((point) => point.is_current_location) || mapped[mapped.length - 1];
   const activePeople = sortedPeople(active);
 
   return <div className="premium-map-shell">

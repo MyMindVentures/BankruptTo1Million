@@ -1,4 +1,4 @@
-import { Archive, ArrowRight, ChevronDown, Filter, Search, SlidersHorizontal } from 'lucide-react';
+import { Archive, ArrowRight, ChevronDown, Filter, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
@@ -12,6 +12,10 @@ export type JourneyInvolvedPerson = JournalDisplayPerson & {
 };
 
 export type JourneyPoint = PremiumJourneyPoint & {
+  journal_post_id?: string;
+  cover_image_url?: string;
+  cover_image_alt?: string;
+  original_language?: string;
   map_label?: string;
   what_happened?: string;
   why_it_mattered?: string;
@@ -98,14 +102,26 @@ export function JournalTimelineSection({ points, activePoint, founder, onFounder
     <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Select a moment to move the map and open its current context.</SectionHeading>
     <FounderSwitch value={founder} onChange={onFounderChange} className="journal-founder-switch--timeline" />
     <div className="journal-priority-timeline">
-      {points.map((point) => <button key={point.journey_entry_id} type="button" className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => onSelect(point.journey_entry_id)}>
-        <span className="journal-priority-timeline__dot" />
-        <time>{formatJournalDate(point.occurred_at)}</time>
-        <strong>{point.map_label || point.location_name || point.city_name || point.title}</strong>
-        <small>{point.title}</small>
-        {point.involved_people?.length ? <span className="journal-timeline-people">{formatJournalPeople(point.involved_people)}</span> : null}
-        {point.is_current_location ? <em>Current location</em> : null}
-      </button>)}
+      {points.map((point) => {
+        const location = point.map_label || point.location_name || point.city_name;
+        const people = point.involved_people || [];
+        return <button key={point.journey_entry_id} type="button" className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => onSelect(point.journey_entry_id)}>
+          <span className="journal-priority-timeline__dot" />
+          <div className="journal-timeline-card__topline">
+            <time>{formatJournalDate(point.occurred_at)}</time>
+            {point.is_current_location ? <em>Current</em> : null}
+          </div>
+          {people.length ? <div className="journal-timeline-card__people">
+            <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
+              ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
+              : <span key={person.id} aria-label={person.display_name}>{person.display_name.slice(0, 1)}</span>)}</span>
+            <span>{formatJournalPeople(people)}</span>
+          </div> : null}
+          <strong>{point.title}</strong>
+          {location ? <span className="journal-timeline-card__location"><MapPin size={14} />{location}{point.country_name ? `, ${point.country_name}` : ''}</span> : null}
+          {point.excerpt ? <small>{point.excerpt}</small> : null}
+        </button>;
+      })}
     </div>
   </section>;
 }
