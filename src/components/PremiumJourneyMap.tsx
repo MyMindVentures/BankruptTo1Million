@@ -45,15 +45,16 @@ const MAP_STYLE = {
     carto: {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png',
+        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
       ],
       tileSize: 256,
       attribution: '© OpenStreetMap contributors © CARTO',
     },
   },
-  layers: [{ id: 'carto-dark', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
+  layers: [{ id: 'carto-voyager', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
 };
 
 let mapLibrePromise: Promise<MapLibreGlobal> | null = null;
@@ -134,8 +135,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         style: MAP_STYLE,
         center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]),
         zoom: 8.5,
-        pitch: 36,
-        bearing: -8,
+        pitch: 28,
+        bearing: -4,
         attributionControl: false,
         cooperativeGestures: true,
       });
@@ -146,8 +147,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
       map.on('load', () => {
         map.addSource('journey-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mapped.map(coordinates) } } });
-        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#d8aa5f', 'line-width': 8, 'line-opacity': 0.16, 'line-blur': 6 } });
-        map.addLayer({ id: 'journey-route-line', type: 'line', source: 'journey-route', paint: { 'line-color': '#f0c979', 'line-width': 3, 'line-opacity': 0.96, 'line-dasharray': [1.2, 1.2] } });
+        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#b26f0b', 'line-width': 10, 'line-opacity': 0.2, 'line-blur': 7 } });
+        map.addLayer({ id: 'journey-route-line', type: 'line', source: 'journey-route', paint: { 'line-color': '#d88b08', 'line-width': 4, 'line-opacity': 0.98, 'line-dasharray': [1.2, 1.1] } });
         const bounds = new maplibregl.LngLatBounds();
         mapped.forEach((point, index) => {
           bounds.extend(coordinates(point));
@@ -186,7 +187,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       const markerPoint = mapped.find((point) => coordinates(point).join(',') === marker.getLngLat().toArray().join(','));
       element.classList.toggle('is-active', markerPoint?.journey_entry_id === active.journey_entry_id);
     });
-    mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 42, duration: 950, essential: true });
+    mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
   }, [active, mapped]);
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
@@ -202,13 +203,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     <div className="premium-map-layout">
       <Card className="premium-map-card">
         <div className="premium-map-card__topbar">
-          <div><Badge>Live journey map</Badge><span>Real map underlay · interactive route</span></div>
+          <div><Badge>Live journey map</Badge><span>Color map underlay · roads, cities, parks and coast</span></div>
           <div className="premium-map-top-actions">
             <Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button>
             <Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button>
           </div>
         </div>
-        <div className="premium-map-stage">
+        <div className="premium-map-stage premium-map-stage--light">
           <div ref={containerRef} className="premium-map-canvas" />
           {mapError ? <div className="premium-map-load-error">{mapError}</div> : null}
           <div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Costa Blanca expedition view</span></div>
