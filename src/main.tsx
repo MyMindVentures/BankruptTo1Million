@@ -38,6 +38,7 @@ import './styles/siteMedia.css';
 import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/responsive-hardening.css';
+import './styles/footer-layout-fix.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
