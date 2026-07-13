@@ -1,5 +1,5 @@
 import { Camera, ChevronLeft, ChevronRight, FileText, Filter, MapPin, RefreshCw, Search, Video, X } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPublicMediaAssets } from '../lib/mediaVault';
 import type { MediaVaultKind, PublicMediaAsset } from '../lib/mediaVault';
 
@@ -75,10 +75,10 @@ export function MediaVaultPage() {
   const selected = selectedIndex >= 0 ? filtered[selectedIndex] : null;
   const featured = items.find((item) => item.featured) || items[0] || null;
 
-  const move = (direction: -1 | 1) => {
+  const move = useCallback((direction: -1 | 1) => {
     if (filtered.length < 2 || selectedIndex < 0) return;
     setSelectedId(filtered[(selectedIndex + direction + filtered.length) % filtered.length].id);
-  };
+  }, [filtered, selectedIndex]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -96,7 +96,7 @@ export function MediaVaultPage() {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [selectedId, selectedIndex, filtered]);
+  }, [move, selectedId]);
 
   useEffect(() => {
     if (selectedId && !selected) setSelectedId(null);
