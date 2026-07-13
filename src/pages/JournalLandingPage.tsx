@@ -1,8 +1,8 @@
-import { Archive, ArrowRight, ChevronDown, Filter, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { Archive, ArrowRight, ChevronDown, Filter, Search, SlidersHorizontal } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Header } from '../components/Header';
 import { Footer } from '../components/Footer';
-import { PremiumJourneyMap, type PremiumJourneyPoint } from '../components/PremiumJourneyMap';
+import { PremiumJourneyMap, type FounderAvatarMap, type PremiumJourneyPoint } from '../components/PremiumJourneyMap';
 import { AceternityContentCard } from '../components/AceternityContentCard';
 import { SectionHeading } from '../components/SectionHeading';
 import { filterPosts, getJournalIndex, getPostAuthors, type JournalIndexData, type PublicJournalPost } from '../lib/journal';
@@ -19,6 +19,12 @@ type JourneyPoint = PremiumJourneyPoint & {
   mood?: string;
   marker_variant?: string;
   effective_journey_order?: number;
+};
+
+type FounderProfileRow = {
+  slug: string;
+  display_name: string;
+  avatar_url: string | null;
 };
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
@@ -57,6 +63,7 @@ function ArticleCard({ post }: { post: PublicJournalPost }) {
 export function JournalLandingPage() {
   const [journal, setJournal] = useState<JournalIndexData | null>(null);
   const [journey, setJourney] = useState<JourneyPoint[]>([]);
+  const [founderAvatars, setFounderAvatars] = useState<FounderAvatarMap>({});
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [founder, setFounder] = useState<FounderFilter>('all');
   const [activeId, setActiveId] = useState<string>();
@@ -69,9 +76,11 @@ export function JournalLandingPage() {
     Promise.all([
       getJournalIndex(),
       readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({ query: 'select=*&order=effective_journey_order.asc,occurred_at.asc' })),
-    ]).then(([journalData, journeyRows]) => {
+      readJson<FounderProfileRow[]>(supabase.from('founder_profiles_public').request({ query: 'select=slug,display_name,avatar_url&slug=in.(kevin-de-vlieger,micha)' })),
+    ]).then(([journalData, journeyRows, founderRows]) => {
       setJournal(journalData);
       setJourney(journeyRows);
+      setFounderAvatars(Object.fromEntries(founderRows.map((row) => [row.slug === 'kevin-de-vlieger' ? 'kevin' : 'micha', { name: row.display_name, avatarUrl: row.avatar_url }]))) as FounderAvatarMap;
       setActiveId(journeyRows.find((point) => point.is_current_location)?.journey_entry_id || journeyRows[0]?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
@@ -105,53 +114,35 @@ export function JournalLandingPage() {
       {status === 'ready' ? <>
         <section className="journal-map-first" aria-labelledby="journal-map-title">
           <div className="journal-section-heading-row">
-            <div>
-              <p className="eyebrow">Live map & current chapter</p>
-              <h2 id="journal-map-title">Follow the route as it unfolds.</h2>
-            </div>
+            <div><p className="eyebrow">Live map & current chapter</p><h2 id="journal-map-title">Follow the route as it unfolds.</h2></div>
             <div className="journal-founder-switch" role="group" aria-label="Filter the journey by founder">
               {(['all', 'kevin', 'micha', 'together'] as FounderFilter[]).map((value) => <button key={value} type="button" className={founder === value ? 'is-active' : ''} onClick={() => setFounder(value)}>{founderLabel(value)}</button>)}
             </div>
           </div>
-          <PremiumJourneyMap points={filteredJourney} activeId={activePoint?.journey_entry_id} onSelect={setActiveId} />
+          <PremiumJourneyMap points={filteredJourney} activeId={activePoint?.journey_entry_id} onSelect={setActiveId} founderAvatars={founderAvatars} />
         </section>
 
         <section className="journal-timeline-section" aria-labelledby="journal-timeline-title">
-          <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">
-            Select a moment to move the map and open its current context.
-          </SectionHeading>
+          <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Select a moment to move the map and open its current context.</SectionHeading>
           <div className="journal-founder-switch journal-founder-switch--timeline" role="group" aria-label="Filter timeline by founder">
             {(['all', 'kevin', 'micha', 'together'] as FounderFilter[]).map((value) => <button key={value} type="button" className={founder === value ? 'is-active' : ''} onClick={() => setFounder(value)}>{founderLabel(value)}</button>)}
           </div>
           <div className="journal-priority-timeline">
             {filteredJourney.map((point) => <button key={point.journey_entry_id} type="button" className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => setActiveId(point.journey_entry_id)}>
-              <span className="journal-priority-timeline__dot" />
-              <time>{formatDate(point.occurred_at)}</time>
-              <strong>{point.map_label || point.location_name || point.city_name || point.title}</strong>
-              <small>{point.title}</small>
-              {point.is_current_location ? <em>Current location</em> : null}
+              <span className="journal-priority-timeline__dot" /><time>{formatDate(point.occurred_at)}</time><strong>{point.map_label || point.location_name || point.city_name || point.title}</strong><small>{point.title}</small>{point.is_current_location ? <em>Current location</em> : null}
             </button>)}
           </div>
         </section>
 
         <section className="journal-latest-section" id="latest" aria-labelledby="journal-latest-title">
-          <SectionHeading eyebrow="Latest stories" title="The three newest chapters." titleId="journal-latest-title">
-            Only the latest three stories stay visible here, so the page remains focused and easy to scan.
-          </SectionHeading>
+          <SectionHeading eyebrow="Latest stories" title="The three newest chapters." titleId="journal-latest-title">Only the latest three stories stay visible here, so the page remains focused and easy to scan.</SectionHeading>
           {latestPosts.length ? <div className="journal-grid journal-grid--latest-three">{latestPosts.map((post) => <ArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No published stories yet.</div>}
         </section>
 
         <section className={`journal-archive-section ${archiveOpen ? 'is-open' : ''}`} aria-labelledby="journal-archive-title">
-          <button type="button" className="journal-archive-toggle" onClick={() => setArchiveOpen((value) => !value)} aria-expanded={archiveOpen}>
-            <span><Archive size={22} /><span><strong id="journal-archive-title">Explore the full archive</strong><small>{Math.max((journal?.posts.length || 0) - latestPosts.length, 0)} older published stories</small></span></span>
-            <ChevronDown size={22} />
-          </button>
+          <button type="button" className="journal-archive-toggle" onClick={() => setArchiveOpen((value) => !value)} aria-expanded={archiveOpen}><span><Archive size={22} /><span><strong id="journal-archive-title">Explore the full archive</strong><small>{Math.max((journal?.posts.length || 0) - latestPosts.length, 0)} older published stories</small></span></span><ChevronDown size={22} /></button>
           {archiveOpen ? <div className="journal-archive-content">
-            <div className="journal-archive-toolbar">
-              <label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, tag or venture" /></label>
-              <label><SlidersHorizontal size={16} /><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest first</option><option value="updated">Recently updated</option><option value="short">Shortest reading time</option><option value="long">Longest reading time</option></select></label>
-              <button type="button" className="button button--ghost button--small" onClick={() => { setCategory('all'); setSearch(''); setSort('newest'); }}><Filter size={16} /> Reset</button>
-            </div>
+            <div className="journal-archive-toolbar"><label><Search size={16} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search title, tag or venture" /></label><label><SlidersHorizontal size={16} /><select value={sort} onChange={(event) => setSort(event.target.value)}><option value="newest">Newest first</option><option value="updated">Recently updated</option><option value="short">Shortest reading time</option><option value="long">Longest reading time</option></select></label><button type="button" className="button button--ghost button--small" onClick={() => { setCategory('all'); setSearch(''); setSort('newest'); }}><Filter size={16} /> Reset</button></div>
             <div className="chip-group" role="group" aria-label="Archive categories">{chips.map((chip) => <button key={chip.slug} type="button" className={`chip ${category === chip.slug ? 'chip--active' : ''}`} onClick={() => setCategory(chip.slug)}>{chip.name}<span>({chip.slug === 'all' ? journal?.posts.length || 0 : journal?.posts.filter((post) => post.journal_categories?.slug === chip.slug).length || 0})</span></button>)}</div>
             {archivePosts.length ? <div className="journal-grid">{archivePosts.map((post) => <ArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No archive stories match these filters.</div>}
           </div> : null}

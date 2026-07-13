@@ -20,6 +20,8 @@ export type PremiumJourneyPoint = {
   is_current_location: boolean;
 };
 
+export type FounderAvatarMap = Partial<Record<'kevin' | 'micha', { name: string; avatarUrl: string | null }>>;
+
 type MapLibreGlobal = {
   Map: new (options: Record<string, unknown>) => any;
   Marker: new (options?: Record<string, unknown>) => any;
@@ -32,28 +34,14 @@ type MapLibreGlobal = {
 };
 
 declare global {
-  interface Window {
-    maplibregl?: MapLibreGlobal;
-  }
+  interface Window { maplibregl?: MapLibreGlobal; }
 }
 
 const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js';
 const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css';
 const MAP_STYLE = {
   version: 8,
-  sources: {
-    carto: {
-      type: 'raster',
-      tiles: [
-        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-        'https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
-      ],
-      tileSize: 256,
-      attribution: '© OpenStreetMap contributors © CARTO',
-    },
-  },
+  sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
   layers: [{ id: 'carto-voyager', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
 };
 
@@ -64,10 +52,7 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
   if (mapLibrePromise) return mapLibrePromise;
   mapLibrePromise = new Promise((resolve, reject) => {
     if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      const link = document.createElement('link');
-      link.rel = 'stylesheet';
-      link.href = MAPLIBRE_CSS;
-      document.head.appendChild(link);
+      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS; document.head.appendChild(link);
     }
     const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
     if (existing) {
@@ -75,9 +60,7 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
       existing.addEventListener('error', () => reject(new Error('MapLibre failed to load.')), { once: true });
       return;
     }
-    const script = document.createElement('script');
-    script.src = MAPLIBRE_JS;
-    script.async = true;
+    const script = document.createElement('script'); script.src = MAPLIBRE_JS; script.async = true;
     script.onload = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.'));
     script.onerror = () => reject(new Error('MapLibre failed to load.'));
     document.head.appendChild(script);
@@ -97,20 +80,59 @@ function coordinates(point: PremiumJourneyPoint): [number, number] {
   return [Number(point.longitude), Number(point.latitude)];
 }
 
-function popupContent(point: PremiumJourneyPoint) {
-  const root = document.createElement('div');
-  root.className = 'premium-map-popup';
-  const eyebrow = document.createElement('span');
-  eyebrow.textContent = point.is_current_location ? 'Current location' : personLabel(point.journey_person);
-  const title = document.createElement('strong');
-  title.textContent = point.title;
-  const location = document.createElement('small');
-  location.textContent = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
-  root.append(eyebrow, title, location);
+function addAvatar(container: HTMLElement, avatarUrl: string | null | undefined, fallback: string) {
+  if (avatarUrl) {
+    const image = document.createElement('img');
+    image.src = avatarUrl; image.alt = ''; image.loading = 'eager'; image.decoding = 'async';
+    container.appendChild(image);
+  } else {
+    const span = document.createElement('span'); span.textContent = fallback; container.appendChild(span);
+  }
+}
+
+function createMarkerElement(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
+  const element = document.createElement('button');
+  element.type = 'button';
+  element.className = `premium-map-dom-marker premium-map-dom-marker--${point.journey_person}${point.is_current_location ? ' is-current' : ''}`;
+  element.setAttribute('aria-label', `Open ${point.title} — ${personLabel(point.journey_person)}`);
+
+  if (point.journey_person === 'together') {
+    const split = document.createElement('span'); split.className = 'premium-map-dom-marker__split';
+    const kevin = document.createElement('span'); const micha = document.createElement('span');
+    addAvatar(kevin, founderAvatars.kevin?.avatarUrl, 'K');
+    addAvatar(micha, founderAvatars.micha?.avatarUrl, 'M');
+    split.append(kevin, micha); element.appendChild(split);
+  } else {
+    addAvatar(element, founderAvatars[point.journey_person]?.avatarUrl, point.journey_person === 'kevin' ? 'K' : 'M');
+  }
+
+  if (point.is_milestone) {
+    const badge = document.createElement('i'); badge.className = 'premium-map-dom-marker__badge'; badge.textContent = '★'; element.appendChild(badge);
+  }
+  return element;
+}
+
+function popupContent(point: PremiumJourneyPoint, founderAvatars: FounderAvatarMap) {
+  const root = document.createElement('div'); root.className = 'premium-map-popup';
+  const head = document.createElement('div'); head.className = 'premium-map-popup__head';
+  const avatars = document.createElement('div'); avatars.className = 'premium-map-popup__avatars';
+  if (point.journey_person === 'together') {
+    const a = document.createElement('span'); const b = document.createElement('span');
+    addAvatar(a, founderAvatars.kevin?.avatarUrl, 'K'); addAvatar(b, founderAvatars.micha?.avatarUrl, 'M'); avatars.append(a, b);
+  } else {
+    const a = document.createElement('span'); addAvatar(a, founderAvatars[point.journey_person]?.avatarUrl, point.journey_person === 'kevin' ? 'K' : 'M'); avatars.append(a);
+  }
+  const meta = document.createElement('div');
+  const eyebrow = document.createElement('span'); eyebrow.textContent = point.is_current_location ? 'Current location' : personLabel(point.journey_person);
+  const date = document.createElement('small'); date.textContent = formatDate(point.occurred_at);
+  meta.append(eyebrow, date); head.append(avatars, meta);
+  const title = document.createElement('strong'); title.textContent = point.title;
+  const location = document.createElement('small'); location.textContent = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
+  root.append(head, title, location);
   return root;
 }
 
-export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
+export function PremiumJourneyMap({ points, activeId, onSelect, founderAvatars = {} }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void; founderAvatars?: FounderAvatarMap }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
@@ -130,55 +152,42 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-      map = new maplibregl.Map({
-        container: containerRef.current,
-        style: MAP_STYLE,
-        center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]),
-        zoom: 8.5,
-        pitch: 28,
-        bearing: -4,
-        attributionControl: false,
-        cooperativeGestures: true,
-      });
+      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]), zoom: 8.5, pitch: 28, bearing: -4, attributionControl: false, cooperativeGestures: true });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
       map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
       map.on('load', () => {
-        map.addSource('journey-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: mapped.map(coordinates) } } });
-        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#b26f0b', 'line-width': 10, 'line-opacity': 0.2, 'line-blur': 7 } });
-        map.addLayer({ id: 'journey-route-line', type: 'line', source: 'journey-route', paint: { 'line-color': '#d88b08', 'line-width': 4, 'line-opacity': 0.98, 'line-dasharray': [1.2, 1.1] } });
+        const allCoordinates = mapped.map(coordinates);
+        const completedCoordinates = mapped.slice(0, activeIndex + 1).map(coordinates);
+        map.addSource('journey-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: allCoordinates } } });
+        map.addSource('journey-route-completed', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: completedCoordinates.length > 1 ? completedCoordinates : [allCoordinates[0], allCoordinates[0]] } } });
+        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#8b6a33', 'line-width': 10, 'line-opacity': 0.18, 'line-blur': 7 } });
+        map.addLayer({ id: 'journey-route-future', type: 'line', source: 'journey-route', paint: { 'line-color': '#9a8c78', 'line-width': 3, 'line-opacity': 0.7, 'line-dasharray': [1.5, 1.5] } });
+        map.addLayer({ id: 'journey-route-completed-line', type: 'line', source: 'journey-route-completed', paint: { 'line-color': '#e2b45f', 'line-width': 5, 'line-opacity': 1 } });
+
         const bounds = new maplibregl.LngLatBounds();
-        mapped.forEach((point, index) => {
+        mapped.forEach((point) => {
           bounds.extend(coordinates(point));
-          const element = document.createElement('button');
-          element.type = 'button';
-          element.className = `premium-map-dom-marker${point.is_current_location ? ' is-current' : ''}${point.journey_entry_id === activeId ? ' is-active' : ''}`;
-          element.setAttribute('aria-label', `Open ${point.title}`);
-          element.innerHTML = `<span>${index + 1}</span>`;
+          const element = createMarkerElement(point, founderAvatars);
+          element.classList.toggle('is-active', point.journey_entry_id === activeId);
           element.addEventListener('click', () => onSelect(point.journey_entry_id));
-          const marker = new maplibregl.Marker({ element, anchor: 'center' })
-            .setLngLat(coordinates(point))
-            .setPopup(new maplibregl.Popup({ offset: 22, closeButton: false }).setDOMContent(popupContent(point)))
-            .addTo(map);
+          const marker = new maplibregl.Marker({ element, anchor: 'center' }).setLngLat(coordinates(point)).setPopup(new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(popupContent(point, founderAvatars))).addTo(map);
           markersRef.current.push(marker);
         });
         if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
         else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
       });
-    }).catch(() => {
-      if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.');
-    });
+    }).catch(() => { if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.'); });
 
     return () => {
       cancelled = true;
-      markersRef.current.forEach((marker) => marker.remove());
-      markersRef.current = [];
-      if (map) map.remove();
-      mapRef.current = null;
+      markersRef.current.forEach((marker) => marker.remove()); markersRef.current = [];
+      if (map) map.remove(); mapRef.current = null;
     };
-  }, [mapped, onSelect, activeId]);
+  }, [mapped, onSelect, activeId, founderAvatars]);
 
   useEffect(() => {
     if (!active || !mapRef.current) return;
@@ -187,42 +196,29 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       const markerPoint = mapped.find((point) => coordinates(point).join(',') === marker.getLngLat().toArray().join(','));
       element.classList.toggle('is-active', markerPoint?.journey_entry_id === active.journey_entry_id);
     });
+    const source = mapRef.current.getSource?.('journey-route-completed');
+    const completed = mapped.slice(0, activeIndex + 1).map(coordinates);
+    if (source?.setData) source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: completed.length > 1 ? completed : [coordinates(active), coordinates(active)] } });
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
-  }, [active, mapped]);
+  }, [active, activeIndex, mapped]);
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
-
   const current = mapped.find((point) => point.is_current_location) || mapped[mapped.length - 1];
 
   return <div className="premium-map-shell">
-    <div className="premium-map-kpis">
-      <Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout>
-      <Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout>
-      <Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout>
-    </div>
+    <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
     <div className="premium-map-layout">
       <Card className="premium-map-card">
-        <div className="premium-map-card__topbar">
-          <div><Badge>Live journey map</Badge><span>Color map underlay · roads, cities, parks and coast</span></div>
-          <div className="premium-map-top-actions">
-            <Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button>
-            <Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button>
-          </div>
-        </div>
-        <div className="premium-map-stage premium-map-stage--light">
-          <div ref={containerRef} className="premium-map-canvas" />
-          {mapError ? <div className="premium-map-load-error">{mapError}</div> : null}
-          <div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Costa Blanca expedition view</span></div>
-          <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
-        </div>
+        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Founder photo pins · completed route · next chapters</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
+        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Kevin & Micha journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin</span><span><i className="is-micha"/> Micha</span><span><i className="is-together"/> Together</span><span><i className="is-route"/> Completed route</span></div></div>
       </Card>
       <Card className="premium-map-detail-card">
         <div className="premium-map-detail-card__meta"><Badge>{personLabel(active.journey_person)}</Badge>{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
+        <div className="premium-map-detail-founder">
+          {active.journey_person === 'together' ? <><img src={founderAvatars.kevin?.avatarUrl || ''} alt="Kevin"/><img src={founderAvatars.micha?.avatarUrl || ''} alt="Micha"/></> : <img src={founderAvatars[active.journey_person]?.avatarUrl || ''} alt={personLabel(active.journey_person)} />}
+        </div>
         <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
-        <time>{formatDate(active.occurred_at)}</time>
-        <h3>{active.title}</h3>
-        <p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p>
-        <p>{active.excerpt}</p>
+        <time>{formatDate(active.occurred_at)}</time><h3>{active.title}</h3><p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p><p>{active.excerpt}</p>
         <div className="premium-map-progress"><div><span>Journey progress</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
         <div className="premium-map-coordinates"><Crosshair size={15}/><span>{Number(active.latitude).toFixed(4)}, {Number(active.longitude).toFixed(4)}</span></div>
         {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>Read this chapter <ChevronRight size={16}/></ButtonLink> : null}
