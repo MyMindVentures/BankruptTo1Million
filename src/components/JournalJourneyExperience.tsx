@@ -1,4 +1,4 @@
-import { Bath, CalendarDays, Car, ChevronRight, Compass, Droplets, HandHeart, Home, MapPin, PlugZap, Route, ShowerHead, Sparkles, TentTree, Users, Waves, Wrench, Zap } from 'lucide-react';
+import { Bath, CalendarDays, ChevronRight, Compass, Droplets, HandHeart, Home, MapPin, PlugZap, Route, ShowerHead, Sparkles, Users, Waves, Wrench, Zap } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import './JournalJourneyExperience.css';
@@ -80,7 +80,7 @@ function personLabel(person: JourneyPerson) {
 
 function itemIcon(category: string) {
   const key = category.toLowerCase();
-  if (key.includes('camper') || key.includes('parking')) return TentTree;
+  if (key.includes('camper') || key.includes('parking')) return Home;
   if (key.includes('bed') || key.includes('house')) return Home;
   if (key.includes('shower')) return ShowerHead;
   if (key.includes('electric')) return PlugZap;
