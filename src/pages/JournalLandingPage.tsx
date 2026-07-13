@@ -78,9 +78,15 @@ export function JournalLandingPage() {
       readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({ query: 'select=*&order=effective_journey_order.asc,occurred_at.asc' })),
       readJson<FounderProfileRow[]>(supabase.from('founder_profiles_public').request({ query: 'select=slug,display_name,avatar_url&slug=in.(kevin-de-vlieger,micha)' })),
     ]).then(([journalData, journeyRows, founderRows]) => {
+      const avatarMap: FounderAvatarMap = {};
+      founderRows.forEach((row) => {
+        const key: keyof FounderAvatarMap = row.slug === 'kevin-de-vlieger' ? 'kevin' : 'micha';
+        avatarMap[key] = { name: row.display_name, avatarUrl: row.avatar_url };
+      });
+
       setJournal(journalData);
       setJourney(journeyRows);
-      setFounderAvatars(Object.fromEntries(founderRows.map((row) => [row.slug === 'kevin-de-vlieger' ? 'kevin' : 'micha', { name: row.display_name, avatarUrl: row.avatar_url }]))) as FounderAvatarMap;
+      setFounderAvatars(avatarMap);
       setActiveId(journeyRows.find((point) => point.is_current_location)?.journey_entry_id || journeyRows[0]?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
