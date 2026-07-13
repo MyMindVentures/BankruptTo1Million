@@ -25,6 +25,7 @@ export const navItems: NavItem[] = [
   { label: 'Journal', href: '/journal' },
   { label: 'Proof of Mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', href: '/break-the-circle' },
+  { label: 'Founder Support', href: '/founder-support.html' },
   { label: 'Platform', href: '/#platform' },
   { label: 'Roadmap', href: '/#roadmap' },
   { label: 'Impact', href: '/impact' },
