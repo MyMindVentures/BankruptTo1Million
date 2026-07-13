@@ -1,4 +1,4 @@
-import { Archive, ArrowRight, ChevronDown, Filter, MapPin, Search, SlidersHorizontal } from 'lucide-react';
+import { Archive, ArrowRight, ChevronDown, Filter, Gift, HandHeart, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
@@ -25,6 +25,21 @@ export type JourneyPoint = PremiumJourneyPoint & {
   involved_people: JourneyInvolvedPerson[];
 };
 
+export type TimelineExchangeItem = {
+  id: string;
+  slug: string | null;
+  journey_person: string;
+  item_type: 'need' | 'offer' | string;
+  title: string;
+  calendar_entry?: {
+    city_name?: string | null;
+    location_name?: string | null;
+    region_name?: string | null;
+    starts_on?: string | null;
+    ends_on?: string | null;
+  } | null;
+};
+
 export function formatJournalDate(value?: string) {
   if (!value) return '';
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
@@ -40,6 +55,39 @@ function FounderSwitch({ value, onChange, className = '' }: { value: FounderFilt
   return <div className={`journal-founder-switch ${className}`.trim()} role="group" aria-label="Filter the journey by involved person">
     {(['all', 'kevin', 'micha', 'together'] as FounderFilter[]).map((option) => <button key={option} type="button" className={value === option ? 'is-active' : ''} onClick={() => onChange(option)}>{founderFilterLabel(option)}</button>)}
   </div>;
+}
+
+function normalizeLocation(value?: string | null) {
+  return (value || '').trim().toLocaleLowerCase().replace(/[^a-z0-9à-ÿ]+/g, ' ');
+}
+
+function exchangeItemsForPoint(point: JourneyPoint, items: TimelineExchangeItem[]) {
+  const pointLocations = [point.city_name, point.location_name, point.map_label, point.region_name]
+    .map(normalizeLocation)
+    .filter(Boolean);
+
+  return items.filter((item) => {
+    const calendar = item.calendar_entry;
+    const calendarLocations = [calendar?.city_name, calendar?.location_name, calendar?.region_name]
+      .map(normalizeLocation)
+      .filter(Boolean);
+    const locationMatches = calendarLocations.some((calendarLocation) => pointLocations.some(
+      (pointLocation) => calendarLocation.includes(pointLocation) || pointLocation.includes(calendarLocation),
+    ));
+    if (!locationMatches) return false;
+
+    const occurred = point.occurred_at ? new Date(point.occurred_at).getTime() : NaN;
+    const starts = calendar?.starts_on ? new Date(`${calendar.starts_on}T00:00:00Z`).getTime() : NaN;
+    const ends = calendar?.ends_on ? new Date(`${calendar.ends_on}T23:59:59Z`).getTime() : NaN;
+    const isCurrent = Boolean(point.is_current_location);
+    const dateMatches = isCurrent || Number.isNaN(occurred) || (Number.isNaN(starts) || occurred >= starts) && (Number.isNaN(ends) || occurred <= ends);
+    return dateMatches;
+  });
+}
+
+function exchangeHref(item: TimelineExchangeItem) {
+  if (item.item_type === 'offer') return item.slug ? `/offers/${item.slug}` : '/offers';
+  return `/support?need=${encodeURIComponent(item.id)}`;
 }
 
 export function JournalArticleCard({ post }: { post: PublicJournalPost }) {
@@ -91,8 +139,9 @@ export function JournalMapSection({ points, activePoint, founder, onFounderChang
   </section>;
 }
 
-export function JournalTimelineSection({ points, activePoint, founder, onFounderChange, onSelect }: {
+export function JournalTimelineSection({ points, exchangeItems, activePoint, founder, onFounderChange, onSelect }: {
   points: JourneyPoint[];
+  exchangeItems: TimelineExchangeItem[];
   activePoint?: JourneyPoint;
   founder: FounderFilter;
   onFounderChange: (value: FounderFilter) => void;
@@ -105,22 +154,40 @@ export function JournalTimelineSection({ points, activePoint, founder, onFounder
       {points.map((point) => {
         const location = point.map_label || point.location_name || point.city_name;
         const people = point.involved_people || [];
-        return <button key={point.journey_entry_id} type="button" className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => onSelect(point.journey_entry_id)}>
+        const linkedItems = exchangeItemsForPoint(point, exchangeItems);
+        const needs = linkedItems.filter((item) => item.item_type === 'need');
+        const offers = linkedItems.filter((item) => item.item_type === 'offer');
+        const isActive = activePoint?.journey_entry_id === point.journey_entry_id;
+
+        return <article key={point.journey_entry_id} className={`journal-priority-timeline__card ${isActive ? 'is-active' : ''}`}>
           <span className="journal-priority-timeline__dot" />
-          <div className="journal-timeline-card__topline">
-            <time>{formatJournalDate(point.occurred_at)}</time>
-            {point.is_current_location ? <em>Current</em> : null}
-          </div>
-          {people.length ? <div className="journal-timeline-card__people">
-            <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
-              ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
-              : <span key={person.id} aria-label={person.display_name}>{person.display_name.slice(0, 1)}</span>)}</span>
-            <span>{formatJournalPeople(people)}</span>
+          <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}>
+            <div className="journal-timeline-card__topline">
+              <time>{formatJournalDate(point.occurred_at)}</time>
+              {point.is_current_location ? <em>Current</em> : null}
+            </div>
+            {people.length ? <div className="journal-timeline-card__people">
+              <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
+                ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
+                : <span key={person.id} aria-label={person.display_name}>{person.display_name.slice(0, 1)}</span>)}</span>
+              <span>{formatJournalPeople(people)}</span>
+            </div> : null}
+            <strong>{point.title}</strong>
+            {location ? <span className="journal-timeline-card__location"><MapPin size={14} />{location}{point.country_name ? `, ${point.country_name}` : ''}</span> : null}
+            {point.excerpt ? <small>{point.excerpt}</small> : null}
+          </button>
+
+          {linkedItems.length ? <div className="journal-timeline-card__exchange">
+            {needs.length ? <div className="journal-timeline-card__exchange-group">
+              <span className="journal-timeline-card__exchange-title"><HandHeart size={14} /> What We Need</span>
+              <ul>{needs.map((item) => <li key={item.id}><a href={exchangeHref(item)}>• {item.title}<ArrowRight size={13} /></a></li>)}</ul>
+            </div> : null}
+            {offers.length ? <div className="journal-timeline-card__exchange-group">
+              <span className="journal-timeline-card__exchange-title"><Gift size={14} /> What We Offer</span>
+              <ul>{offers.map((item) => <li key={item.id}><a href={exchangeHref(item)}>• {item.title}<ArrowRight size={13} /></a></li>)}</ul>
+            </div> : null}
           </div> : null}
-          <strong>{point.title}</strong>
-          {location ? <span className="journal-timeline-card__location"><MapPin size={14} />{location}{point.country_name ? `, ${point.country_name}` : ''}</span> : null}
-          {point.excerpt ? <small>{point.excerpt}</small> : null}
-        </button>;
+        </article>;
       })}
     </div>
   </section>;
