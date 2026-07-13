@@ -13,6 +13,7 @@ import { FounderProfilePage } from './pages/FounderProfilePage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import './styles/global.css';
+import './styles/i18n.css';
 import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
 import './styles/conceptMessages.css';
