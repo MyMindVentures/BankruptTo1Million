@@ -1,11 +1,15 @@
 import { Archive, ArrowRight, ChevronDown, Filter, Search, SlidersHorizontal } from 'lucide-react';
 import { AceternityContentCard } from '../AceternityContentCard';
-import { PremiumJourneyMap, type FounderAvatarMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
+import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
 import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
 import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
 
 export type FounderFilter = 'all' | 'kevin' | 'micha' | 'together';
+export type JourneyInvolvedPerson = JournalDisplayPerson & {
+  relation_role?: string;
+  display_order?: number;
+};
 
 export type JourneyPoint = PremiumJourneyPoint & {
   map_label?: string;
@@ -14,7 +18,7 @@ export type JourneyPoint = PremiumJourneyPoint & {
   mood?: string;
   marker_variant?: string;
   effective_journey_order?: number;
-  people?: JournalDisplayPerson[];
+  involved_people: JourneyInvolvedPerson[];
 };
 
 export function formatJournalDate(value?: string) {
@@ -29,7 +33,7 @@ export function founderFilterLabel(value: FounderFilter) {
 }
 
 function FounderSwitch({ value, onChange, className = '' }: { value: FounderFilter; onChange: (value: FounderFilter) => void; className?: string }) {
-  return <div className={`journal-founder-switch ${className}`.trim()} role="group" aria-label="Filter the journey by founder">
+  return <div className={`journal-founder-switch ${className}`.trim()} role="group" aria-label="Filter the journey by involved person">
     {(['all', 'kevin', 'micha', 'together'] as FounderFilter[]).map((option) => <button key={option} type="button" className={value === option ? 'is-active' : ''} onClick={() => onChange(option)}>{founderFilterLabel(option)}</button>)}
   </div>;
 }
@@ -67,11 +71,10 @@ export function JournalStatusState({ status }: { status: 'loading' | 'ready' | '
   return null;
 }
 
-export function JournalMapSection({ points, activePoint, founder, founderAvatars, onFounderChange, onSelect }: {
+export function JournalMapSection({ points, activePoint, founder, onFounderChange, onSelect }: {
   points: JourneyPoint[];
   activePoint?: JourneyPoint;
   founder: FounderFilter;
-  founderAvatars: FounderAvatarMap;
   onFounderChange: (value: FounderFilter) => void;
   onSelect: (id: string) => void;
 }) {
@@ -80,7 +83,7 @@ export function JournalMapSection({ points, activePoint, founder, founderAvatars
       <div><p className="eyebrow">Live map & current chapter</p><h2 id="journal-map-title">Follow the route as it unfolds.</h2></div>
       <FounderSwitch value={founder} onChange={onFounderChange} />
     </div>
-    <PremiumJourneyMap points={points} activeId={activePoint?.journey_entry_id} onSelect={onSelect} founderAvatars={founderAvatars} />
+    <PremiumJourneyMap points={points} activeId={activePoint?.journey_entry_id} onSelect={onSelect} />
   </section>;
 }
 
@@ -100,7 +103,7 @@ export function JournalTimelineSection({ points, activePoint, founder, onFounder
         <time>{formatJournalDate(point.occurred_at)}</time>
         <strong>{point.map_label || point.location_name || point.city_name || point.title}</strong>
         <small>{point.title}</small>
-        {point.people?.length ? <span className="journal-timeline-people">{formatJournalPeople(point.people)}</span> : null}
+        {point.involved_people?.length ? <span className="journal-timeline-people">{formatJournalPeople(point.involved_people)}</span> : null}
         {point.is_current_location ? <em>Current location</em> : null}
       </button>)}
     </div>
@@ -128,7 +131,6 @@ export function JournalArchiveSection({ journal, posts, open, category, search, 
   onReset: () => void;
 }) {
   const chips = [{ slug: 'all', name: 'All' }, ...journal.categories];
-
   return <section className={`journal-archive-section ${open ? 'is-open' : ''}`} aria-labelledby="journal-archive-title">
     <button type="button" className="journal-archive-toggle" onClick={onToggle} aria-expanded={open}>
       <span><Archive size={22} /><span><strong id="journal-archive-title">Explore the full archive</strong><small>{Math.max(journal.posts.length - 3, 0)} older published stories</small></span></span><ChevronDown size={22} />
