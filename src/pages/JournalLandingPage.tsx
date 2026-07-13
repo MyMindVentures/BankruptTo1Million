@@ -1,3 +1,4 @@
+import { ArrowRight, Gift, HandHeart } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
@@ -17,6 +18,20 @@ import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
 import './JournalViewportFix.css';
+
+type JourneyExchangeItem = {
+  id: string;
+  slug: string | null;
+  journey_person: 'kevin' | 'micha' | 'together' | string;
+  item_type: 'need' | 'offer' | string;
+  category: string;
+  title: string;
+  tagline: string | null;
+  description: string;
+  priority: string | null;
+  status: string;
+  is_featured: boolean;
+};
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
   const response = await responseOrPromise;
@@ -65,9 +80,54 @@ function hydrateJourneyPoint(point: JourneyPoint, post?: PublicJournalPost): Jou
   };
 }
 
+function personLabel(person: JourneyExchangeItem['journey_person']) {
+  if (person === 'kevin') return 'Kevin';
+  if (person === 'micha') return 'Micha';
+  return 'Kevin & Micha';
+}
+
+function JournalExchangeSection({ items }: { items: JourneyExchangeItem[] }) {
+  const needs = items.filter((item) => item.item_type === 'need');
+  const offers = items.filter((item) => item.item_type === 'offer');
+
+  return <section className="journal-exchange" aria-labelledby="journal-exchange-title">
+    <div className="journal-exchange__heading">
+      <p className="eyebrow">Exchange, not charity</p>
+      <h2 id="journal-exchange-title">What we need — and what we give back.</h2>
+      <p>Follow the journey, see the practical needs around each chapter, and discover the real skills and experiences Kevin and Micha can offer in return.</p>
+    </div>
+
+    <div className="journal-exchange__columns">
+      <article className="journal-exchange__panel" id="what-we-need">
+        <div className="journal-exchange__panel-heading"><HandHeart size={22} /><div><p className="eyebrow">What we need</p><h3>Help create the next step</h3></div></div>
+        <div className="journal-exchange__items">
+          {needs.map((item) => <div className="journal-exchange__item" key={item.id}>
+            <div><span>{personLabel(item.journey_person)} · {item.category.replaceAll('_', ' ')}</span><h4>{item.title}</h4><p>{item.tagline || item.description}</p></div>
+            {item.priority ? <strong>{item.priority}</strong> : null}
+          </div>)}
+          {!needs.length ? <p className="journal-exchange__empty">No public needs are active right now.</p> : null}
+        </div>
+      </article>
+
+      <article className="journal-exchange__panel journal-exchange__panel--offer" id="what-we-offer">
+        <div className="journal-exchange__panel-heading"><Gift size={22} /><div><p className="eyebrow">What we offer</p><h3>Skills, experiences and honest value</h3></div></div>
+        <div className="journal-exchange__items">
+          {offers.slice(0, 3).map((item) => <a className="journal-exchange__item journal-exchange__item--link" href={item.slug ? `/offers/${item.slug}` : '/offers'} key={item.id}>
+            <div><span>{personLabel(item.journey_person)} · {item.category.replaceAll('_', ' ')}</span><h4>{item.title}</h4><p>{item.tagline || item.description}</p></div>
+            <ArrowRight size={18} />
+          </a>)}
+          {!offers.length ? <p className="journal-exchange__empty">Explore the complete offer catalogue.</p> : null}
+        </div>
+        <a className="journal-exchange__all" href="/offers">View all offers <ArrowRight size={17} /></a>
+      </article>
+    </div>
+  </section>;
+}
+
 export function JournalLandingPage() {
   const [journal, setJournal] = useState<JournalIndexData | null>(null);
   const [journey, setJourney] = useState<JourneyPoint[]>([]);
+  const [exchangeItems, setExchangeItems] = useState<JourneyExchangeItem[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [founder, setFounder] = useState<FounderFilter>('all');
   const [activeId, setActiveId] = useState<string>();
@@ -82,7 +142,10 @@ export function JournalLandingPage() {
       readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({
         query: 'select=*&order=occurred_at.asc',
       })),
-    ]).then(([journalData, journeyRows]) => {
+      readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
+        query: 'select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc',
+      })),
+    ]).then(([journalData, journeyRows, exchangeRows]) => {
       const postsBySlug = new Map(journalData.posts.map((post) => [post.slug, post]));
       const hydratedJourney = journeyRows
         .map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug)))
@@ -91,6 +154,7 @@ export function JournalLandingPage() {
 
       setJournal(journalData);
       setJourney(hydratedJourney);
+      setExchangeItems(exchangeRows);
       setActiveId((current || hydratedJourney[hydratedJourney.length - 1])?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
@@ -125,6 +189,7 @@ export function JournalLandingPage() {
       <JournalIntroSection />
       <JournalStatusState status={status} />
       {status === 'ready' && journal ? <>
+        <JournalExchangeSection items={exchangeItems} />
         <JournalMapSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
         <JournalTimelineSection points={filteredJourney} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} />
         <JournalLatestSection posts={latestPosts} />
