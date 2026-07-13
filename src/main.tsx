@@ -19,6 +19,8 @@ import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import { MediaVaultPage } from './pages/MediaVaultPage';
+import { OfferDetailPage } from './pages/OfferDetailPage';
+import { OffersPage } from './pages/OffersPage';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/discovery-responsive.css';
@@ -39,6 +41,7 @@ import './styles/siteMedia.css';
 import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/mediaVaultFrontendFixes.css';
+import './styles/offers.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 
@@ -51,24 +54,30 @@ initializeLatestThreeUi();
 initializePlatformUpdatesUi();
 initializeSiteMediaUi();
 
-const path = window.location.pathname;
+const path = window.location.pathname.replace(/\/$/, '') || '/';
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
+const offerSlug = path.startsWith('/offers/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const mediaPage = path === '/media' || path === '/media-vault';
+const withSiteShell = (page: React.ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
 const rootPage = path === '/'
-  ? <><Header /><div className="page-shell"><HomePage /></div><Footer /></>
+  ? withSiteShell(<HomePage />)
   : path === '/legal'
     ? <LegalTransparencyPage />
     : path === '/impact'
       ? <ImpactResultsPage />
       : mediaPage
-        ? <><Header /><div className="page-shell"><MediaVaultPage /></div><Footer /></>
-        : path === '/journal'
-          ? <JournalLandingPage />
-          : path === '/founders'
-            ? <FoundersOverviewPage />
-            : founderSlug
-              ? <FounderProfilePage slug={founderSlug} />
-              : <App />;
+        ? withSiteShell(<MediaVaultPage />)
+        : path === '/offers'
+          ? withSiteShell(<OffersPage />)
+          : offerSlug
+            ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
+            : path === '/journal'
+              ? <JournalLandingPage />
+              : path === '/founders'
+                ? <FoundersOverviewPage />
+                : founderSlug
+                  ? <FounderProfilePage slug={founderSlug} />
+                  : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
