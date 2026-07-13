@@ -1,7 +1,10 @@
-import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Filter, MapPin, RefreshCw, Search, Video, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Filter, MapPin, Pause, Play, RefreshCw, Search, Video, X } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPublicMediaAssets } from '../lib/mediaVault';
 import type { MediaVaultKind, PublicMediaAsset } from '../lib/mediaVault';
+
+const CAROUSEL_LIMIT = 10;
+const CAROUSEL_INTERVAL_MS = 6000;
 
 function formatDuration(seconds: number | null): string {
   if (seconds === null || !Number.isFinite(seconds)) return '';
@@ -37,6 +40,9 @@ export function MediaVaultPage() {
   const [sort, setSort] = useState<'newest' | 'oldest' | 'title'>('newest');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [metadataOpen, setMetadataOpen] = useState(false);
+  const [carouselIndex, setCarouselIndex] = useState(0);
+  const [carouselPlaying, setCarouselPlaying] = useState(true);
+  const touchStartX = useRef<number | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +53,7 @@ export function MediaVaultPage() {
       .then((assets) => {
         if (!active) return;
         setItems(assets);
+        setCarouselIndex(0);
         setStatus('ready');
       })
       .catch((caught: unknown) => {
@@ -57,6 +64,21 @@ export function MediaVaultPage() {
 
     return () => { active = false; };
   }, [reloadKey]);
+
+  const carouselItems = useMemo(() => items.slice(0, CAROUSEL_LIMIT), [items]);
+  const carouselIds = useMemo(() => new Set(carouselItems.map((item) => item.id)), [carouselItems]);
+  const activeCarouselItem = carouselItems[carouselIndex] || null;
+
+  const changeCarousel = useCallback((direction: -1 | 1) => {
+    if (carouselItems.length < 2) return;
+    setCarouselIndex((current) => (current + direction + carouselItems.length) % carouselItems.length);
+  }, [carouselItems.length]);
+
+  useEffect(() => {
+    if (!carouselPlaying || carouselItems.length < 2 || selectedId) return;
+    const timer = window.setInterval(() => changeCarousel(1), CAROUSEL_INTERVAL_MS);
+    return () => window.clearInterval(timer);
+  }, [carouselItems.length, carouselPlaying, changeCarousel, selectedId]);
 
   const categories = useMemo(() => ['All', ...Array.from(new Set(items.map((item) => item.category)))], [items]);
   const filtered = useMemo(() => {
@@ -72,13 +94,9 @@ export function MediaVaultPage() {
           : a.capturedAt.localeCompare(b.capturedAt));
   }, [category, items, kind, query, sort]);
 
-  const selectedIndex = selectedId ? filtered.findIndex((item) => item.id === selectedId) : -1;
-  const selected = selectedIndex >= 0 ? filtered[selectedIndex] : null;
-  const featured = items.find((item) => item.featured) || items[0] || null;
-  const explorerItems = useMemo(
-    () => filtered.filter((item) => item.id !== featured?.id),
-    [featured?.id, filtered],
-  );
+  const explorerItems = useMemo(() => filtered.filter((item) => !carouselIds.has(item.id)), [carouselIds, filtered]);
+  const selectedIndex = selectedId ? items.findIndex((item) => item.id === selectedId) : -1;
+  const selected = selectedIndex >= 0 ? items[selectedIndex] : null;
 
   const openMedia = (id: string) => {
     setMetadataOpen(false);
@@ -86,10 +104,10 @@ export function MediaVaultPage() {
   };
 
   const move = useCallback((direction: -1 | 1) => {
-    if (filtered.length < 2 || selectedIndex < 0) return;
+    if (items.length < 2 || selectedIndex < 0) return;
     setMetadataOpen(false);
-    setSelectedId(filtered[(selectedIndex + direction + filtered.length) % filtered.length].id);
-  }, [filtered, selectedIndex]);
+    setSelectedId(items[(selectedIndex + direction + items.length) % items.length].id);
+  }, [items, selectedIndex]);
 
   useEffect(() => {
     if (!selectedId) return;
@@ -118,29 +136,53 @@ export function MediaVaultPage() {
   const documents = items.filter((item) => item.kind === 'document').length;
 
   return <main className="media-vault" id="top">
-    <section className="media-vault__hero" aria-labelledby="media-vault-title">
-      <div>
-        <p className="eyebrow">The visual archive</p>
-        <h1 id="media-vault-title">Media Vault</h1>
-        <p>The people, places, setbacks and breakthroughs behind the journey from rock bottom to one million.</p>
-        <div className="media-vault__stats" aria-label="Media statistics">
-          <span><strong>{photos}</strong> Photos</span>
-          <span><strong>{videos}</strong> Videos</span>
-          <span><strong>{documents}</strong> Documents</span>
-        </div>
+    <section className="media-vault__intro" aria-labelledby="media-vault-title">
+      <p className="eyebrow">The visual archive</p>
+      <h1 id="media-vault-title">Media Vault</h1>
+      <p>The people, places, setbacks and breakthroughs behind the journey from rock bottom to one million.</p>
+      <div className="media-vault__stats" aria-label="Media statistics">
+        <span><strong>{photos}</strong> Photos</span>
+        <span><strong>{videos}</strong> Videos</span>
+        <span><strong>{documents}</strong> Documents</span>
       </div>
-
-      {featured ? <button className="media-feature" type="button" onClick={() => openMedia(featured.id)} aria-label={`Open featured media: ${featured.title}`}>
-        {featured.imageUrl ? <img src={featured.imageUrl} alt={featured.altText} onError={(event) => { event.currentTarget.hidden = true; }} /> : <MediaPlaceholder kind={featured.kind} />}
-        <span className="media-feature__shade" />
-        <span className="media-feature__content">
-          <small>Featured media</small>
-          <strong>{featured.title}</strong>
-          <span className="media-feature__meta"><MediaKindIcon kind={featured.kind} /> {featured.kind}</span>
-          {featured.location ? <span><MapPin size={14} aria-hidden="true" /> {featured.location}</span> : null}
-        </span>
-      </button> : <div className="media-feature media-feature--empty" aria-hidden="true"><MediaPlaceholder kind="photo" /></div>}
     </section>
+
+    {status === 'ready' && activeCarouselItem ? <section className="media-carousel" aria-label="Latest uploaded media">
+      <div
+        className="media-carousel__stage"
+        onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }}
+        onTouchEnd={(event) => {
+          if (touchStartX.current === null) return;
+          const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
+          const distance = endX - touchStartX.current;
+          touchStartX.current = null;
+          if (Math.abs(distance) < 45) return;
+          changeCarousel(distance > 0 ? -1 : 1);
+        }}
+      >
+        <button className="media-carousel__slide" type="button" onClick={() => openMedia(activeCarouselItem.id)} aria-label={`Open media: ${activeCarouselItem.title}`}>
+          {activeCarouselItem.imageUrl ? <img src={activeCarouselItem.imageUrl} alt={activeCarouselItem.altText} /> : <MediaPlaceholder kind={activeCarouselItem.kind} />}
+          <span className="media-carousel__shade" />
+          <span className="media-carousel__content" aria-live="polite">
+            <small>Latest upload {carouselIndex + 1} / {carouselItems.length}</small>
+            <strong>{activeCarouselItem.title}</strong>
+            {activeCarouselItem.caption || activeCarouselItem.description ? <span className="media-carousel__caption">{activeCarouselItem.caption || activeCarouselItem.description}</span> : null}
+            <span className="media-carousel__meta">
+              <span><MediaKindIcon kind={activeCarouselItem.kind} /> {activeCarouselItem.kind}</span>
+              {activeCarouselItem.location ? <span><MapPin size={14} aria-hidden="true" /> {activeCarouselItem.location}</span> : null}
+              <span>{formatDate(activeCarouselItem.capturedAt)}</span>
+            </span>
+          </span>
+        </button>
+
+        {carouselItems.length > 1 ? <>
+          <button className="media-carousel__arrow media-carousel__arrow--previous" type="button" onClick={() => changeCarousel(-1)} aria-label="Previous latest media"><ChevronLeft /></button>
+          <button className="media-carousel__arrow media-carousel__arrow--next" type="button" onClick={() => changeCarousel(1)} aria-label="Next latest media"><ChevronRight /></button>
+          <button className="media-carousel__playback" type="button" onClick={() => setCarouselPlaying((playing) => !playing)} aria-label={carouselPlaying ? 'Pause carousel' : 'Play carousel'}>{carouselPlaying ? <Pause size={16} /> : <Play size={16} />}</button>
+          <div className="media-carousel__dots" aria-label="Choose carousel slide">{carouselItems.map((item, index) => <button key={item.id} type="button" data-active={index === carouselIndex} onClick={() => setCarouselIndex(index)} aria-label={`Show slide ${index + 1}: ${item.title}`} />)}</div>
+        </> : null}
+      </div>
+    </section> : null}
 
     <section className="media-explorer" aria-labelledby="media-explorer-title">
       <div className="media-explorer__heading">
@@ -164,13 +206,13 @@ export function MediaVaultPage() {
           <span className="media-card__shade" />
           <span className="media-card__type"><MediaKindIcon kind={item.kind} /> {item.kind === 'video' ? formatDuration(item.durationSeconds) || 'Video' : item.kind === 'document' ? 'Document' : 'Photo'}</span>
           <span className="media-card__content"><small>{item.category}</small><strong>{item.title}</strong>{item.location ? <span><MapPin size={13} aria-hidden="true" /> {item.location}</span> : null}</span>
-        </button>)}</div> : filtered.length ? <div className="media-empty"><h3>No additional media.</h3><p>The matching asset is already shown as the featured item above.</p></div> : <div className="media-empty"><h3>No public media found.</h3><p>Try clearing one or more filters.</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>Clear filters</button></div>}
+        </button>)}</div> : filtered.length ? <div className="media-empty"><h3>All matching media is featured above.</h3><p>Newer uploads remain in the carousel and are not duplicated in the grid.</p></div> : <div className="media-empty"><h3>No public media found.</h3><p>Try clearing one or more filters.</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>Clear filters</button></div>}
       </> : null}
     </section>
 
     {selected ? <div className="media-viewer" role="dialog" aria-modal="true" aria-label={selected.title} onClick={() => setSelectedId(null)}>
       <button className="media-viewer__close" type="button" onClick={() => setSelectedId(null)} aria-label="Close media viewer"><X aria-hidden="true" /></button>
-      {filtered.length > 1 ? <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Previous media"><ChevronLeft aria-hidden="true" /></button> : null}
+      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Previous media"><ChevronLeft aria-hidden="true" /></button> : null}
       <div className="media-viewer__panel" data-metadata-open={metadataOpen} onClick={(event) => event.stopPropagation()}>
         <div className="media-viewer__visual">
           {selected.kind === 'video' ? <video src={selected.mediaUrl} poster={selected.thumbnailUrl || undefined} controls preload="metadata" playsInline /> : selected.kind === 'document' ? <a className="media-document-link" href={selected.mediaUrl} target="_blank" rel="noreferrer"><FileText size={42} aria-hidden="true" /><span>Open document</span></a> : <img src={selected.mediaUrl} alt={selected.altText} />}
@@ -180,20 +222,14 @@ export function MediaVaultPage() {
           {metadataOpen ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronUp size={18} aria-hidden="true" />}
         </button>
         <div className="media-viewer__details" id="media-viewer-metadata">
-          <p className="eyebrow">{selected.category}</p>
-          <h2>{selected.title}</h2>
+          <p className="eyebrow">{selected.category}</p><h2>{selected.title}</h2>
           {selected.description ? <p>{selected.description}</p> : null}
           {selected.caption ? <p className="media-viewer__caption">{selected.caption}</p> : null}
-          <dl>
-            {selected.location ? <div><dt>Location</dt><dd>{selected.location}</dd></div> : null}
-            <div><dt>Published</dt><dd>{formatDate(selected.capturedAt)}</dd></div>
-            <div><dt>Type</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>
-            {selected.width && selected.height ? <div><dt>Dimensions</dt><dd>{selected.width} × {selected.height}</dd></div> : null}
-          </dl>
+          <dl>{selected.location ? <div><dt>Location</dt><dd>{selected.location}</dd></div> : null}<div><dt>Published</dt><dd>{formatDate(selected.capturedAt)}</dd></div><div><dt>Type</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>{selected.width && selected.height ? <div><dt>Dimensions</dt><dd>{selected.width} × {selected.height}</dd></div> : null}</dl>
           {selected.tags.length ? <div className="media-viewer__tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
         </div>
       </div>
-      {filtered.length > 1 ? <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Next media"><ChevronRight aria-hidden="true" /></button> : null}
+      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Next media"><ChevronRight aria-hidden="true" /></button> : null}
     </div> : null}
   </main>;
 }
