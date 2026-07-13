@@ -2,6 +2,7 @@ import { Check, Copy, ExternalLink, QrCode, Share2, Smartphone } from 'lucide-re
 import { useState } from 'react';
 import { MISSION_BRAND } from '../lib/brandAssets';
 import { MissionLogo } from './MissionLogo';
+import { FounderSupportUpcomingTimeline } from './FounderSupportUpcomingTimeline';
 import './FounderSupportQrShare.css';
 
 export function FounderSupportQrShare() {
@@ -56,6 +57,10 @@ export function FounderSupportQrShare() {
           <div className="founder-support-qr__frame"><img src={MISSION_BRAND.qrUrl} alt="QR code linking to www.bankruptto1million.com" loading="eager" /></div>
           <figcaption>Point your camera at the code</figcaption>
         </figure>
+      </div>
+
+      <div className="founder-upcoming">
+        <FounderSupportUpcomingTimeline />
       </div>
     </section>
   );
