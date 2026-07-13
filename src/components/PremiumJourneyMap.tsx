@@ -1,5 +1,3 @@
-import maplibregl, { type Map as MapLibreMap, type Marker as MapLibreMarker, type StyleSpecification } from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
 import { useEffect, useMemo, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import { Badge, Card, Callout } from './ui/card';
@@ -22,7 +20,27 @@ export type PremiumJourneyPoint = {
   is_current_location: boolean;
 };
 
-const MAP_STYLE: StyleSpecification = {
+type MapLibreGlobal = {
+  Map: new (options: Record<string, unknown>) => any;
+  Marker: new (options?: Record<string, unknown>) => any;
+  Popup: new (options?: Record<string, unknown>) => any;
+  LngLatBounds: new () => any;
+  NavigationControl: new (options?: Record<string, unknown>) => any;
+  FullscreenControl: new () => any;
+  AttributionControl: new (options?: Record<string, unknown>) => any;
+  ScaleControl: new (options?: Record<string, unknown>) => any;
+};
+
+declare global {
+  interface Window {
+    maplibregl?: MapLibreGlobal;
+  }
+}
+
+const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js';
+const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css';
+
+const MAP_STYLE = {
   version: 8,
   sources: {
     carto: {
@@ -38,6 +56,38 @@ const MAP_STYLE: StyleSpecification = {
   },
   layers: [{ id: 'carto-dark', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
 };
+
+let mapLibrePromise: Promise<MapLibreGlobal> | null = null;
+
+function loadMapLibre(): Promise<MapLibreGlobal> {
+  if (window.maplibregl) return Promise.resolve(window.maplibregl);
+  if (mapLibrePromise) return mapLibrePromise;
+
+  mapLibrePromise = new Promise((resolve, reject) => {
+    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = MAPLIBRE_CSS;
+      document.head.appendChild(link);
+    }
+
+    const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
+    if (existing) {
+      existing.addEventListener('load', () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.')), { once: true });
+      existing.addEventListener('error', () => reject(new Error('MapLibre failed to load.')), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.src = MAPLIBRE_JS;
+    script.async = true;
+    script.onload = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.'));
+    script.onerror = () => reject(new Error('MapLibre failed to load.'));
+    document.head.appendChild(script);
+  });
+
+  return mapLibrePromise;
+}
 
 function personLabel(person: PremiumJourneyPoint['journey_person']) {
   return person === 'together' ? 'Kevin & Micha' : person === 'kevin' ? 'Kevin' : 'Micha';
@@ -66,8 +116,9 @@ function popupContent(point: PremiumJourneyPoint) {
 
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const markersRef = useRef<MapLibreMarker[]>([]);
+  const mapRef = useRef<any>(null);
+  const markersRef = useRef<any[]>([]);
+  const [mapError, setMapError] = useStateSafe('');
   const mapped = useMemo(() => points.filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude))), [points]);
   const active = mapped.find((point) => point.journey_entry_id === activeId) || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
@@ -77,73 +128,73 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
 
   useEffect(() => {
     if (!containerRef.current || !mapped.length) return;
+    let cancelled = false;
+    let map: any = null;
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: MAP_STYLE,
-      center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]),
-      zoom: 8.5,
-      pitch: 36,
-      bearing: -8,
-      attributionControl: false,
-      cooperativeGestures: true,
-    });
-    mapRef.current = map;
+    loadMapLibre().then((maplibregl) => {
+      if (cancelled || !containerRef.current) return;
+      setMapError('');
 
-    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
-    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
-    map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
-
-    map.on('load', () => {
-      map.addSource('journey-route', {
-        type: 'geojson',
-        data: {
-          type: 'Feature',
-          properties: {},
-          geometry: { type: 'LineString', coordinates: mapped.map(coordinates) },
-        },
+      map = new maplibregl.Map({
+        container: containerRef.current,
+        style: MAP_STYLE,
+        center: coordinates(mapped.find((point) => point.is_current_location) || mapped[0]),
+        zoom: 8.5,
+        pitch: 36,
+        bearing: -8,
+        attributionControl: false,
+        cooperativeGestures: true,
       });
-      map.addLayer({
-        id: 'journey-route-glow',
-        type: 'line',
-        source: 'journey-route',
-        paint: { 'line-color': '#d8aa5f', 'line-width': 8, 'line-opacity': 0.16, 'line-blur': 6 },
-      });
-      map.addLayer({
-        id: 'journey-route-line',
-        type: 'line',
-        source: 'journey-route',
-        paint: { 'line-color': '#f0c979', 'line-width': 3, 'line-opacity': 0.96, 'line-dasharray': [1.2, 1.2] },
-      });
+      mapRef.current = map;
 
-      const bounds = new maplibregl.LngLatBounds();
-      mapped.forEach((point, index) => {
-        bounds.extend(coordinates(point));
-        const element = document.createElement('button');
-        element.type = 'button';
-        element.className = `premium-map-dom-marker${point.is_current_location ? ' is-current' : ''}${point.journey_entry_id === activeId ? ' is-active' : ''}`;
-        element.setAttribute('aria-label', `Open ${point.title}`);
-        element.innerHTML = `<span>${index + 1}</span>`;
-        element.addEventListener('click', () => onSelect(point.journey_entry_id));
-        const marker = new maplibregl.Marker({ element, anchor: 'center' })
-          .setLngLat(coordinates(point))
-          .setPopup(new maplibregl.Popup({ offset: 22, closeButton: false }).setDOMContent(popupContent(point)))
-          .addTo(map);
-        markersRef.current.push(marker);
-      });
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+      map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+      map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
+      map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
-      if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
-      else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
+      map.on('load', () => {
+        map.addSource('journey-route', {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            properties: {},
+            geometry: { type: 'LineString', coordinates: mapped.map(coordinates) },
+          },
+        });
+        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#d8aa5f', 'line-width': 8, 'line-opacity': 0.16, 'line-blur': 6 } });
+        map.addLayer({ id: 'journey-route-line', type: 'line', source: 'journey-route', paint: { 'line-color': '#f0c979', 'line-width': 3, 'line-opacity': 0.96, 'line-dasharray': [1.2, 1.2] } });
+
+        const bounds = new maplibregl.LngLatBounds();
+        mapped.forEach((point, index) => {
+          bounds.extend(coordinates(point));
+          const element = document.createElement('button');
+          element.type = 'button';
+          element.className = `premium-map-dom-marker${point.is_current_location ? ' is-current' : ''}${point.journey_entry_id === activeId ? ' is-active' : ''}`;
+          element.setAttribute('aria-label', `Open ${point.title}`);
+          element.innerHTML = `<span>${index + 1}</span>`;
+          element.addEventListener('click', () => onSelect(point.journey_entry_id));
+          const marker = new maplibregl.Marker({ element, anchor: 'center' })
+            .setLngLat(coordinates(point))
+            .setPopup(new maplibregl.Popup({ offset: 22, closeButton: false }).setDOMContent(popupContent(point)))
+            .addTo(map);
+          markersRef.current.push(marker);
+        });
+
+        if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
+        else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
+      });
+    }).catch(() => {
+      if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.');
     });
 
     return () => {
+      cancelled = true;
       markersRef.current.forEach((marker) => marker.remove());
       markersRef.current = [];
-      map.remove();
+      if (map) map.remove();
       mapRef.current = null;
     };
-  }, [mapped, onSelect]);
+  }, [mapped, onSelect, activeId]);
 
   useEffect(() => {
     if (!active || !mapRef.current) return;
@@ -179,6 +230,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         </div>
         <div className="premium-map-stage">
           <div ref={containerRef} className="premium-map-canvas" />
+          {mapError ? <div className="premium-map-load-error">{mapError}</div> : null}
           <div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Costa Blanca expedition view</span></div>
           <div className="premium-map-legend"><span><i className="is-past"/> Past chapter</span><span><i className="is-current"/> Current location</span><span><i className="is-route"/> Journey route</span></div>
         </div>
@@ -198,4 +250,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       </Card>
     </div>
   </div>;
+}
+
+function useStateSafe(initialValue: string) {
+  const React = requireReactState();
+  return React(initialValue);
+}
+
+function requireReactState(): (initialValue: string) => [string, (value: string) => void] {
+  return (globalThis as unknown as { __reactUseState?: (initialValue: string) => [string, (value: string) => void] }).__reactUseState || (() => [ '', () => undefined ]);
 }
