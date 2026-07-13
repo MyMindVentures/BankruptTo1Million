@@ -66,7 +66,7 @@ export function JournalJourneyMapSection() {
   const [activeId, setActiveId] = useState(() => getStoredActiveId() || STARTER_POINTS[0].journey_entry_id);
 
   useEffect(() => {
-    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_journey').request({ query: 'select=*&order=occurred_at.asc' }))
+    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc' }))
       .then((rows) => {
         setLivePoints(rows);
         const storedActiveId = getStoredActiveId();
@@ -106,7 +106,7 @@ export function JournalJourneyMapSection() {
 
   return <div className="journey-map-only">
     <Callout className="journey-map-only__toolbar">
-      <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries' : 'Mission preview until the first journey entries are published'}</span></div>
+      <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries and timeline locations' : 'Mission preview until the first journey entries are published'}</span></div>
       <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = newestPoint(source, value); if (next) selectPoint(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
     </Callout>
     <PremiumJourneyMap points={points} activeId={activeId} onSelect={selectPoint}/>
