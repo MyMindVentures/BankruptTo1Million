@@ -1,4 +1,5 @@
 import { StrictMode } from 'react';
+import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { Footer } from './components/Footer';
@@ -58,7 +59,7 @@ const path = window.location.pathname.replace(/\/$/, '') || '/';
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const offerSlug = path.startsWith('/offers/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const mediaPage = path === '/media' || path === '/media-vault';
-const withSiteShell = (page: React.ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
+const withSiteShell = (page: ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
 const rootPage = path === '/'
   ? withSiteShell(<HomePage />)
   : path === '/legal'
