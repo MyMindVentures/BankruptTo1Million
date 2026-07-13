@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import type { JournalDisplayPerson } from '../lib/journalPeople';
+import { supabase } from '../lib/supabase';
 import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
 import './PremiumJourneyMap.css';
@@ -25,6 +26,16 @@ export type PremiumJourneyPoint = {
   is_milestone: boolean;
   is_current_location: boolean;
   involved_people: JourneyInvolvedPerson[];
+};
+
+type Coordinate = [number, number];
+type FounderRouteKey = 'kevin' | 'micha';
+type FounderRoute = {
+  key: FounderRouteKey;
+  coordinates: Coordinate[];
+  distanceKm: number;
+  durationMinutes: number;
+  status: 'idle' | 'loading' | 'routed' | 'fallback';
 };
 
 type MapLibreGlobal = {
@@ -75,7 +86,7 @@ function formatDate(value: string) {
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
 }
 
-function coordinates(point: PremiumJourneyPoint): [number, number] {
+function coordinates(point: PremiumJourneyPoint): Coordinate {
   return [Number(point.longitude), Number(point.latitude)];
 }
 
@@ -95,10 +106,24 @@ function markerVariant(point: PremiumJourneyPoint) {
   return point.journey_person || 'person';
 }
 
+function pointBelongsTo(point: PremiumJourneyPoint, founder: FounderRouteKey) {
+  const slugs = sortedPeople(point).map((person) => person.slug);
+  if (founder === 'kevin' && slugs.includes('kevin-de-vlieger')) return true;
+  if (founder === 'micha' && slugs.includes('micha')) return true;
+  return point.journey_person === founder || point.journey_person === 'together';
+}
+
+function dedupeCoordinates(values: Coordinate[]) {
+  return values.filter((value, index) => index === 0 || value[0] !== values[index - 1][0] || value[1] !== values[index - 1][1]);
+}
+
+function routeFeature(coordinatesValue: Coordinate[]) {
+  const safe = coordinatesValue.length > 1 ? coordinatesValue : coordinatesValue.length === 1 ? [coordinatesValue[0], coordinatesValue[0]] : [];
+  return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: safe } };
+}
+
 function newestPoint(points: PremiumJourneyPoint[]) {
-  return [...points].sort(
-    (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
-  )[0];
+  return [...points].sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())[0];
 }
 
 function addAvatar(container: HTMLElement, person: JourneyInvolvedPerson) {
@@ -130,9 +155,7 @@ function createMarkerElement(point: PremiumJourneyPoint) {
   } else if (people[0]) {
     addAvatar(element, people[0]);
   } else {
-    const fallback = document.createElement('span');
-    fallback.textContent = '•';
-    element.appendChild(fallback);
+    const fallback = document.createElement('span'); fallback.textContent = '•'; element.appendChild(fallback);
   }
 
   if (point.is_milestone) {
@@ -165,15 +188,61 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   const mapRef = useRef<any>(null);
   const markersRef = useRef<any[]>([]);
   const [mapError, setMapError] = useState('');
+  const [routes, setRoutes] = useState<Record<FounderRouteKey, FounderRoute>>({
+    kevin: { key: 'kevin', coordinates: [], distanceKm: 0, durationMinutes: 0, status: 'idle' },
+    micha: { key: 'micha', coordinates: [], distanceKm: 0, durationMinutes: 0, status: 'idle' },
+  });
   const mapped = useMemo(() => points
     .filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)))
     .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()), [points]);
+  const routeStops = useMemo(() => ({
+    kevin: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'kevin')).map(coordinates)),
+    micha: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'micha')).map(coordinates)),
+  }), [mapped]);
   const current = newestPoint(mapped.filter((point) => point.is_current_location)) || mapped[mapped.length - 1];
   const active = mapped.find((point) => point.journey_entry_id === activeId) || current || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
   const previous = mapped[(activeIndex - 1 + mapped.length) % mapped.length];
   const next = mapped[(activeIndex + 1) % mapped.length];
   const routeProgress = mapped.length > 1 ? ((activeIndex + 1) / mapped.length) * 100 : 100;
+  const routedDistance = routes.kevin.distanceKm + routes.micha.distanceKm;
+  const routingFallback = routes.kevin.status === 'fallback' || routes.micha.status === 'fallback';
+
+  useEffect(() => {
+    if (!mapped.length) return;
+    const controller = new AbortController();
+    setRoutes({
+      kevin: { key: 'kevin', coordinates: routeStops.kevin, distanceKm: 0, durationMinutes: 0, status: routeStops.kevin.length > 1 ? 'loading' : 'idle' },
+      micha: { key: 'micha', coordinates: routeStops.micha, distanceKm: 0, durationMinutes: 0, status: routeStops.micha.length > 1 ? 'loading' : 'idle' },
+    });
+
+    fetch(`${supabase.url}/functions/v1/journey-routes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ routes: [
+        { key: 'kevin', coordinates: routeStops.kevin },
+        { key: 'micha', coordinates: routeStops.micha },
+      ] }),
+      signal: controller.signal,
+    }).then(async (response) => {
+      if (!response.ok) throw new Error(await response.text());
+      return response.json() as Promise<{ routes: FounderRoute[] }>;
+    }).then((payload) => {
+      if (controller.signal.aborted) return;
+      const nextRoutes = Object.fromEntries(payload.routes.map((route) => [route.key, route])) as Record<FounderRouteKey, FounderRoute>;
+      setRoutes({
+        kevin: nextRoutes.kevin || { key: 'kevin', coordinates: routeStops.kevin, distanceKm: 0, durationMinutes: 0, status: 'fallback' },
+        micha: nextRoutes.micha || { key: 'micha', coordinates: routeStops.micha, distanceKm: 0, durationMinutes: 0, status: 'fallback' },
+      });
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setRoutes({
+        kevin: { key: 'kevin', coordinates: routeStops.kevin, distanceKm: 0, durationMinutes: 0, status: 'fallback' },
+        micha: { key: 'micha', coordinates: routeStops.micha, distanceKm: 0, durationMinutes: 0, status: 'fallback' },
+      });
+    });
+    return () => controller.abort();
+  }, [mapped.length, routeStops]);
 
   useEffect(() => {
     if (!containerRef.current || !mapped.length) return;
@@ -191,13 +260,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
 
       map.on('load', () => {
-        const allCoordinates = mapped.map(coordinates);
-        const completedCoordinates = mapped.slice(0, activeIndex + 1).map(coordinates);
-        map.addSource('journey-route', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: allCoordinates } } });
-        map.addSource('journey-route-completed', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: completedCoordinates.length > 1 ? completedCoordinates : [allCoordinates[0], allCoordinates[0]] } } });
-        map.addLayer({ id: 'journey-route-glow', type: 'line', source: 'journey-route', paint: { 'line-color': '#8b6a33', 'line-width': 10, 'line-opacity': 0.18, 'line-blur': 7 } });
-        map.addLayer({ id: 'journey-route-future', type: 'line', source: 'journey-route', paint: { 'line-color': '#9a8c78', 'line-width': 3, 'line-opacity': 0.7, 'line-dasharray': [1.5, 1.5] } });
-        map.addLayer({ id: 'journey-route-completed-line', type: 'line', source: 'journey-route-completed', paint: { 'line-color': '#e2b45f', 'line-width': 5, 'line-opacity': 1 } });
+        (['kevin', 'micha'] as FounderRouteKey[]).forEach((key) => {
+          map.addSource(`journey-route-${key}`, { type: 'geojson', data: routeFeature(routes[key].coordinates) });
+          map.addLayer({ id: `journey-route-${key}-glow`, type: 'line', source: `journey-route-${key}`, paint: { 'line-color': key === 'kevin' ? '#e2b45f' : '#6687d8', 'line-width': 10, 'line-opacity': 0.2, 'line-blur': 7 } });
+          map.addLayer({ id: `journey-route-${key}-line`, type: 'line', source: `journey-route-${key}`, paint: { 'line-color': key === 'kevin' ? '#e2b45f' : '#6687d8', 'line-width': 5, 'line-opacity': 0.95 } });
+        });
 
         const bounds = new maplibregl.LngLatBounds();
         mapped.forEach((point) => {
@@ -224,27 +291,33 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   }, [mapped, onSelect]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    (['kevin', 'micha'] as FounderRouteKey[]).forEach((key) => {
+      const source = map.getSource?.(`journey-route-${key}`);
+      if (source?.setData) source.setData(routeFeature(routes[key].coordinates));
+    });
+  }, [routes]);
+
+  useEffect(() => {
     if (!active || !mapRef.current) return;
     markersRef.current.forEach((marker) => {
       const element = marker.getElement();
       const markerPoint = mapped.find((point) => coordinates(point).join(',') === marker.getLngLat().toArray().join(','));
       element.classList.toggle('is-active', markerPoint?.journey_entry_id === active.journey_entry_id);
     });
-    const source = mapRef.current.getSource?.('journey-route-completed');
-    const completed = mapped.slice(0, activeIndex + 1).map(coordinates);
-    if (source?.setData) source.setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: completed.length > 1 ? completed : [coordinates(active), coordinates(active)] } });
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
-  }, [active, activeIndex, mapped]);
+  }, [active, mapped]);
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
   const activePeople = sortedPeople(active);
 
   return <div className="premium-map-shell">
-    <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{activeIndex + 1}/{mapped.length}</strong> route position</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
+    <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{routedDistance ? `${Math.round(routedDistance)} km` : `${activeIndex + 1}/${mapped.length}`}</strong> {routedDistance ? 'road distance' : 'route position'}</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
     <div className="premium-map-layout">
       <Card className="premium-map-card">
-        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Database-linked profile pins · completed route · next chapters</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
-        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin</span><span><i className="is-micha"/> Micha</span><span><i className="is-together"/> Multiple people</span><span><i className="is-route"/> Completed route</span></div></div>
+        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Separate road routes for Kevin and Micha · database-linked profile pins</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
+        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}{routingFallback ? <div className="premium-map-load-error">Road routing is temporarily unavailable; simplified lines are shown.</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin route</span><span><i className="is-micha"/> Micha route</span><span><i className="is-together"/> Shared stop</span></div></div>
       </Card>
       <Card className="premium-map-detail-card">
         <div className="premium-map-detail-card__meta">{activePeople.length ? <Badge>{peopleLabel(active)}</Badge> : null}{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
