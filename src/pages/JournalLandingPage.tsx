@@ -16,6 +16,7 @@ import { filterPosts, getJournalIndex, type JournalIndexData } from '../lib/jour
 import { supabase } from '../lib/supabase';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
+import './JournalViewportFix.css';
 
 type FounderProfileRow = {
   slug: string;
