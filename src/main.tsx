@@ -35,6 +35,7 @@ import './styles/footer.css';
 import './styles/legal.css';
 import './styles/footerLegalPatch.css';
 import './styles/siteMedia.css';
+import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/responsive-hardening.css';
 
