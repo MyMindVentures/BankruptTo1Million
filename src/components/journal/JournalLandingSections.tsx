@@ -2,7 +2,8 @@ import { Archive, ArrowRight, ChevronDown, Filter, Search, SlidersHorizontal } f
 import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type FounderAvatarMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
-import { getPostAuthors, type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
+import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
+import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
 
 export type FounderFilter = 'all' | 'kevin' | 'micha' | 'together';
 
@@ -13,6 +14,7 @@ export type JourneyPoint = PremiumJourneyPoint & {
   mood?: string;
   marker_variant?: string;
   effective_journey_order?: number;
+  people?: JournalDisplayPerson[];
 };
 
 export function formatJournalDate(value?: string) {
@@ -33,13 +35,13 @@ function FounderSwitch({ value, onChange, className = '' }: { value: FounderFilt
 }
 
 export function JournalArticleCard({ post }: { post: PublicJournalPost }) {
-  const author = getPostAuthors(post)[0];
+  const people = getJournalDisplayPeople(post);
   return <AceternityContentCard
     href={`/journal/${post.slug}`}
     title={post.displayTitle}
     description={post.displayExcerpt || post.displaySubtitle}
-    authorName={author?.display_name || 'Bankrupt to 1 Million'}
-    avatarSrc={author?.avatar_url || '/og-image.png'}
+    authorName={formatJournalPeople(people)}
+    people={people.map((person) => ({ id: person.id, name: person.display_name, avatarSrc: person.avatar_url }))}
     imageSrc={post.cover_image_url || undefined}
     imageAlt={post.cover_image_alt || post.displayTitle}
     readTime={`${post.reading_time_minutes || 4} min read`}
@@ -98,6 +100,7 @@ export function JournalTimelineSection({ points, activePoint, founder, onFounder
         <time>{formatJournalDate(point.occurred_at)}</time>
         <strong>{point.map_label || point.location_name || point.city_name || point.title}</strong>
         <small>{point.title}</small>
+        {point.people?.length ? <span className="journal-timeline-people">{formatJournalPeople(point.people)}</span> : null}
         {point.is_current_location ? <em>Current location</em> : null}
       </button>)}
     </div>
