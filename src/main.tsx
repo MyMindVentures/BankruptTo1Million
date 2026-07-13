@@ -15,6 +15,7 @@ import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
+import { MediaVaultPage } from './pages/MediaVaultPage';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/discovery-responsive.css';
@@ -32,6 +33,7 @@ import './styles/footer.css';
 import './styles/legal.css';
 import './styles/footerLegalPatch.css';
 import './styles/siteMedia.css';
+import './styles/mediaVault.css';
 import './styles/responsive-hardening.css';
 
 initializeConceptOwnershipUi();
@@ -49,13 +51,15 @@ const rootPage = path === '/legal'
   ? <LegalTransparencyPage />
   : path === '/impact'
     ? <ImpactResultsPage />
-    : path === '/journal'
-      ? <JournalLandingPage />
-      : path === '/founders'
-        ? <FoundersOverviewPage />
-        : founderSlug
-          ? <FounderProfilePage slug={founderSlug} />
-          : <App />;
+    : path === '/media' || path === '/media-vault'
+      ? <MediaVaultPage />
+      : path === '/journal'
+        ? <JournalLandingPage />
+        : path === '/founders'
+          ? <FoundersOverviewPage />
+          : founderSlug
+            ? <FounderProfilePage slug={founderSlug} />
+            : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
