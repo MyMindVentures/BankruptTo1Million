@@ -19,6 +19,8 @@ import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
 import './styles/conceptMessages.css';
 import './styles/founderProfiles.css';
+import './styles/foundersOverview.css';
+import './styles/founderVideos.css';
 import './styles/founderPosts.css';
 import './styles/founderPostOpportunities.css';
 import './styles/founderPostFixes.css';
