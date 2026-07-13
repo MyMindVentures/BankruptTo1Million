@@ -9,6 +9,7 @@ import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { FounderProfilePage } from './pages/FounderProfilePage';
+import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import './styles/global.css';
 import './styles/discovery-responsive.css';
@@ -36,9 +37,11 @@ const path = window.location.pathname;
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const rootPage = path === '/legal'
   ? <LegalTransparencyPage />
-  : founderSlug
-    ? <FounderProfilePage slug={founderSlug} />
-    : <App />;
+  : path === '/impact'
+    ? <ImpactResultsPage />
+    : founderSlug
+      ? <FounderProfilePage slug={founderSlug} />
+      : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
