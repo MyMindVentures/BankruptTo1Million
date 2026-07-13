@@ -101,6 +101,7 @@ export async function getPublicMediaAssets(): Promise<PublicMediaAsset[]> {
     select: 'id,asset_type,title,description,alt_text,caption,storage_bucket,storage_path,thumbnail_url,mime_type,width,height,duration_seconds,tags,metadata,published_at,created_at',
     visibility: 'eq.public',
     status: 'eq.published',
+    show_in_media_vault: 'eq.true',
     order: 'published_at.desc.nullslast,created_at.desc',
   });
 
