@@ -64,7 +64,8 @@ type JourneyStatus = {
   milestones_count: number;
 };
 
-async function readJson<T>(response: Response): Promise<T> {
+async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
+  const response = await responseOrPromise;
   if (!response.ok) throw new Error(await response.text());
   return response.json() as Promise<T>;
 }
