@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from './PremiumJourneyMap';
+import { JourneyCalendarPlanner } from './JourneyCalendarPlanner';
 import { Button } from './ui/button';
 import { Callout } from './ui/card';
 import { supabase } from '../lib/supabase';
@@ -58,5 +59,6 @@ export function JournalJourneyMapSection() {
       <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = source.find((point) => value === 'all' || point.journey_person === value || point.journey_person === 'together'); if (next) setActiveId(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
     </Callout>
     <PremiumJourneyMap points={points} activeId={activeId} onSelect={setActiveId}/>
+    <JourneyCalendarPlanner />
   </div>;
 }
