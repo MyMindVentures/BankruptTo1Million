@@ -55,7 +55,7 @@ export function JournalJourneyMapSection() {
   return <div className="journey-map-only">
     <Callout className="journey-map-only__toolbar">
       <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries' : 'Mission preview until the first journey entries are published'}</span></div>
-      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'primary' : 'ghost'} onClick={() => { setFilter(value); const next = source.find((point) => value === 'all' || point.journey_person === value || point.journey_person === 'together'); if (next) setActiveId(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
+      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = source.find((point) => value === 'all' || point.journey_person === value || point.journey_person === 'together'); if (next) setActiveId(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
     </Callout>
     <PremiumJourneyMap points={points} activeId={activeId} onSelect={setActiveId}/>
   </div>;
