@@ -16,6 +16,7 @@ import './styles/conceptMessages.css';
 import './styles/founderProfiles.css';
 import './styles/founderPosts.css';
 import './styles/founderPostOpportunities.css';
+import './styles/founderPostFixes.css';
 import './styles/latestThree.css';
 import './styles/footer.css';
 import './styles/legal.css';
