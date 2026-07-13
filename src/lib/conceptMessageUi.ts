@@ -1,7 +1,9 @@
 import { getPublishedConceptMessages, type ProofOfMindConceptMessage } from './conceptMessages';
 
+const htmlEntities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+
 function escapeHtml(value: string | null | undefined) {
-  return (value || '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character] || character);
+  return (value || '').replace(/[&<>'"]/g, (character) => htmlEntities[character] || character);
 }
 
 function safeUrl(value: string | null) {
