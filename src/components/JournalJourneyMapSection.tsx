@@ -5,6 +5,8 @@ import { Button } from './ui/button';
 import { Callout } from './ui/card';
 import { supabase } from '../lib/supabase';
 
+const JOURNEY_ACTIVE_STORAGE_KEY = 'bankrupt-to-1m:journal-active-point';
+
 const STARTER_POINTS: PremiumJourneyPoint[] = [
   {
     journey_entry_id: 'starter-santa-pola', slug: '', title: 'Where the rebuild becomes public',
@@ -53,30 +55,61 @@ function newestPoint(points: PremiumJourneyPoint[], value: 'all' | PremiumJourne
   )[0];
 }
 
+function getStoredActiveId() {
+  if (typeof window === 'undefined') return undefined;
+  return window.sessionStorage.getItem(JOURNEY_ACTIVE_STORAGE_KEY) || undefined;
+}
+
 export function JournalJourneyMapSection() {
   const [livePoints, setLivePoints] = useState<PremiumJourneyPoint[]>([]);
   const [filter, setFilter] = useState<'all' | PremiumJourneyPoint['journey_person']>('all');
-  const [activeId, setActiveId] = useState(STARTER_POINTS[0].journey_entry_id);
+  const [activeId, setActiveId] = useState(() => getStoredActiveId() || STARTER_POINTS[0].journey_entry_id);
 
   useEffect(() => {
     readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_journey').request({ query: 'select=*&order=occurred_at.asc' }))
       .then((rows) => {
         setLivePoints(rows);
+        const storedActiveId = getStoredActiveId();
+        const storedPointStillExists = storedActiveId && rows.some((point) => point.journey_entry_id === storedActiveId);
+        if (storedPointStillExists) {
+          setActiveId(storedActiveId);
+          return;
+        }
         const newest = newestPoint(rows, 'all');
         if (newest) setActiveId(newest.journey_entry_id);
       })
       .catch(() => setLivePoints([]));
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined' || !activeId) return;
+    window.sessionStorage.setItem(JOURNEY_ACTIVE_STORAGE_KEY, activeId);
+  }, [activeId]);
+
   const source = livePoints.length ? livePoints : STARTER_POINTS;
   const points = useMemo(() => source.filter((point) => matchesFilter(point, filter)), [source, filter]);
+
+  useEffect(() => {
+    if (!points.length) return;
+    if (!points.some((point) => point.journey_entry_id === activeId)) {
+      const fallback = newestPoint(points, filter) || points[0];
+      setActiveId(fallback.journey_entry_id);
+    }
+  }, [activeId, filter, points]);
+
+  const selectPoint = (journeyEntryId: string) => {
+    setActiveId(journeyEntryId);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(JOURNEY_ACTIVE_STORAGE_KEY, journeyEntryId);
+    }
+  };
 
   return <div className="journey-map-only">
     <Callout className="journey-map-only__toolbar">
       <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries' : 'Mission preview until the first journey entries are published'}</span></div>
-      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = newestPoint(source, value); if (next) setActiveId(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
+      <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => { setFilter(value); const next = newestPoint(source, value); if (next) selectPoint(next.journey_entry_id); }}>{label(value)}</Button>)}</div>
     </Callout>
-    <PremiumJourneyMap points={points} activeId={activeId} onSelect={setActiveId}/>
+    <PremiumJourneyMap points={points} activeId={activeId} onSelect={selectPoint}/>
     <JourneyCalendarPlanner />
   </div>;
 }
