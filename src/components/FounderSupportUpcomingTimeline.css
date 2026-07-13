@@ -25,9 +25,9 @@
 
 .founder-upcoming-card__summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
-  gap: 1.25rem;
+  gap: 1.1rem;
   padding: 1rem 1.15rem;
   cursor: pointer;
   list-style: none;
@@ -40,6 +40,57 @@
 .founder-upcoming-card__summary:focus-visible {
   outline: 2px solid var(--color-accent, #d8a84e);
   outline-offset: -2px;
+}
+
+.founder-upcoming-card__people {
+  display: flex;
+  align-items: center;
+  min-width: 64px;
+}
+
+.founder-upcoming-card__person {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  flex: 0 0 52px;
+  margin-left: -12px;
+  overflow: hidden;
+  border: 2px solid rgba(216, 168, 78, .72);
+  border-radius: 50%;
+  background: #17130f;
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 7px 20px rgba(0, 0, 0, .28);
+  transition: transform .2s ease, border-color .2s ease;
+}
+
+.founder-upcoming-card__person:first-child {
+  margin-left: 0;
+}
+
+.founder-upcoming-card__person:hover,
+.founder-upcoming-card__person:focus-visible {
+  z-index: 2;
+  transform: translateY(-2px);
+  border-color: var(--color-accent, #d8a84e);
+}
+
+.founder-upcoming-card__person img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.founder-upcoming-card__avatar-fallback {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  color: var(--color-accent, #d8a84e);
+  font-size: 1rem;
+  font-weight: 900;
 }
 
 .founder-upcoming-card__main {
@@ -170,8 +221,24 @@
 
 @media (max-width: 700px) {
   .founder-upcoming-card__summary {
-    grid-template-columns: 1fr;
-    gap: .75rem;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: .8rem;
+  }
+
+  .founder-upcoming-card__people {
+    align-self: start;
+    min-width: 52px;
+  }
+
+  .founder-upcoming-card__person {
+    width: 44px;
+    height: 44px;
+    flex-basis: 44px;
+    margin-left: -16px;
+  }
+
+  .founder-upcoming-card__person:first-child {
+    margin-left: 0;
   }
 
   .founder-upcoming-card__main {
@@ -184,6 +251,7 @@
   }
 
   .founder-upcoming-card__toggle {
+    grid-column: 2;
     justify-self: start;
   }
 
