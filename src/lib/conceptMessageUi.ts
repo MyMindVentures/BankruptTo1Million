@@ -16,6 +16,10 @@ function safeUrl(value: string | null) {
   }
 }
 
+function normalizedKey(value: string | null | undefined) {
+  return (value || '').trim().toLowerCase();
+}
+
 function messageBody(message: ProofOfMindConceptMessage) {
   return message.personal_intro || message.excerpt || message.why_i_created_it || message.lived_experience || message.vision_for_impact || message.founder_video_description || 'A personal message from the founder will appear here.';
 }
@@ -50,7 +54,7 @@ function attachMessage(card: HTMLElement, message: ProofOfMindConceptMessage) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'concept-message-icon-button';
-  button.setAttribute('aria-label', `Open the personal message for ${message.title}`);
+  button.setAttribute('aria-label', `Open the personal message for ${message.concept_title || message.title}`);
   button.setAttribute('aria-expanded', 'false');
   button.innerHTML = '<span aria-hidden="true">▶</span><span class="concept-message-icon-button__label">Founder message</span>';
   titleRow.appendChild(button);
@@ -78,15 +82,23 @@ function conceptSlug(card: HTMLElement) {
   return href?.split('/').filter(Boolean).pop() || null;
 }
 
+function conceptTitle(card: HTMLElement) {
+  return card.querySelector('.concept-card__title-row h3')?.textContent?.trim() || null;
+}
+
 export function initializeConceptMessageUi() {
   let messagesBySlug = new Map<string, ProofOfMindConceptMessage>();
+  let messagesByTitle = new Map<string, ProofOfMindConceptMessage>();
   let loading: Promise<void> | null = null;
 
   const load = () => {
     if (!loading) {
       loading = getPublishedConceptMessages()
-        .then((messages) => { messagesBySlug = new Map(messages.map((message) => [message.concept_slug, message])); })
-        .catch(() => { messagesBySlug = new Map(); });
+        .then((messages) => {
+          messagesBySlug = new Map(messages.filter((message) => message.concept_slug).map((message) => [message.concept_slug, message]));
+          messagesByTitle = new Map(messages.filter((message) => message.concept_title).map((message) => [normalizedKey(message.concept_title), message]));
+        })
+        .catch(() => { messagesBySlug = new Map(); messagesByTitle = new Map(); });
     }
     return loading;
   };
@@ -96,8 +108,8 @@ export function initializeConceptMessageUi() {
     await load();
     document.querySelectorAll<HTMLElement>('.concept-card').forEach((card) => {
       const slug = conceptSlug(card);
-      if (!slug) return;
-      const message = messagesBySlug.get(slug);
+      const title = conceptTitle(card);
+      const message = (slug ? messagesBySlug.get(slug) : null) || (title ? messagesByTitle.get(normalizedKey(title)) : null);
       if (message) attachMessage(card, message);
     });
   };
