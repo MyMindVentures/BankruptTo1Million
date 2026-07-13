@@ -1,4 +1,4 @@
-import { JournalJourneyExperience } from './JournalJourneyExperience';
+import { JournalJourneyMapSection } from './JournalJourneyMapSection';
 import { cn } from '../lib/utils';
 
 type SectionHeadingProps = {
@@ -17,7 +17,7 @@ export function SectionHeading({ eyebrow, title, titleId, children, align = 'sta
         <h2 id={titleId}>{title}</h2>
         <p>{children}</p>
       </div>
-      {titleId === 'timeline-title' ? <JournalJourneyExperience /> : null}
+      {titleId === 'timeline-title' ? <JournalJourneyMapSection /> : null}
     </>
   );
 }
