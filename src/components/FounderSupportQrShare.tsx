@@ -4,6 +4,7 @@ import './FounderSupportQrShare.css';
 
 const WEBSITE_URL = 'https://www.bankruptto1million.com';
 const QR_IMAGE_URL = 'https://zlwwncmbxohnezotomcx.supabase.co/storage/v1/object/public/media-images/branding/branding/qr_codes/bankruptto1million-qr.png';
+const LOGO_IMAGE_URL = 'https://zlwwncmbxohnezotomcx.supabase.co/storage/v1/object/public/media-images/branding/logos/b1m_logo.png';
 
 export function FounderSupportQrShare() {
   const [copied, setCopied] = useState(false);
@@ -53,11 +54,20 @@ export function FounderSupportQrShare() {
         <div className="founder-support-qr__url"><Smartphone size={15} aria-hidden="true" /><span>www.bankruptto1million.com</span></div>
       </div>
 
-      <div className="founder-support-qr__visual">
-        <div className="founder-support-qr__frame">
-          <img src={QR_IMAGE_URL} alt="QR code linking to www.bankruptto1million.com" loading="eager" />
-        </div>
-        <span>Point your camera at the code</span>
+      <div className="founder-support-qr__visuals" aria-label="Bankrupt to 1 Million logo and QR code">
+        <figure className="founder-support-qr__visual founder-support-qr__visual--logo">
+          <div className="founder-support-qr__frame founder-support-qr__frame--logo">
+            <img src={LOGO_IMAGE_URL} alt="Bankrupt to 1 Million logo" loading="eager" />
+          </div>
+          <figcaption>Bankrupt to 1 Million</figcaption>
+        </figure>
+
+        <figure className="founder-support-qr__visual">
+          <div className="founder-support-qr__frame">
+            <img src={QR_IMAGE_URL} alt="QR code linking to www.bankruptto1million.com" loading="eager" />
+          </div>
+          <figcaption>Point your camera at the code</figcaption>
+        </figure>
       </div>
     </section>
   );
