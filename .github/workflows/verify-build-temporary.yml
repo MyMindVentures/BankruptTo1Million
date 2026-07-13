@@ -14,9 +14,38 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
-      - run: npm run typecheck
-      - run: npm run build
+      - name: Install, typecheck and build
+        id: verify
+        shell: bash
         env:
           VITE_SUPABASE_URL: https://example.supabase.co
           VITE_SUPABASE_ANON_KEY: build-verification-placeholder
+        run: |
+          set +e
+          npm ci 2>&1 | tee npm-ci.log
+          CI_STATUS=${PIPESTATUS[0]}
+          if [ "$CI_STATUS" -eq 0 ]; then
+            npm run typecheck 2>&1 | tee typecheck.log
+            TYPECHECK_STATUS=${PIPESTATUS[0]}
+          else
+            TYPECHECK_STATUS=99
+          fi
+          if [ "$CI_STATUS" -eq 0 ] && [ "$TYPECHECK_STATUS" -eq 0 ]; then
+            npm run build 2>&1 | tee build.log
+            BUILD_STATUS=${PIPESTATUS[0]}
+          else
+            BUILD_STATUS=99
+          fi
+          printf 'npm_ci=%s\ntypecheck=%s\nbuild=%s\n' "$CI_STATUS" "$TYPECHECK_STATUS" "$BUILD_STATUS" | tee result.log
+          if [ "$CI_STATUS" -ne 0 ] || [ "$TYPECHECK_STATUS" -ne 0 ] || [ "$BUILD_STATUS" -ne 0 ]; then exit 1; fi
+      - name: Upload diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-diagnostics
+          path: |
+            npm-ci.log
+            typecheck.log
+            build.log
+            result.log
+          if-no-files-found: ignore
