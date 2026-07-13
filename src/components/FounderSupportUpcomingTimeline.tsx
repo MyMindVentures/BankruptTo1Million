@@ -21,9 +21,24 @@ type ExchangeItem = {
   slug: string | null;
 };
 
+type CalendarFounderRelation = {
+  calendar_entry_id: string;
+  founder_profile_id: string;
+  display_order: number;
+};
+
+type FounderProfile = {
+  id: string;
+  display_name: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
+  profile_url: string | null;
+};
+
 type UpcomingTimelineEvent = CalendarEntry & {
   needs: ExchangeItem[];
   offers: ExchangeItem[];
+  founders: FounderProfile[];
 };
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
@@ -49,6 +64,10 @@ function formatPeriod(startsOn: string, endsOn: string | null) {
   return `${start} — ${end}`;
 }
 
+function founderName(founder: FounderProfile) {
+  return founder.display_name || founder.full_name || 'Founder';
+}
+
 export function FounderSupportUpcomingTimeline() {
   const [events, setEvents] = useState<UpcomingTimelineEvent[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -66,16 +85,38 @@ export function FounderSupportUpcomingTimeline() {
           return;
         }
 
-        const ids = entries.map((entry) => entry.id).join(',');
-        const items = await readJson<ExchangeItem[]>(supabase.from('journey_exchange_items').request({
-          query: `select=id,calendar_entry_id,item_type,title,slug&calendar_entry_id=in.(${ids})&is_public=eq.true&status=eq.active&order=display_order.asc,created_at.asc`,
-        }));
+        const entryIds = entries.map((entry) => entry.id).join(',');
 
-        setEvents(entries.map((entry) => ({
-          ...entry,
-          needs: items.filter((item) => item.calendar_entry_id === entry.id && item.item_type === 'need'),
-          offers: items.filter((item) => item.calendar_entry_id === entry.id && item.item_type === 'offer'),
-        })));
+        const [items, relations] = await Promise.all([
+          readJson<ExchangeItem[]>(supabase.from('journey_exchange_items').request({
+            query: `select=id,calendar_entry_id,item_type,title,slug&calendar_entry_id=in.(${entryIds})&is_public=eq.true&status=eq.active&order=display_order.asc,created_at.asc`,
+          })),
+          readJson<CalendarFounderRelation[]>(supabase.from('journey_calendar_entry_founders').request({
+            query: `select=calendar_entry_id,founder_profile_id,display_order&calendar_entry_id=in.(${entryIds})&order=display_order.asc`,
+          })),
+        ]);
+
+        const founderIds = [...new Set(relations.map((relation) => relation.founder_profile_id))];
+        const founders = founderIds.length
+          ? await readJson<FounderProfile[]>(supabase.from('founder_profiles_public').request({
+              query: `select=id,display_name,full_name,avatar_url,profile_url&id=in.(${founderIds.join(',')})`,
+            }))
+          : [];
+
+        setEvents(entries.map((entry) => {
+          const eventRelations = relations
+            .filter((relation) => relation.calendar_entry_id === entry.id)
+            .sort((a, b) => a.display_order - b.display_order);
+
+          return {
+            ...entry,
+            needs: items.filter((item) => item.calendar_entry_id === entry.id && item.item_type === 'need'),
+            offers: items.filter((item) => item.calendar_entry_id === entry.id && item.item_type === 'offer'),
+            founders: eventRelations
+              .map((relation) => founders.find((founder) => founder.id === relation.founder_profile_id))
+              .filter((founder): founder is FounderProfile => Boolean(founder)),
+          };
+        }));
         setStatus('ready');
       } catch {
         setStatus('error');
@@ -94,6 +135,34 @@ export function FounderSupportUpcomingTimeline() {
       {events.map((event) => (
         <details className="founder-upcoming-card" key={event.id}>
           <summary className="founder-upcoming-card__summary">
+            {event.founders.length > 0 ? (
+              <span className="founder-upcoming-card__people" aria-label={`People involved: ${event.founders.map(founderName).join(', ')}`}>
+                {event.founders.map((founder) => {
+                  const avatar = founder.avatar_url ? (
+                    <img src={founder.avatar_url} alt={founderName(founder)} loading="lazy" />
+                  ) : (
+                    <span className="founder-upcoming-card__avatar-fallback" aria-hidden="true">{founderName(founder).charAt(0)}</span>
+                  );
+
+                  return founder.profile_url ? (
+                    <a
+                      href={founder.profile_url}
+                      className="founder-upcoming-card__person"
+                      key={founder.id}
+                      title={founderName(founder)}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      {avatar}
+                    </a>
+                  ) : (
+                    <span className="founder-upcoming-card__person" key={founder.id} title={founderName(founder)}>
+                      {avatar}
+                    </span>
+                  );
+                })}
+              </span>
+            ) : null}
+
             <span className="founder-upcoming-card__main">
               <span className="founder-upcoming-card__period">
                 <CalendarDays size={16} aria-hidden="true" />
