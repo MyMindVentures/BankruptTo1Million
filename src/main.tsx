@@ -24,6 +24,7 @@ import './styles/platformUpdates.css';
 import './styles/footer.css';
 import './styles/legal.css';
 import './styles/footerLegalPatch.css';
+import './styles/responsive-hardening.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
