@@ -37,10 +37,11 @@ function escapeHtml(value?: string | null) {
   return (value || '').replace(/[&<>'"]/g, (character) => ({ '&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;' })[character] || character);
 }
 
-function renderLatest(items: LatestItem[], label: string, title: string) {
+function renderLatest(items: LatestItem[], label: string, title: string, path: string) {
   const section = document.createElement('section');
   section.className = 'section latest-three-section';
   section.dataset.latestThree = 'true';
+  section.dataset.latestThreePath = path;
   section.innerHTML = `<div class="latest-three-heading"><div><p class="eyebrow">${escapeHtml(label)}</p><h2>${escapeHtml(title)}</h2><p>Newest publications and recently updated work appear here first.</p></div></div><div class="latest-three-grid">${items.map((item, index) => `<article class="latest-three-card">
     ${item.cover_image_url ? `<img src="${escapeHtml(item.cover_image_url)}" alt="" loading="lazy" />` : `<div class="latest-three-card__marker">${String(index + 1).padStart(2,'0')}</div>`}
     <div class="latest-three-card__copy">
@@ -68,15 +69,39 @@ async function breakLatest(): Promise<LatestItem[]> {
   return rows.map((row) => ({ id:String(row.id), slug:String(row.slug), title:String(row.title), subtitle:row.subtitle as string|null, excerpt:row.excerpt as string|null, href:`/break-the-circle/${row.slug}`, updated_at:row.updated_at as string|null, published_at:row.published_at as string|null, cover_image_url:row.cover_image_url as string|null, category:'Break the Circle' }));
 }
 
+function removeDuplicateLatestSections(path: string) {
+  const sections = Array.from(document.querySelectorAll<HTMLElement>('[data-latest-three="true"]'));
+  const matching = sections.filter((section) => section.dataset.latestThreePath === path || !section.dataset.latestThreePath);
+  matching.slice(1).forEach((section) => section.remove());
+  sections.filter((section) => section.dataset.latestThreePath && section.dataset.latestThreePath !== path).forEach((section) => section.remove());
+}
+
 export function initializeLatestThreeUi() {
-  let activePath = '';
+  let mountedPath = '';
+  let pendingPath = '';
+  let requestVersion = 0;
+
   const enhance = async () => {
     const path = window.location.pathname;
-    if (path === activePath && document.querySelector('[data-latest-three="true"]')) return;
-    if (!['/journal','/proof-of-mind','/break-the-circle','/help-us-break-the-circle'].includes(path)) return;
-    activePath = path;
+    const supported = ['/journal','/proof-of-mind','/break-the-circle','/help-us-break-the-circle'].includes(path);
+
+    if (!supported) {
+      pendingPath = '';
+      mountedPath = '';
+      document.querySelectorAll('[data-latest-three="true"]').forEach((section) => section.remove());
+      return;
+    }
+
+    removeDuplicateLatestSections(path);
+    if (mountedPath === path && document.querySelector(`[data-latest-three-path="${path}"]`)) return;
+    if (pendingPath === path) return;
+
     const hero = document.querySelector('main > .hero, main > section.hero');
-    if (!hero || document.querySelector('[data-latest-three="true"]')) return;
+    if (!hero) return;
+
+    pendingPath = path;
+    const currentVersion = ++requestVersion;
+
     try {
       const config = path === '/journal'
         ? { load: journalLatest, label:'Latest 3', title:'Latest Journal posts' }
@@ -84,12 +109,23 @@ export function initializeLatestThreeUi() {
           ? { load: proofLatest, label:'Latest 3', title:'Newest and recently updated concepts' }
           : { load: breakLatest, label:'Latest 3', title:'Latest Break the Circle stories' };
       const items = await config.load();
-      if (!items.length) return;
-      hero.insertAdjacentElement('afterend', renderLatest(items, config.label, config.title));
+
+      if (currentVersion !== requestVersion || window.location.pathname !== path || !items.length) return;
+      removeDuplicateLatestSections(path);
+      if (document.querySelector(`[data-latest-three-path="${path}"]`)) {
+        mountedPath = path;
+        return;
+      }
+
+      hero.insertAdjacentElement('afterend', renderLatest(items, config.label, config.title, path));
+      mountedPath = path;
     } catch {
       // The page remains fully usable when the latest feed is temporarily unavailable.
+    } finally {
+      if (pendingPath === path) pendingPath = '';
     }
   };
+
   const observer = new MutationObserver(() => void enhance());
   observer.observe(document.documentElement,{childList:true,subtree:true});
   window.addEventListener('popstate',()=>void enhance());
