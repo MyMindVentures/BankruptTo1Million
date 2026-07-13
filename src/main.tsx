@@ -12,6 +12,7 @@ import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
+import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import './styles/global.css';
 import './styles/i18n.css';
@@ -45,11 +46,13 @@ const rootPage = path === '/legal'
   ? <LegalTransparencyPage />
   : path === '/impact'
     ? <ImpactResultsPage />
-    : path === '/founders'
-      ? <FoundersOverviewPage />
-      : founderSlug
-        ? <FounderProfilePage slug={founderSlug} />
-        : <App />;
+    : path === '/journal'
+      ? <JournalLandingPage />
+      : path === '/founders'
+        ? <FoundersOverviewPage />
+        : founderSlug
+          ? <FounderProfilePage slug={founderSlug} />
+          : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
