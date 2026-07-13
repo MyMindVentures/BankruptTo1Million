@@ -202,8 +202,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   const current = newestPoint(mapped.filter((point) => point.is_current_location)) || mapped[mapped.length - 1];
   const active = mapped.find((point) => point.journey_entry_id === activeId) || current || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
-  const previous = mapped[(activeIndex - 1 + mapped.length) % mapped.length];
-  const next = mapped[(activeIndex + 1) % mapped.length];
+  const previous = activeIndex > 0 ? mapped[activeIndex - 1] : undefined;
+  const next = activeIndex < mapped.length - 1 ? mapped[activeIndex + 1] : undefined;
   const routeProgress = mapped.length > 1 ? ((activeIndex + 1) / mapped.length) * 100 : 100;
   const routedDistance = routes.kevin.distanceKm + routes.micha.distanceKm;
   const routingFallback = routes.kevin.status === 'fallback' || routes.micha.status === 'fallback';
@@ -327,7 +327,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         <div className="premium-map-progress"><div><span>Journey progress</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
         <div className="premium-map-coordinates"><Crosshair size={15}/><span>{Number(active.latitude).toFixed(4)}, {Number(active.longitude).toFixed(4)}</span></div>
         {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>Read this chapter <ChevronRight size={16}/></ButtonLink> : null}
-        <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" onClick={() => onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> Previous</Button><Button variant="ghost" size="sm" onClick={() => onSelect(next.journey_entry_id)}>Next <ChevronRight size={16}/></Button></div>
+        <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" disabled={!previous} onClick={() => previous && onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> Previous</Button><Button variant="ghost" size="sm" disabled={!next} onClick={() => next && onSelect(next.journey_entry_id)}>Next <ChevronRight size={16}/></Button></div>
       </Card>
     </div>
   </div>;
