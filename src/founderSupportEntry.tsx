@@ -5,6 +5,8 @@ import { Footer } from './components/Footer';
 import { FounderSupportPage } from './pages/FounderSupportPage';
 import './styles/global.css';
 import './styles/founder-support.css';
+import './styles/footer.css';
+import './styles/responsive-hardening.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
