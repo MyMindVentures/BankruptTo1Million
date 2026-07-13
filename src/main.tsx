@@ -46,6 +46,7 @@ import './styles/mediaVaultFrontendFixes.css';
 import './styles/offers.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
+import './styles/journalArticle.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
