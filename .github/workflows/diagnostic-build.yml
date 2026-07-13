@@ -1,9 +1,9 @@
 name: Diagnostic production build
 
 on:
-  push:
+  pull_request:
     branches:
-      - diagnostics/offer-build
+      - main
   workflow_dispatch:
 
 jobs:
