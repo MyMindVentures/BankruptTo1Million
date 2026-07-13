@@ -26,7 +26,7 @@ type PlatformUpdate = {
   concept_slug: string | null;
 };
 
-let root: Root | null = null;
+let mountedRoot: Root | null = null;
 let loading = false;
 let mountedPath = '';
 
@@ -109,31 +109,39 @@ async function fetchUpdates() {
   return response.json() as Promise<PlatformUpdate[]>;
 }
 
+function unmountPlatformUpdates() {
+  mountedRoot?.unmount();
+  mountedRoot = null;
+  document.querySelector('[data-platform-updates-host]')?.remove();
+  mountedPath = '';
+}
+
 async function mountPlatformUpdates() {
   if (window.location.pathname !== '/proof-of-mind') {
-    mountedPath = '';
     loading = false;
-    root?.unmount();
-    root = null;
-    document.querySelector('[data-platform-updates-host]')?.remove();
+    unmountPlatformUpdates();
     return;
   }
 
-  const hero = document.querySelector('.proof-page .proof-hero');
+  const hero = document.querySelector<HTMLElement>('.proof-page .proof-hero');
   if (!hero || loading || mountedPath === window.location.pathname || document.querySelector('[data-platform-updates-host]')) return;
   loading = true;
 
   try {
     const updates = await fetchUpdates();
-    if (!updates.length) return;
+    if (!updates.length || window.location.pathname !== '/proof-of-mind') return;
+
     const host = document.createElement('div');
     host.dataset.platformUpdatesHost = 'true';
     hero.insertAdjacentElement('afterend', host);
-    root = createRoot(host);
-    root.render(<PlatformUpdatesSection updates={updates} />);
+
+    const nextRoot = createRoot(host);
+    mountedRoot = nextRoot;
+    nextRoot.render(<PlatformUpdatesSection updates={updates} />);
     mountedPath = window.location.pathname;
   } catch (error) {
     console.error('Could not render platform updates.', error);
+    unmountPlatformUpdates();
   } finally {
     loading = false;
   }
