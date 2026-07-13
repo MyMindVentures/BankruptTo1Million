@@ -1,81 +1,20 @@
 import { supabase } from './supabase';
 
-export type OfferFounder = {
-  id: string;
-  slug: string;
-  displayName: string;
-  roleTitle: string;
-  avatarUrl: string;
-  founderRole: string;
-  isPrimary: boolean;
-};
-
-export type OfferMediaItem = {
-  id: string;
-  kind: 'image' | 'video' | 'document';
-  title: string;
-  description: string;
-  caption: string;
-  altText: string;
-  url: string;
-  thumbnailUrl: string;
-  durationSeconds: number | null;
-  placement: string;
-  isFeatured: boolean;
-};
-
-export type OfferMediaCollection = {
-  id: string;
-  slug: string;
-  title: string;
-  description: string;
-  occurredOn: string | null;
-  location: string;
-  coverUrl: string;
-  items: OfferMediaItem[];
-};
-
+export type OfferFounder = { id: string; slug: string; displayName: string; roleTitle: string; avatarUrl: string; founderRole: string; isPrimary: boolean };
+export type OfferMediaItem = { id: string; kind: 'image' | 'video' | 'document'; title: string; description: string; caption: string; altText: string; url: string; thumbnailUrl: string; durationSeconds: number | null; placement: string; isFeatured: boolean };
+export type OfferMediaCollection = { id: string; slug: string; title: string; description: string; occurredOn: string | null; location: string; coverUrl: string; items: OfferMediaItem[] };
 export type PublicOffer = {
-  id: string;
-  slug: string;
-  title: string;
-  tagline: string;
-  shortDescription: string;
-  fullDescription: string;
-  personalStory: string;
-  category: string;
-  offerType: string;
-  cardImageUrl: string;
-  highlights: string[];
-  whatIsIncluded: string[];
-  suitableFor: string[];
-  requirements: string[];
-  durationMinutes: number | null;
-  availabilityText: string;
-  locationText: string;
-  exchangeType: string;
-  priceAmount: number | null;
-  currency: string;
-  ctaLabel: string;
-  secondaryCtaLabel: string;
-  isFeatured: boolean;
-  founders: OfferFounder[];
-  collections: OfferMediaCollection[];
+  id: string; slug: string; title: string; tagline: string; shortDescription: string; fullDescription: string; personalStory: string;
+  category: string; offerType: string; cardImageUrl: string; highlights: string[]; whatIsIncluded: string[]; suitableFor: string[];
+  requirements: string[]; durationMinutes: number | null; availabilityText: string; locationText: string; exchangeType: string;
+  priceAmount: number | null; currency: string; ctaLabel: string; secondaryCtaLabel: string; seoTitle: string; isFeatured: boolean;
+  founders: OfferFounder[]; collections: OfferMediaCollection[];
 };
 
 type JsonRecord = Record<string, unknown>;
-
-function asString(value: unknown): string {
-  return typeof value === 'string' ? value : '';
-}
-
-function asNumber(value: unknown): number | null {
-  return typeof value === 'number' && Number.isFinite(value) ? value : null;
-}
-
-function asStringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
-}
+const asString = (value: unknown): string => typeof value === 'string' ? value : '';
+const asNumber = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null;
+const asStringArray = (value: unknown): string[] => Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
 function publicStorageUrl(asset: JsonRecord | null | undefined): string {
   if (!asset) return '';
@@ -100,13 +39,8 @@ async function getFounders(offerIds: string[]): Promise<Map<string, OfferFounder
     const profile = row.founder_profiles as JsonRecord | null;
     if (!profile) return;
     const founder: OfferFounder = {
-      id: asString(profile.id),
-      slug: asString(profile.slug),
-      displayName: asString(profile.display_name),
-      roleTitle: asString(profile.role_title),
-      avatarUrl: asString(profile.avatar_url),
-      founderRole: asString(row.founder_role),
-      isPrimary: Boolean(row.is_primary),
+      id: asString(profile.id), slug: asString(profile.slug), displayName: asString(profile.display_name), roleTitle: asString(profile.role_title),
+      avatarUrl: asString(profile.avatar_url), founderRole: asString(row.founder_role), isPrimary: Boolean(row.is_primary),
     };
     const offerId = asString(row.offer_id);
     result.set(offerId, [...(result.get(offerId) || []), founder]);
@@ -126,64 +60,34 @@ async function getCollections(offerId: string): Promise<OfferMediaCollection[]> 
     const asset = row.media_assets as JsonRecord | null;
     if (!asset) return;
     const item: OfferMediaItem = {
-      id: asString(row.id),
-      kind: (asString(asset.asset_type) || 'image') as OfferMediaItem['kind'],
-      title: asString(asset.title),
-      description: asString(asset.description),
-      caption: asString(row.caption_override) || asString(asset.caption),
-      altText: asString(row.alt_text_override) || asString(asset.alt_text) || asString(asset.title),
-      url: publicStorageUrl(asset),
-      thumbnailUrl: asString(asset.thumbnail_url),
-      durationSeconds: asNumber(asset.duration_seconds),
-      placement: asString(row.placement),
-      isFeatured: Boolean(row.is_featured),
+      id: asString(row.id), kind: (asString(asset.asset_type) || 'image') as OfferMediaItem['kind'], title: asString(asset.title),
+      description: asString(asset.description), caption: asString(row.caption_override) || asString(asset.caption),
+      altText: asString(row.alt_text_override) || asString(asset.alt_text) || asString(asset.title), url: publicStorageUrl(asset),
+      thumbnailUrl: asString(asset.thumbnail_url), durationSeconds: asNumber(asset.duration_seconds), placement: asString(row.placement), isFeatured: Boolean(row.is_featured),
     };
     const collectionId = asString(row.collection_id);
     itemsByCollection.set(collectionId, [...(itemsByCollection.get(collectionId) || []), item]);
   });
   return collections.map((row) => ({
-    id: asString(row.id),
-    slug: asString(row.slug),
-    title: asString(row.title),
-    description: asString(row.description),
-    occurredOn: asString(row.occurred_on) || null,
-    location: asString(row.location_text),
-    coverUrl: '',
-    items: itemsByCollection.get(asString(row.id)) || [],
+    id: asString(row.id), slug: asString(row.slug), title: asString(row.title), description: asString(row.description),
+    occurredOn: asString(row.occurred_on) || null, location: asString(row.location_text), coverUrl: '', items: itemsByCollection.get(asString(row.id)) || [],
   }));
 }
 
 function mapOffer(row: JsonRecord, founders: OfferFounder[], collections: OfferMediaCollection[]): PublicOffer {
   return {
-    id: asString(row.id),
-    slug: asString(row.slug),
-    title: asString(row.title),
-    tagline: asString(row.tagline),
-    shortDescription: asString(row.short_description),
-    fullDescription: asString(row.full_description),
-    personalStory: asString(row.personal_story),
-    category: asString(row.category),
-    offerType: asString(row.offer_type),
-    cardImageUrl: asString(row.card_image_url),
-    highlights: asStringArray(row.highlights),
-    whatIsIncluded: asStringArray(row.what_is_included),
-    suitableFor: asStringArray(row.suitable_for),
-    requirements: asStringArray(row.requirements),
-    durationMinutes: asNumber(row.duration_minutes),
-    availabilityText: asString(row.availability_text),
-    locationText: asString(row.location_text),
-    exchangeType: asString(row.exchange_type),
-    priceAmount: asNumber(row.price_amount),
-    currency: asString(row.currency) || 'EUR',
-    ctaLabel: asString(row.cta_label) || 'Ask about this offer',
-    secondaryCtaLabel: asString(row.secondary_cta_label) || 'Explore all offers',
-    isFeatured: Boolean(row.is_featured),
-    founders,
-    collections,
+    id: asString(row.id), slug: asString(row.slug), title: asString(row.title), tagline: asString(row.tagline), shortDescription: asString(row.short_description),
+    fullDescription: asString(row.full_description), personalStory: asString(row.personal_story), category: asString(row.category), offerType: asString(row.offer_type),
+    cardImageUrl: asString(row.card_image_url), highlights: asStringArray(row.highlights), whatIsIncluded: asStringArray(row.what_is_included),
+    suitableFor: asStringArray(row.suitable_for), requirements: asStringArray(row.requirements), durationMinutes: asNumber(row.duration_minutes),
+    availabilityText: asString(row.availability_text), locationText: asString(row.location_text), exchangeType: asString(row.exchange_type),
+    priceAmount: asNumber(row.price_amount), currency: asString(row.currency) || 'EUR', ctaLabel: asString(row.cta_label) || 'Ask about this offer',
+    secondaryCtaLabel: asString(row.secondary_cta_label) || 'Explore all offers', seoTitle: asString(row.seo_title) || asString(row.title),
+    isFeatured: Boolean(row.is_featured), founders, collections,
   };
 }
 
-const OFFER_SELECT = 'id,slug,title,tagline,short_description,full_description,personal_story,category,offer_type,card_image_url,highlights,what_is_included,suitable_for,requirements,duration_minutes,availability_text,location_text,exchange_type,price_amount,currency,cta_label,secondary_cta_label,is_featured,display_order';
+const OFFER_SELECT = 'id,slug,title,tagline,short_description,full_description,personal_story,category,offer_type,card_image_url,highlights,what_is_included,suitable_for,requirements,duration_minutes,availability_text,location_text,exchange_type,price_amount,currency,cta_label,secondary_cta_label,seo_title,is_featured,display_order';
 
 export async function getPublicOffers(): Promise<PublicOffer[]> {
   const rows = await readJson(await supabase.from('offers').request({ query: `select=${OFFER_SELECT}&status=eq.active&is_public=eq.true&order=is_featured.desc,display_order.asc,title.asc` }), 'Offers could not be loaded.');
