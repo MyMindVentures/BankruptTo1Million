@@ -1,0 +1,213 @@
+.journal-article {
+  overflow-x: clip;
+}
+
+.journal-article > .section:first-child {
+  padding-top: clamp(2.5rem, 6vw, 5rem);
+}
+
+.journal-article__header,
+.journal-body,
+.journal-footage {
+  width: min(100%, 820px);
+  margin-inline: auto;
+}
+
+.journal-article__header {
+  padding-bottom: clamp(2rem, 5vw, 3.5rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.journal-article__header h1 {
+  max-width: 16ch;
+  margin-bottom: 1.25rem;
+  font-size: clamp(2.7rem, 7vw, 5.8rem);
+  line-height: 0.96;
+  letter-spacing: -0.055em;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: auto;
+}
+
+.journal-article__header .hero__lede {
+  max-width: 52rem;
+  margin-bottom: 1.4rem;
+  font-size: clamp(1.08rem, 2.2vw, 1.35rem);
+  line-height: 1.6;
+}
+
+.journal-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 0.85rem;
+  align-items: center;
+  margin-block: 1.25rem;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.journal-meta > * {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 247, 237, 0.035);
+}
+
+.journal-body {
+  padding-top: clamp(2rem, 5vw, 3.5rem);
+  color: var(--text);
+  font-size: clamp(1.02rem, 1.7vw, 1.16rem);
+  line-height: 1.82;
+}
+
+.journal-body > h1:first-child {
+  display: none;
+}
+
+.journal-body h1,
+.journal-body h2,
+.journal-body h3 {
+  max-width: 22ch;
+  margin-top: 2.2em;
+  margin-bottom: 0.7em;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+}
+
+.journal-body h1 {
+  font-size: clamp(2rem, 5vw, 3.4rem);
+}
+
+.journal-body h2 {
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+}
+
+.journal-body h3 {
+  font-size: clamp(1.3rem, 3vw, 1.75rem);
+}
+
+.journal-body p {
+  margin: 0 0 1.35rem;
+  color: color-mix(in srgb, var(--text) 88%, var(--muted));
+}
+
+.journal-body strong {
+  color: var(--text);
+  font-weight: 850;
+}
+
+.journal-body a {
+  color: var(--gold);
+  text-underline-offset: 0.2em;
+}
+
+.journal-body blockquote {
+  margin: 2rem 0;
+  padding: 1.2rem 1.4rem;
+  border-left: 3px solid var(--gold);
+  border-radius: 0 1rem 1rem 0;
+  background: var(--gold-soft);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 1.18em;
+}
+
+.journal-body img {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-block: 2rem;
+  border-radius: 1.25rem;
+  border: 1px solid var(--line);
+}
+
+.journal-footage {
+  padding-block: clamp(2rem, 5vw, 3.5rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.journal-footage__heading h2 {
+  max-width: 14ch;
+  margin-bottom: 1.5rem;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+}
+
+.journal-footage__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.journal-footage__item {
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-soft);
+}
+
+.journal-footage__item img,
+.journal-footage__item video {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  background: #050403;
+}
+
+.journal-footage__item figcaption {
+  padding: 0.85rem 1rem 1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 680px) {
+  .journal-article > .section:first-child {
+    padding-inline: 1rem;
+    padding-top: 1.75rem;
+  }
+
+  .journal-article__header h1 {
+    max-width: none;
+    font-size: clamp(2.35rem, 12vw, 3.7rem);
+    line-height: 0.98;
+    letter-spacing: -0.045em;
+  }
+
+  .journal-article__header .hero__lede {
+    font-size: 1.05rem;
+  }
+
+  .journal-meta {
+    gap: 0.45rem;
+  }
+
+  .journal-meta > * {
+    font-size: 0.78rem;
+  }
+
+  .journal-body {
+    padding-top: 1.75rem;
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+
+  .journal-body h1,
+  .journal-body h2,
+  .journal-body h3 {
+    max-width: none;
+  }
+
+  .journal-footage__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .journal-footage__item img,
+  .journal-footage__item video {
+    aspect-ratio: 4 / 3;
+  }
+}
