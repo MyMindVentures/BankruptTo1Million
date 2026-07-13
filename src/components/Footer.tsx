@@ -11,6 +11,7 @@ const footerGroups = [
       { label: 'Platform Vision', key: 'footer.links.platform_vision', href: '/#platform' },
       { label: 'Roadmap', key: 'footer.links.roadmap', href: '/#roadmap' },
       { label: 'Journal', key: 'footer.links.journal', href: '/journal' },
+      { label: 'Media Vault', key: 'footer.links.media', href: '/media' },
       { label: 'Proof of Mind', key: 'footer.links.proof_of_mind', href: '/proof-of-mind' },
       { label: 'Break the Circle', key: 'footer.links.break_the_circle', href: '/break-the-circle' },
     ],
