@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { MISSION_BRAND } from '../lib/brandAssets';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { MissionLogo } from './MissionLogo';
+import { PhotoFrameDownloadButton } from './PhotoFrameDownloadButton';
 import { FounderSupportUpcomingTimeline } from './FounderSupportUpcomingTimeline';
 import './FounderSupportQrShare.css';
 
@@ -80,10 +81,13 @@ export function FounderSupportQrShare() {
           <Smartphone size={15} aria-hidden="true" />
           <span>www.bankruptto1million.com</span>
         </div>
-        <a className="button founder-support-qr__journal-button" href="/admin/journal?create=1">
-          <NotebookPen size={18} aria-hidden="true" />
-          Create journal event
-        </a>
+        <div className="founder-support-qr__primary-actions">
+          <a className="button founder-support-qr__journal-button" href="/admin/journal?create=1">
+            <NotebookPen size={18} aria-hidden="true" />
+            Create journal event
+          </a>
+          <PhotoFrameDownloadButton className="founder-support-qr__download-button" />
+        </div>
       </div>
 
       <div
