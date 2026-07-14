@@ -60,10 +60,13 @@ function matchesFounder(point: JourneyPoint, founder: FounderFilter) {
   return point.journey_person === founder || slugs.includes(expectedSlug);
 }
 
+function compareByOccurredAt(a: JourneyPoint, b: JourneyPoint) {
+  return new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
+    || a.journey_entry_id.localeCompare(b.journey_entry_id);
+}
+
 function newestPoint(points: JourneyPoint[]) {
-  return [...points].sort(
-    (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
-  )[0];
+  return [...points].sort((a, b) => compareByOccurredAt(b, a))[0];
 }
 
 function hydrateJourneyPoint(point: JourneyPoint, post?: PublicJournalPost): JourneyPoint {
@@ -147,8 +150,8 @@ export function JournalLandingPage() {
   useEffect(() => {
     Promise.all([
       getJournalIndex(),
-      readJson<JourneyPoint[]>(supabase.from('public_journal_journey').request({
-        query: 'select=*&order=occurred_at.asc',
+      readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({
+        query: 'select=*&order=occurred_at.asc,journey_entry_id.asc',
       })),
       readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
         query: 'select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured,calendar_entry:journey_calendar_entries(city_name,location_name,region_name,starts_on,ends_on)&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc',
@@ -157,13 +160,13 @@ export function JournalLandingPage() {
       const postsBySlug = new Map(journalData.posts.map((post) => [post.slug, post]));
       const hydratedJourney = journeyRows
         .map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug)))
-        .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime());
-      const current = newestPoint(hydratedJourney.filter((point) => point.is_current_location));
+        .sort(compareByOccurredAt);
+      const latestEvent = newestPoint(hydratedJourney);
 
       setJournal(journalData);
       setJourney(hydratedJourney);
       setExchangeItems(exchangeRows);
-      setActiveId((current || hydratedJourney[hydratedJourney.length - 1])?.journey_entry_id);
+      setActiveId(latestEvent?.journey_entry_id);
       setStatus('ready');
     }).catch(() => setStatus('error'));
   }, []);
@@ -173,8 +176,7 @@ export function JournalLandingPage() {
     [journey, founder],
   );
   const activePoint = filteredJourney.find((point) => point.journey_entry_id === activeId)
-    || newestPoint(filteredJourney.filter((point) => point.is_current_location))
-    || filteredJourney[filteredJourney.length - 1];
+    || newestPoint(filteredJourney);
   const latestPosts = useMemo(() => (journal?.posts || []).slice(0, 3), [journal]);
   const archivePosts = useMemo(
     () => filterPosts(journal?.posts || [], { category, search, sort }).filter((post) => !latestPosts.some((latest) => latest.id === post.id)),
