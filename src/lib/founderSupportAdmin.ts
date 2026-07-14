@@ -30,30 +30,56 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 function headers() {
   const token = getAdminSession()?.access_token;
   if (!supabaseUrl || !anonKey || !token) throw new Error('Geen geldige adminsessie.');
-  return { apikey: anonKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
+  return {
+    apikey: anonKey,
+    Authorization: `Bearer ${token}`,
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store',
+  };
 }
 
 async function parse<T>(response: Response): Promise<T> {
-  const payload = await response.json().catch(() => null) as { message?: string } | T | null;
-  if (!response.ok) throw new Error((payload as { message?: string } | null)?.message || `Supabase request failed (${response.status})`);
+  const payload = await response.json().catch(() => null) as { message?: string; details?: string; hint?: string } | T | null;
+  if (!response.ok) {
+    const errorPayload = payload as { message?: string; details?: string; hint?: string } | null;
+    throw new Error(errorPayload?.message || errorPayload?.details || errorPayload?.hint || `Supabase request failed (${response.status})`);
+  }
   return payload as T;
 }
 
 export async function listFounderSupportMessages(): Promise<FounderSupportMessage[]> {
-  const payload = await parse<FounderSupportMessage[] | string>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_messages_json`, {
-    method: 'POST',
-    headers: headers(),
-    body: '{}',
-  }));
+  const select = [
+    'id',
+    'founder_profile_id',
+    'recipient_scope',
+    'sender_name',
+    'sender_email',
+    'sender_location',
+    'sender_relationship',
+    'message_type',
+    'title',
+    'body',
+    'status',
+    'is_featured',
+    'is_anonymous',
+    'consent_to_publish',
+    'consent_to_contact',
+    'moderation_notes',
+    'moderated_at',
+    'published_at',
+    'created_at',
+    'updated_at',
+    'original_language',
+  ].join(',');
 
-  if (Array.isArray(payload)) return payload;
+  const response = await fetch(
+    `${supabaseUrl}/rest/v1/founder_support_messages?select=${encodeURIComponent(select)}&order=created_at.desc`,
+    { method: 'GET', headers: headers(), cache: 'no-store' },
+  );
 
-  try {
-    const parsed = JSON.parse(payload) as FounderSupportMessage[];
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
+  const rows = await parse<FounderSupportMessage[]>(response);
+  if (!Array.isArray(rows)) throw new Error('Support message query returned an invalid response.');
+  return rows;
 }
 
 export async function moderateFounderSupportMessage(input: {
