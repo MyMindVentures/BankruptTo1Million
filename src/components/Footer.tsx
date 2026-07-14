@@ -52,7 +52,7 @@ export function Footer() {
 
       <div className="site-footer__inner">
         <section className="site-footer__brand-panel">
-          <p className="site-footer__kicker">A public rebuild in motion</p>
+          <p className="site-footer__kicker">{t('footer.mission.kicker', 'A public rebuild in motion')}</p>
 
           <a
             className="site-footer__brand"
@@ -130,7 +130,7 @@ export function Footer() {
         )}</p>
         <div className="site-footer__bottom-links">
           <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer">
-            <Github size={15} aria-hidden="true" /> GitHub
+            <Github size={15} aria-hidden="true" /> {t('footer.bottom.github', 'GitHub')}
           </a>
           <a href="/legal#privacy">{t('footer.bottom.privacy', 'Privacy')}</a>
           <a href="#top">
