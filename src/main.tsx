@@ -14,6 +14,7 @@ import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { HomePage } from './pages/HomePage';
@@ -47,6 +48,7 @@ import './styles/offers.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 import './styles/journalArticle.css';
+import './styles/adminDashboard.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
@@ -62,26 +64,29 @@ const path = window.location.pathname.replace(/\/$/, '') || '/';
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const offerSlug = path.startsWith('/offers/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const mediaPage = path === '/media' || path === '/media-vault';
+const adminPage = path === '/admin' || path.startsWith('/admin/');
 const withSiteShell = (page: ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
-const rootPage = path === '/'
-  ? withSiteShell(<HomePage />)
-  : path === '/legal'
-    ? <LegalTransparencyPage />
-    : path === '/impact'
-      ? <ImpactResultsPage />
-      : mediaPage
-        ? withSiteShell(<MediaVaultPage />)
-        : path === '/offers'
-          ? withSiteShell(<OffersPage />)
-          : offerSlug
-            ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
-            : path === '/journal'
-              ? <JournalLandingPage />
-              : path === '/founders'
-                ? <FoundersOverviewPage />
-                : founderSlug
-                  ? <FounderProfilePage slug={founderSlug} />
-                  : <App />;
+const rootPage = adminPage
+  ? <AdminDashboardPage />
+  : path === '/'
+    ? withSiteShell(<HomePage />)
+    : path === '/legal'
+      ? <LegalTransparencyPage />
+      : path === '/impact'
+        ? <ImpactResultsPage />
+        : mediaPage
+          ? withSiteShell(<MediaVaultPage />)
+          : path === '/offers'
+            ? withSiteShell(<OffersPage />)
+            : offerSlug
+              ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
+              : path === '/journal'
+                ? <JournalLandingPage />
+                : path === '/founders'
+                  ? <FoundersOverviewPage />
+                  : founderSlug
+                    ? <FounderProfilePage slug={founderSlug} />
+                    : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
