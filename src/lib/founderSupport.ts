@@ -84,9 +84,9 @@ function currentLanguage(languageCode?: string) {
   return window.localStorage.getItem('b1m.website.language') || document.documentElement.lang || 'en';
 }
 
-async function getTranslations(table: string, foreignKey: string, ids: string[], languageCode: string) {
-  if (!ids.length || languageCode === 'en') return new Map<string, TranslationRow>();
-  const encodedIds = ids.map((id) => `\"${id}\"`).join(',');
+async function getTranslations(table: string, foreignKey: string, ids: string[], languageCode: string, includeEnglish = false) {
+  if (!ids.length || (languageCode === 'en' && !includeEnglish)) return new Map<string, TranslationRow>();
+  const encodedIds = ids.map((id) => `"${id}"`).join(',');
   const response = await supabase.from(table).request({
     query: `select=*&${foreignKey}=in.(${encodedIds})&language_code=eq.${encodeURIComponent(languageCode)}&translation_status=in.(published,reviewed,machine)`,
   });
@@ -117,7 +117,7 @@ export async function getPublishedSupportMessages(limit = 12, languageCode?: str
     query: `select=id,founder_profile_id,recipient_scope,sender_name,sender_location,message_type,title,body,is_anonymous,published_at,created_at&status=eq.approved&consent_to_publish=eq.true&order=published_at.desc.nullslast,created_at.desc&limit=${limit}`,
   });
   const rows = await readJson<FounderSupportMessage[]>(response);
-  const translations = await getTranslations('founder_support_message_translations', 'support_message_id', rows.map((row) => row.id), language);
+  const translations = await getTranslations('founder_support_message_translations', 'support_message_id', rows.map((row) => row.id), language, true);
   return rows.map((row) => {
     const translation = translations.get(row.id);
     return { ...row, title: translation?.title || row.title, body: translation?.body || row.body };
