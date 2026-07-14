@@ -45,15 +45,30 @@ async function parse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
+function toCount(value: unknown): number {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
 export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
-  const payload = await parse<FounderSupportInbox>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
+  const payload = await parse<{ messages: FounderSupportMessage[]; counts: Record<string, unknown> }>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
     method: 'POST', headers: headers(), body: '{}', cache: 'no-store',
   }));
 
   if (!payload || !Array.isArray(payload.messages) || !payload.counts) {
     throw new Error('Support inbox returned an invalid payload.');
   }
-  return payload;
+
+  return {
+    messages: payload.messages,
+    counts: {
+      pending: toCount(payload.counts.pending),
+      approved: toCount(payload.counts.approved),
+      rejected: toCount(payload.counts.rejected),
+      spam: toCount(payload.counts.spam),
+      total: toCount(payload.counts.total),
+    },
+  };
 }
 
 export async function moderateFounderSupportMessage(input: {
