@@ -42,7 +42,6 @@ type MapLibreGlobal = {
   Map: new (options: Record<string, unknown>) => any;
   Marker: new (options?: Record<string, unknown>) => any;
   Popup: new (options?: Record<string, unknown>) => any;
-  LngLatBounds: new () => any;
   NavigationControl: new (options?: Record<string, unknown>) => any;
   FullscreenControl: new () => any;
   AttributionControl: new (options?: Record<string, unknown>) => any;
@@ -199,8 +198,9 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     kevin: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'kevin')).map(coordinates)),
     micha: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'micha')).map(coordinates)),
   }), [mapped]);
-  const current = newestPoint(mapped.filter((point) => point.is_current_location)) || mapped[mapped.length - 1];
-  const active = mapped.find((point) => point.journey_entry_id === activeId) || current || mapped[0];
+  const latestEvent = newestPoint(mapped) || mapped[0];
+  const current = newestPoint(mapped.filter((point) => point.is_current_location)) || latestEvent;
+  const active = mapped.find((point) => point.journey_entry_id === activeId) || latestEvent || mapped[0];
   const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
   const previous = activeIndex > 0 ? mapped[activeIndex - 1] : undefined;
   const next = activeIndex < mapped.length - 1 ? mapped[activeIndex + 1] : undefined;
@@ -245,14 +245,14 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   }, [mapped.length, routeStops]);
 
   useEffect(() => {
-    if (!containerRef.current || !mapped.length) return;
+    if (!containerRef.current || !mapped.length || !active) return;
     let cancelled = false;
     let map: any = null;
 
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(current || mapped[0]), zoom: 8.5, pitch: 28, bearing: -4, attributionControl: false, cooperativeGestures: true });
+      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(active), zoom: 10.5, pitch: 32, bearing: -4, attributionControl: false, cooperativeGestures: true });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
@@ -266,11 +266,9 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
           map.addLayer({ id: `journey-route-${key}-line`, type: 'line', source: `journey-route-${key}`, paint: { 'line-color': key === 'kevin' ? '#e2b45f' : '#6687d8', 'line-width': 5, 'line-opacity': 0.95 } });
         });
 
-        const bounds = new maplibregl.LngLatBounds();
         mapped.forEach((point) => {
-          bounds.extend(coordinates(point));
           const element = createMarkerElement(point);
-          element.classList.toggle('is-active', point.journey_entry_id === active?.journey_entry_id);
+          element.classList.toggle('is-active', point.journey_entry_id === active.journey_entry_id);
           element.addEventListener('click', () => onSelect(point.journey_entry_id));
           const marker = new maplibregl.Marker({ element, anchor: 'center' })
             .setLngLat(coordinates(point))
@@ -278,8 +276,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
             .addTo(map);
           markersRef.current.push(marker);
         });
-        if (mapped.length > 1) map.fitBounds(bounds, { padding: { top: 90, right: 90, bottom: 90, left: 90 }, duration: 1100, maxZoom: 11 });
-        else map.flyTo({ center: coordinates(mapped[0]), zoom: 10, duration: 900 });
+        map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
       });
     }).catch(() => { if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.'); });
 
