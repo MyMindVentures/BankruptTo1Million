@@ -28,7 +28,7 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v3.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v4.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 const JOURNAL_ROOT_SELECTOR = '.journal-priority-page,.journal-page,.journal-article,.journal-comments,.journal-share';
