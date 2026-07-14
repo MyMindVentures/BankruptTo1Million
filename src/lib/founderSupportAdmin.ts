@@ -50,30 +50,23 @@ function normalizeStatus(value: unknown): FounderSupportMessage['status'] | null
   return status === 'pending' || status === 'approved' || status === 'rejected' || status === 'spam' ? status : null;
 }
 
-function deriveCounts(messages: FounderSupportMessage[]): FounderSupportCounts {
-  const counts: FounderSupportCounts = { pending: 0, approved: 0, rejected: 0, spam: 0, total: messages.length };
-  for (const message of messages) {
+export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
+  const response = await fetch(`${supabaseUrl}/rest/v1/founder_support_messages?select=*&order=created_at.desc`, {
+    method: 'GET',
+    headers: headers(),
+    cache: 'no-store',
+  });
+  const raw = await parse<FounderSupportMessage[]>(response);
+  if (!Array.isArray(raw)) throw new Error('Support inbox returned an invalid message list.');
+
+  const counts: FounderSupportCounts = { pending: 0, approved: 0, rejected: 0, spam: 0, total: raw.length };
+  const messages = raw.map((message) => {
     const status = normalizeStatus(message.status);
     if (status) counts[status] += 1;
-  }
-  return counts;
-}
-
-export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
-  const payload = await parse<{ messages: FounderSupportMessage[]; counts?: Record<string, unknown> }>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
-    method: 'POST', headers: headers(), body: '{}', cache: 'no-store',
-  }));
-
-  if (!payload || !Array.isArray(payload.messages)) {
-    throw new Error('Support inbox returned an invalid payload.');
-  }
-
-  const messages = payload.messages.map((message) => {
-    const normalizedStatus = normalizeStatus(message.status);
-    return normalizedStatus ? { ...message, status: normalizedStatus } : message;
+    return status ? { ...message, status } : message;
   });
 
-  return { messages, counts: deriveCounts(messages) };
+  return { messages, counts };
 }
 
 export async function moderateFounderSupportMessage(input: {
