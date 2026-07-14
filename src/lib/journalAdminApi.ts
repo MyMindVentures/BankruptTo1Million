@@ -71,7 +71,7 @@ export async function getJournalEventContext(postId: string): Promise<Partial<Jo
   const entry = entries[0];
   if (!entry) return {};
   const [subjects, people] = await Promise.all([
-    request<Array<{ founder_profile_id: string }>>(`/rest/v1/content_person_relations?select=founder_profile_id&journal_post_id=eq.${postId}&relationship_role=eq.subject&order=display_order.asc`),
+    request<Array<{ founder_profile_id: string }>>(`/rest/v1/content_person_relations?select=founder_profile_id&journal_post_id=eq.${postId}&relationship_role=in.(primary_subject,co_subject)&order=display_order.asc`),
     request<Array<{ person_id: string }>>(`/rest/v1/journal_journey_people?select=person_id&journey_entry_id=eq.${String(entry.id)}&order=display_order.asc`),
   ]);
   return {
@@ -115,7 +115,9 @@ export async function saveJournalAiSource(postId: string, rawDescription: string
   return request('/rest/v1/rpc/admin_save_journal_ai_source', { method: 'POST', body: JSON.stringify({ post_id: postId, raw_description: rawDescription, metadata }) });
 }
 export async function generateJournalAiPost(postId: string) {
-  return request<{ ok: boolean; languages: string[]; public: { title: string; excerpt: string; body: string } }>('/functions/v1/generate-journal-ai-post', { method: 'POST', body: JSON.stringify({ post_id: postId }) });
+  const result = await request<{ ok: boolean; status: string; languages: string[]; public: { title: string; excerpt: string; body: string } }>('/functions/v1/generate-journal-ai-post-browser', { method: 'POST', body: JSON.stringify({ post_id: postId }) });
+  if (result.ok) window.alert(`Journal post published successfully in ${result.languages.length} languages.`);
+  return result;
 }
 export async function createJourneyPerson(payload: Record<string, unknown>) {
   return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
