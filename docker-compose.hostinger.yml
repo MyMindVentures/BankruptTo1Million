@@ -9,7 +9,7 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      PORT: 3000
+      PORT: 8080
       GITHUB_OWNER: ${GITHUB_OWNER:-MyMindVentures}
       GITHUB_REPO: ${GITHUB_REPO:-BankruptTo1Million}
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
@@ -23,7 +23,7 @@ services:
       - traefik.http.routers.bankrupt-to-1-million.entrypoints=${TRAEFIK_HTTPS_ENTRYPOINT:-websecure}
       - traefik.http.routers.bankrupt-to-1-million.tls=true
       - traefik.http.routers.bankrupt-to-1-million.tls.certresolver=${TRAEFIK_CERT_RESOLVER:-letsencrypt}
-      - traefik.http.services.bankrupt-to-1-million.loadbalancer.server.port=3000
+      - traefik.http.services.bankrupt-to-1-million.loadbalancer.server.port=8080
       - traefik.http.middlewares.bankrupt-www-redirect.redirectregex.regex=^https?://www\.bankruptto1million\.com/(.*)
       - traefik.http.middlewares.bankrupt-www-redirect.redirectregex.replacement=https://bankruptto1million.com/$${1}
       - traefik.http.middlewares.bankrupt-www-redirect.redirectregex.permanent=true
@@ -33,7 +33,7 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3000/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+        - fetch('http://127.0.0.1:8080/').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
       interval: 30s
       timeout: 10s
       retries: 3
