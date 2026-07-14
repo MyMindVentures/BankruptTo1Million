@@ -39,6 +39,15 @@ export async function getJournalOptions(){
   ]);
   return {categories:categories.map(i=>({id:i.id,label:i.name})),authors:authors.map(i=>({id:i.id,label:i.display_name})),founders:founders.map(i=>({id:i.id,label:i.display_name,slug:i.slug})),people,eventTypes};
 }
+export async function getJournalEventContext(postId:string):Promise<Partial<JournalEventPayload>>{
+  const entries=await request<Array<Record<string,unknown>>>(`/rest/v1/journal_journey_entries?select=id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,what_happened,show_on_map,show_on_timeline,is_public_location&journal_post_id=eq.${postId}&order=created_at.asc&limit=1`);
+  const entry=entries[0]; if(!entry)return {};
+  const [subjects,people]=await Promise.all([
+    request<Array<{founder_profile_id:string}>>(`/rest/v1/content_person_relations?select=founder_profile_id&journal_post_id=eq.${postId}&relationship_role=eq.subject&order=display_order.asc`),
+    request<Array<{person_id:string}>>(`/rest/v1/journal_journey_people?select=person_id&journey_entry_id=eq.${String(entry.id)}&order=display_order.asc`),
+  ]);
+  return {subject_founder_ids:subjects.map(i=>i.founder_profile_id),person_ids:people.map(i=>i.person_id),event_type:String(entry.entry_type||'daily_update'),occurred_at:String(entry.occurred_at||''),timezone:String(entry.timezone||'Europe/Madrid'),journey_person:String(entry.journey_person||'together'),location_name:String(entry.location_name||''),address_text:String(entry.address_text||''),latitude:entry.latitude==null?'':String(entry.latitude),longitude:entry.longitude==null?'':String(entry.longitude),plus_code:String(entry.plus_code||''),description:String(entry.what_happened||''),show_on_map:Boolean(entry.show_on_map),show_on_timeline:Boolean(entry.show_on_timeline),is_public_location:Boolean(entry.is_public_location)};
+}
 export async function createJournalPost(payload:Partial<JournalPayload>){return request<JournalPost>('/rest/v1/rpc/admin_create_journal_post',{method:'POST',body:JSON.stringify({payload})});}
 export async function updateJournalPost(id:string,payload:Partial<JournalPayload>){return request<JournalPost>('/rest/v1/rpc/admin_update_journal_post',{method:'POST',body:JSON.stringify({post_id:id,payload})});}
 export async function deleteJournalPost(id:string){return request<boolean>('/rest/v1/rpc/admin_delete_journal_post',{method:'POST',body:JSON.stringify({post_id:id})});}
@@ -46,8 +55,7 @@ export async function saveJournalEventContext(postId:string,payload:JournalEvent
 export async function createJourneyPerson(payload:Record<string,unknown>){return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person',{method:'POST',body:JSON.stringify({payload})});}
 export async function uploadJournalFootage(postId:string,file:File,index:number){
   if(!supabaseUrl||!anonKey)throw new Error('Supabase configuratie ontbreekt.');
-  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'-'); const bucket=file.type.startsWith('video/')?'media-videos':'media-images';
-  const path=`journal/${postId}/${Date.now()}-${index}-${safe}`;
+  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'-'); const bucket=file.type.startsWith('video/')?'media-videos':'media-images'; const path=`journal/${postId}/${Date.now()}-${index}-${safe}`;
   const upload=await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{apikey:anonKey,Authorization:`Bearer ${token()}`,'Content-Type':file.type,'x-upsert':'false'},body:file});
   if(!upload.ok)throw new Error((await upload.json().catch(()=>null) as {message?:string}|null)?.message||'Footage upload mislukt.');
   const publicUrl=`${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
