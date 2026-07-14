@@ -14,7 +14,7 @@ import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
-import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminAuthGate } from './pages/AdminAuthGate';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
 import { HomePage } from './pages/HomePage';
@@ -49,6 +49,7 @@ import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 import './styles/journalArticle.css';
 import './styles/adminDashboard.css';
+import './styles/adminAuth.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
@@ -67,7 +68,7 @@ const mediaPage = path === '/media' || path === '/media-vault';
 const adminPage = path === '/admin' || path.startsWith('/admin/');
 const withSiteShell = (page: ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
 const rootPage = adminPage
-  ? <AdminDashboardPage />
+  ? <AdminAuthGate />
   : path === '/'
     ? withSiteShell(<HomePage />)
     : path === '/legal'
