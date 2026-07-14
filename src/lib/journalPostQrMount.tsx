@@ -1,8 +1,9 @@
 import { createRoot, type Root } from 'react-dom/client';
-import { PostQrCodeButton } from '../components/PostQrCodeButton';
+import { ShareActions } from '../components/ShareActions';
+import { recordJournalShare } from './journal';
 import { supabase } from './supabase';
 
-type JournalQrContext = {
+type JournalShareContext = {
   journal_post_id: string;
   title: string | null;
 };
@@ -22,21 +23,21 @@ function exactPublicUrl() {
   return url.toString();
 }
 
-async function readContext(slug: string): Promise<JournalQrContext | null> {
+async function readContext(slug: string): Promise<JournalShareContext | null> {
   const response = await supabase.from('journal_timeline_cards').request({
     query: `select=journal_post_id,title&slug=eq.${encodeURIComponent(slug)}&limit=1`,
   });
   if (!response.ok) throw new Error(await response.text());
-  const rows = await response.json() as JournalQrContext[];
+  const rows = await response.json() as JournalShareContext[];
   return rows[0] || null;
 }
 
-async function mountJournalPostQrButton() {
+async function mountJournalShareActions() {
   if (!isJournalPostPath() || loading) return;
 
-  const shareActions = document.querySelector<HTMLElement>('.journal-share .share-actions');
-  if (!shareActions) return;
-  if (shareActions.querySelector('[data-post-qr-host="journal"]')) return;
+  const currentActions = document.querySelector<HTMLElement>('.journal-share .share-actions');
+  if (!currentActions) return;
+  if (currentActions.dataset.reusableShareActions === 'true') return;
 
   loading = true;
   try {
@@ -46,30 +47,26 @@ async function mountJournalPostQrButton() {
     const context = await readContext(slug);
     if (!context?.journal_post_id) return;
 
-    const host = document.createElement('span');
-    host.dataset.postQrHost = 'journal';
-    host.className = 'post-qr-host';
-
-    const copyButton = Array.from(shareActions.querySelectorAll('button')).find((button) =>
-      button.textContent?.toLowerCase().includes('copy'),
-    );
-
-    if (copyButton?.nextSibling) shareActions.insertBefore(host, copyButton.nextSibling);
-    else shareActions.appendChild(host);
+    const host = document.createElement('div');
+    host.className = 'share-actions';
+    host.dataset.reusableShareActions = 'true';
 
     mountedRoot?.unmount();
+    currentActions.replaceWith(host);
+
     mountedRoot = createRoot(host);
     mountedHost = host;
     mountedRoot.render(
-      <PostQrCodeButton
+      <ShareActions
         entityType="journal_post"
         entityId={context.journal_post_id}
-        canonicalUrl={exactPublicUrl()}
+        url={exactPublicUrl()}
         title={context.title || document.title}
+        onShare={(platform) => recordJournalShare(context.journal_post_id, platform)}
       />,
     );
   } catch (error) {
-    if (import.meta.env.DEV) console.error('[Journal QR] mount failed', error);
+    if (import.meta.env.DEV) console.error('[Journal share] mount failed', error);
     mountedHost?.remove();
     mountedHost = null;
     mountedRoot = null;
@@ -79,7 +76,7 @@ async function mountJournalPostQrButton() {
 }
 
 export function initializeJournalPostQrMount() {
-  const observer = new MutationObserver(() => void mountJournalPostQrButton());
+  const observer = new MutationObserver(() => void mountJournalShareActions());
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  void mountJournalPostQrButton();
+  void mountJournalShareActions();
 }
