@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, Clock3, Filter, LoaderCircle, Mail, MapPin, RefreshCw, Search, ShieldAlert, Sparkles, UserRound, XCircle } from 'lucide-react';
-import { listFounderSupportMessages, moderateFounderSupportMessage, type FounderSupportMessage } from '../lib/founderSupportAdmin';
+import { CheckCircle2, Clock3, Filter, LoaderCircle, Mail, MapPin, RefreshCw, Search, ShieldAlert, UserRound, XCircle } from 'lucide-react';
+import { getFounderSupportInbox, moderateFounderSupportMessage, type FounderSupportCounts, type FounderSupportMessage } from '../lib/founderSupportAdmin';
 
 const statuses: FounderSupportMessage['status'][] = ['pending', 'approved', 'rejected', 'spam'];
+const emptyCounts: FounderSupportCounts = { pending: 0, approved: 0, rejected: 0, spam: 0, total: 0 };
 
 function label(value: string | null | undefined) {
   if (!value) return '—';
@@ -16,6 +17,7 @@ function formatDate(value: string | null) {
 
 export function FounderSupportAdminPage() {
   const [messages, setMessages] = useState<FounderSupportMessage[]>([]);
+  const [counts, setCounts] = useState<FounderSupportCounts>(emptyCounts);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -29,10 +31,13 @@ export function FounderSupportAdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await listFounderSupportMessages();
-      setMessages(rows);
-      if (selected) setSelected(rows.find((row) => row.id === selected.id) || null);
+      const inbox = await getFounderSupportInbox();
+      setMessages(inbox.messages);
+      setCounts(inbox.counts);
+      if (selected) setSelected(inbox.messages.find((row) => row.id === selected.id) || null);
     } catch (reason) {
+      setMessages([]);
+      setCounts(emptyCounts);
       setError(reason instanceof Error ? reason.message : 'Supportberichten konden niet worden geladen.');
     } finally {
       setLoading(false);
@@ -47,8 +52,6 @@ export function FounderSupportAdminPage() {
     return matchesStatus && haystack.includes(query.toLowerCase());
   }), [messages, query, status]);
 
-  const counts = useMemo(() => Object.fromEntries(statuses.map((item) => [item, messages.filter((message) => message.status === item).length])) as Record<FounderSupportMessage['status'], number>, [messages]);
-
   function open(message: FounderSupportMessage) {
     setSelected(message);
     setNotes(message.moderation_notes || '');
@@ -60,11 +63,8 @@ export function FounderSupportAdminPage() {
     setSaving(true);
     setError(null);
     try {
-      const updated = await moderateFounderSupportMessage({ id: selected.id, status: nextStatus, isFeatured: featured, moderationNotes: notes });
-      setMessages((current) => current.map((message) => message.id === updated.id ? updated : message));
-      setSelected(updated);
-      setFeatured(updated.is_featured);
-      setNotes(updated.moderation_notes || '');
+      await moderateFounderSupportMessage({ id: selected.id, status: nextStatus, isFeatured: featured, moderationNotes: notes });
+      await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Moderatie kon niet worden opgeslagen.');
     } finally {
@@ -88,13 +88,13 @@ export function FounderSupportAdminPage() {
     <div className="admin-section-toolbar">
       <div><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search sender, location or message..." /></div>
       <label><Filter size={15} /><select value={status} onChange={(event) => setStatus(event.target.value as typeof status)}><option value="all">All statuses</option>{statuses.map((item) => <option key={item} value={item}>{label(item)}</option>)}</select></label>
-      <span>{filtered.length} messages</span>
+      <span>{counts.total} total · {filtered.length} shown</span>
     </div>
 
     {loading && <div className="admin-loading"><LoaderCircle className="spin" /> Loading support messages…</div>}
     {error && <div className="admin-error">{error}</div>}
 
-    {!loading && <div className="admin-record-grid">
+    {!loading && !error && <div className="admin-record-grid">
       {filtered.map((message) => <article key={message.id}>
         <div><strong>{message.is_anonymous ? 'Anonymous supporter' : message.sender_name}</strong><span>{message.title || message.body}</span></div>
         <div className="admin-record-meta">
@@ -107,7 +107,7 @@ export function FounderSupportAdminPage() {
       </article>)}
     </div>}
 
-    {!loading && filtered.length === 0 && <div className="admin-section-empty">No support messages found.</div>}
+    {!loading && !error && filtered.length === 0 && <div className="admin-section-empty">No support messages found for this filter.</div>}
 
     {selected && <div className="admin-editor-backdrop">
       <section className="admin-editor">
