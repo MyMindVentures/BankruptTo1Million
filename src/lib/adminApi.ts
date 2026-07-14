@@ -25,6 +25,54 @@ export type AdminSession = { access_token: string; refresh_token: string; expire
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 export type AdminRow = Record<string, unknown>;
 
+export type AiEdgeFunctionConfig = AdminRow & {
+  id?: string;
+  edge_function_slug: string;
+  name?: string | null;
+  provider_id?: string | null;
+  model_id?: string | null;
+  temperature?: number | null;
+  max_tokens?: number | null;
+  timeout_ms?: number | null;
+  max_retries?: number | null;
+  max_cost_usd?: number | null;
+  latency_warning_ms?: number | null;
+  is_enabled?: boolean | null;
+  log_requests?: boolean | null;
+  log_responses?: boolean | null;
+  updated_at?: string | null;
+};
+export type AiProvider = AdminRow & { id: string; name: string; provider_key?: string | null; is_enabled?: boolean | null; };
+export type AiModel = AdminRow & { id: string; model_key: string; display_name?: string | null; provider_id?: string | null; is_enabled?: boolean | null; };
+export type AiPromptVersion = AdminRow & {
+  id: string;
+  edge_function_slug: string;
+  name: string;
+  version?: number | string | null;
+  system_prompt?: string | null;
+  user_prompt_template?: string | null;
+  change_summary?: string | null;
+  is_active?: boolean | null;
+  created_at?: string | null;
+};
+export type AiFunctionRun = AdminRow & {
+  id: string;
+  edge_function_slug?: string | null;
+  status?: string | null;
+  model_id?: string | null;
+  model_key?: string | null;
+  latency_ms?: number | null;
+  cost_usd?: number | null;
+  started_at?: string | null;
+};
+export type AiControlCenterData = {
+  configs: AiEdgeFunctionConfig[];
+  providers: AiProvider[];
+  models: AiModel[];
+  prompts: AiPromptVersion[];
+  runs: AiFunctionRun[];
+};
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const sessionKey = 'bankrupt1m.admin.session';
@@ -123,7 +171,12 @@ export async function getAdminDashboardData() {
     request<AdminNotification[]>('/rest/v1/admin_notifications?select=id,title,message,severity,created_at,is_read&order=created_at.desc&limit=6'),
     request<AuditEntry[]>('/rest/v1/admin_audit_log?select=id,action,table_name,occurred_at,actor_email&order=occurred_at.desc&limit=8'),
   ]);
-  return { modules, overview, tasks, notifications, audit };
+  const hasAiControlCenter = modules.some((module) => module.route === '/admin/ai');
+  const normalizedModules = hasAiControlCenter ? modules : [...modules, {
+    key: 'ai_control_center', label: 'AI Control Center', route: '/admin/ai', icon: 'bot', group_key: 'intelligence', display_order: 10,
+    required_roles: ['admin'], badge_source: null, is_enabled: true,
+  }];
+  return { modules: normalizedModules, overview, tasks, notifications, audit };
 }
 
 export async function getAdminSectionRows(table: string, select: string, order: string, limit = 100): Promise<AdminRow[]> {
@@ -150,5 +203,51 @@ export async function deleteAdminRow(table: string, key: string, value: string):
   await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, {
     method: 'DELETE',
     headers: { Prefer: 'return=minimal' },
+  });
+}
+
+export async function getAiControlCenterData(): Promise<AiControlCenterData> {
+  const [configs, providers, models, prompts, runs] = await Promise.all([
+    request<AiEdgeFunctionConfig[]>('/rest/v1/ai_edge_function_configs?select=*&order=edge_function_slug.asc'),
+    request<AiProvider[]>('/rest/v1/ai_providers?select=*&order=name.asc'),
+    request<AiModel[]>('/rest/v1/ai_models?select=*&order=display_name.asc.nullslast,model_key.asc'),
+    request<AiPromptVersion[]>('/rest/v1/ai_prompt_versions?select=*&order=created_at.desc'),
+    request<AiFunctionRun[]>('/rest/v1/ai_edge_function_runs?select=*&order=started_at.desc&limit=100'),
+  ]);
+  return { configs, providers, models, prompts, runs };
+}
+
+export async function updateAiEdgeFunctionConfig(edgeFunctionSlug: string, patch: AdminRow): Promise<unknown> {
+  return request('/rest/v1/rpc/admin_update_ai_edge_function_config', {
+    method: 'POST',
+    body: JSON.stringify({ p_edge_function_slug: edgeFunctionSlug, p_patch: patch }),
+  });
+}
+
+export async function createAiPromptVersion(input: {
+  edgeFunctionSlug: string;
+  name: string;
+  systemPrompt: string;
+  userPromptTemplate: string;
+  changeSummary: string;
+  activate: boolean;
+}): Promise<unknown> {
+  return request('/rest/v1/rpc/admin_create_ai_prompt_version', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_edge_function_slug: input.edgeFunctionSlug,
+      p_name: input.name,
+      p_system_prompt: input.systemPrompt,
+      p_user_prompt_template: input.userPromptTemplate,
+      p_change_summary: input.changeSummary,
+      p_activate: input.activate,
+    }),
+  });
+}
+
+export async function activateAiPromptVersion(promptVersionId: string): Promise<unknown> {
+  return request('/rest/v1/rpc/admin_activate_ai_prompt_version', {
+    method: 'POST',
+    body: JSON.stringify({ p_prompt_version_id: promptVersionId }),
   });
 }
