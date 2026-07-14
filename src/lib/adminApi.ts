@@ -60,8 +60,7 @@ export async function signInAdmin(email: string, password: string): Promise<{ se
   payload.expires_at = payload.expires_at || Math.floor(Date.now() / 1000) + 3600;
   localStorage.setItem(sessionKey, JSON.stringify(payload));
   try {
-    const access = await getAdminAccess(payload.user.email || email);
-    if (!access.is_active || !['admin', 'editor', 'media_manager'].includes(access.role)) throw new Error('Dit account heeft geen actieve admin-toegang.');
+    const access = await getAdminAccess();
     return { session: payload, access };
   } catch (error) {
     localStorage.removeItem(sessionKey);
@@ -69,13 +68,12 @@ export async function signInAdmin(email: string, password: string): Promise<{ se
   }
 }
 
-export async function getAdminAccess(email?: string): Promise<AdminAccess> {
-  const session = getAdminSession();
-  const target = email || session?.user.email;
-  if (!session || !target) throw new Error('Geen geldige adminsessie.');
-  const rows = await request<AdminAccess[]>(`/rest/v1/admin_allowlist?select=email,full_name,role,is_active&email=eq.${encodeURIComponent(target)}&limit=1`);
-  if (!rows[0]) throw new Error('Dit account staat niet op de admin allowlist.');
-  return rows[0];
+export async function getAdminAccess(): Promise<AdminAccess> {
+  if (!getAdminSession()) throw new Error('Geen geldige adminsessie.');
+  const rows = await request<AdminAccess[]>('/rest/v1/rpc/get_my_admin_access', { method: 'POST', body: '{}' });
+  const access = rows[0];
+  if (!access || !access.is_active) throw new Error('Dit account heeft geen actieve admin-toegang.');
+  return access;
 }
 
 export async function restoreAdminAuth(): Promise<{ session: AdminSession; access: AdminAccess } | null> {
