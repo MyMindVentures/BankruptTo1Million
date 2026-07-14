@@ -45,30 +45,35 @@ async function parse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-function toCount(value: unknown): number {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+function normalizeStatus(value: unknown): FounderSupportMessage['status'] | null {
+  const status = String(value ?? '').trim().toLowerCase();
+  return status === 'pending' || status === 'approved' || status === 'rejected' || status === 'spam' ? status : null;
+}
+
+function deriveCounts(messages: FounderSupportMessage[]): FounderSupportCounts {
+  const counts: FounderSupportCounts = { pending: 0, approved: 0, rejected: 0, spam: 0, total: messages.length };
+  for (const message of messages) {
+    const status = normalizeStatus(message.status);
+    if (status) counts[status] += 1;
+  }
+  return counts;
 }
 
 export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
-  const payload = await parse<{ messages: FounderSupportMessage[]; counts: Record<string, unknown> }>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
+  const payload = await parse<{ messages: FounderSupportMessage[]; counts?: Record<string, unknown> }>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
     method: 'POST', headers: headers(), body: '{}', cache: 'no-store',
   }));
 
-  if (!payload || !Array.isArray(payload.messages) || !payload.counts) {
+  if (!payload || !Array.isArray(payload.messages)) {
     throw new Error('Support inbox returned an invalid payload.');
   }
 
-  return {
-    messages: payload.messages,
-    counts: {
-      pending: toCount(payload.counts.pending),
-      approved: toCount(payload.counts.approved),
-      rejected: toCount(payload.counts.rejected),
-      spam: toCount(payload.counts.spam),
-      total: toCount(payload.counts.total),
-    },
-  };
+  const messages = payload.messages.map((message) => {
+    const normalizedStatus = normalizeStatus(message.status);
+    return normalizedStatus ? { ...message, status: normalizedStatus } : message;
+  });
+
+  return { messages, counts: deriveCounts(messages) };
 }
 
 export async function moderateFounderSupportMessage(input: {
