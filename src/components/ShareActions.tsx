@@ -2,6 +2,7 @@ import { Check, Copy, Facebook, Linkedin, Mail, MessageCircle, Send, Share2 } fr
 import { useState } from 'react';
 import { PostQrCodeButton } from './PostQrCodeButton';
 import type { ContentQrEntityType } from '../lib/contentQrCodes';
+import { useShareCopy } from '../lib/shareI18n';
 import './ShareActions.css';
 
 type SharePlatform = 'native' | 'copy_link' | 'x' | 'facebook' | 'linkedin' | 'whatsapp' | 'telegram' | 'email';
@@ -46,9 +47,10 @@ export function ShareActions({
   url,
   entityType,
   entityId,
-  qrLabel = 'Show Post QR Code',
+  qrLabel,
   onShare,
 }: ShareActionsProps) {
+  const copy = useShareCopy();
   const [copied, setCopied] = useState(false);
 
   async function nativeShare() {
@@ -73,17 +75,17 @@ export function ShareActions({
   }
 
   return (
-    <div className="share-actions-grid" role="group" aria-label="Share this content">
+    <div className="share-actions-grid" role="group" aria-label={copy.shareLabel}>
       {typeof navigator.share === 'function' ? (
         <button className="button share-actions-grid__item share-actions-grid__item--primary" type="button" onClick={nativeShare}>
           <Share2 aria-hidden="true" size={18} />
-          <span>Native delen</span>
+          <span>{copy.nativeShare}</span>
         </button>
       ) : null}
 
       <button className="button button--ghost share-actions-grid__item" type="button" onClick={copyLink} aria-live="polite">
         {copied ? <Check aria-hidden="true" size={18} /> : <Copy aria-hidden="true" size={18} />}
-        <span>{copied ? 'Link gekopieerd' : 'Kopieer link'}</span>
+        <span>{copied ? copy.copied : copy.copyLink}</span>
       </button>
 
       <PostQrCodeButton
@@ -91,7 +93,7 @@ export function ShareActions({
         entityId={entityId}
         canonicalUrl={url}
         title={title}
-        label={qrLabel}
+        label={qrLabel || copy.qrButton}
         className="share-actions-grid__item"
       />
 
@@ -103,7 +105,7 @@ export function ShareActions({
           target={platform === 'email' ? undefined : '_blank'}
           rel="noopener noreferrer"
           onClick={() => void onShare?.(platform)}
-          aria-label={`Deel via ${label}`}
+          aria-label={`${copy.shareVia} ${label}`}
         >
           <Icon aria-hidden="true" size={18} />
           <span>{label}</span>
