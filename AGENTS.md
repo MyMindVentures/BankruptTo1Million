@@ -2,6 +2,31 @@
 
 These instructions are mandatory for every coding agent, AI assistant, contributor and automated refactor working in this repository.
 
+## 0. Absolute architecture contract — zero exceptions
+
+This website is **database-driven, backend-first and multilingual by design**. These are not preferences. They are hard requirements.
+
+1. **Supabase is the single source of truth for all production data.**
+2. **No production component may contain hardcoded business data, editorial content, entity records, counters, cards, status totals, translations, media metadata, founder data, timeline data, offers, needs, concepts, messages, posts, locations or any other content that belongs in Supabase.**
+3. **No temporary hardcoding is allowed.** “Temporary”, “fallback”, “until backend is ready”, “for testing”, “just one card”, or “quick fix” are not valid exceptions.
+4. **No mock data may execute in a production route.** Mock fixtures are permitted only inside isolated tests, Storybook-like development tooling, or explicitly non-production fixtures that cannot be imported by production code.
+5. **Every new feature and every bug fix must follow this order:**
+   1. inspect and verify database data;
+   2. inspect or design schema, relationships, constraints and translations;
+   3. inspect or implement RLS, RPCs, views, triggers and Edge Functions;
+   4. prove the backend query returns the correct live payload;
+   5. only then build or change the frontend;
+   6. verify the deployed frontend consumes that live payload.
+6. **Frontend-first implementation is forbidden.** Do not build UI around assumed fields, guessed response shapes, local arrays or placeholder records.
+7. **A successful HTTP response is not proof of correctness.** Agents must inspect the actual returned payload, record count, status distribution and language-specific fields.
+8. **Do not claim a bug is fixed until the complete live chain is verified:** Supabase row → backend access/RLS/RPC → API payload → frontend parsing → React state → rendered component → deployed build.
+9. **Never hide backend/query failures by returning `[]`, `0`, placeholder content or stale local data.** Surface a translated error state and keep diagnostics actionable.
+10. **All count cards, dashboards, summaries and badges must be derived from live Supabase data.** Never hardcode totals and never initialize zeros in a way that can be mistaken for successfully loaded data.
+11. **All production entities must remain editable through Supabase-backed admin workflows where applicable.** Public data must not require a code deployment to change.
+12. **No component-specific exception is allowed.** These rules apply to public pages, admin pages, modals, cards, dashboards, navigation, SEO, forms, counters, maps, timelines, media views and all future components.
+
+If the required database/backend foundation does not yet exist, the agent must build that foundation first. If it cannot be completed, the task must be reported as incomplete. The agent may not bypass the missing backend with frontend hardcoding.
+
 ## 1. Non-negotiable product rules
 
 1. The public website is multilingual and must switch immediately through the existing language selector.
@@ -10,6 +35,9 @@ These instructions are mandatory for every coding agent, AI assistant, contribut
 4. Visible UI copy must never be added as an untracked literal. Use the existing website i18n system and Supabase translation tables.
 5. English is the canonical fallback/source language unless the relevant record declares another `original_language`.
 6. A feature is not complete when it works only in English.
+7. The selected language must affect both interface copy and dynamic entity content.
+8. A component may not invent its own language behavior, translation map or fallback hierarchy.
+9. A language selector that changes only static UI while dynamic data remains in another language is a release-blocking defect.
 
 ## 2. Existing multilingual architecture — reuse it
 
@@ -66,6 +94,17 @@ const labels = { en: 'Need', es: 'Necesidad' };
 const cards = [{ title: 'Our next stop' }];
 ```
 
+Also forbidden:
+
+```tsx
+const approvedCount = 1;
+const defaultMessages = [];
+const fallbackFounder = { name: 'Kevin' };
+const mockTimeline = productionData;
+```
+
+A zero, empty array or placeholder object is not an acceptable silent substitute for failed live data loading.
+
 ### Required
 
 ```tsx
@@ -111,8 +150,58 @@ For localized entity queries:
 4. Preserve identifiers, slugs, URLs, dates, booleans, ordering and relationships from the canonical record.
 5. Do not copy database rows into TypeScript constants.
 6. Do not render stale mock data when a Supabase request fails. Show a translated error/empty state.
+7. Verify the query against real production-shaped data before wiring the component.
+8. For counters, verify both the row list and aggregate result against the same source of truth.
+9. Normalize only transport differences, never invent missing values.
+10. Do not swallow parse errors or convert malformed payloads into empty successful states.
 
-## 6. Instant language switching
+## 6. Mandatory database-first and backend-first workflow
+
+For every feature or bug, the implementation sequence is mandatory.
+
+### Phase A — Database inspection
+
+1. Identify the canonical table or tables.
+2. Inspect columns, types, defaults, constraints, indexes, foreign keys and existing records.
+3. Inspect translation tables and all 15 active languages.
+4. Confirm whether the required data already exists.
+5. Query the exact expected result directly in Supabase.
+
+### Phase B — Backend and security
+
+1. Inspect RLS policies for `anon`, `authenticated`, admin and service roles.
+2. Inspect existing views, RPCs, triggers, queues and Edge Functions.
+3. Add migrations before frontend code when schema/backend work is needed.
+4. Use `security definer` only where justified and with an explicit `search_path`.
+5. Validate the actual API/RPC response using the same role and claims as the real user.
+6. Confirm that unauthorized users cannot access restricted data.
+7. Confirm that the response contains the expected rows, translations, counts and fields.
+
+### Phase C — Frontend integration
+
+Only after Phase A and B are proven:
+
+1. Add or update the data-access function.
+2. Type the real response shape; do not type an assumed shape.
+3. Handle loading, error, empty and success as distinct states.
+4. Never initialize placeholder zeroes as if data loaded successfully.
+5. Bind the React component to live data.
+6. Include `language` in all localized query and cache dependencies.
+7. Remove any old mock, hardcoded or duplicate source.
+
+### Phase D — End-to-end verification
+
+1. Verify the exact database row.
+2. Verify the exact backend payload.
+3. Verify the browser request reaches the intended Supabase project.
+4. Verify parsing and React state.
+5. Verify the rendered value in the deployed application.
+6. Verify the deployed commit SHA/status.
+7. Verify a language switch updates all affected dynamic and static content.
+
+A task is not done if only the SQL query, local code or deployment status is correct. The live rendered result must also be correct.
+
+## 7. Instant language switching
 
 Language changes must update the complete visible page, not only the header.
 
@@ -129,7 +218,7 @@ Preserve the existing performance behavior:
 
 Do not regress these mechanisms.
 
-## 7. No hardcoded content or structural duplication
+## 8. No hardcoded content or structural duplication
 
 Coding agents must search the codebase and Supabase before creating a new source of truth.
 
@@ -142,10 +231,30 @@ Do not create:
 - hardcoded production URLs when an existing config or database relation exists
 - embedded base64 production media
 - placeholder cards that remain in production paths
+- local counters for database entities
+- duplicated backend totals in frontend constants
+- local translation dictionaries
+- hardcoded admin module records
+- fake success states after failed requests
 
 Small technical constants are allowed only when they are not editorial/public content, for example query limits, enum keys, animation durations, route patterns and feature flags.
 
-## 8. Accessibility and localization quality
+Before adding any constant, ask: “Could an administrator, translator, editor, visitor submission, database migration or Supabase record legitimately change this value?” If yes, it belongs in Supabase, not source code.
+
+## 9. Data loading and error-state guardrails
+
+1. Loading, empty, error and success are four different states.
+2. `0` is valid data only after a successful count query.
+3. `[]` is valid data only after a successful list query.
+4. A failed, malformed or unauthorized request must never be displayed as zero records.
+5. Parsing failures must throw or produce a translated visible error.
+6. Do not catch an error and silently return an empty array.
+7. Do not keep stale production data after a failed refresh unless the UI clearly labels it as stale.
+8. Use cache-busting or `no-store` where freshness is required, but do not use caching as an explanation without proving it.
+9. The frontend must target the intended Supabase project from environment configuration; project mismatches must be verified, not assumed.
+10. Dashboard cards and badges must show a loading skeleton or dash until real data arrives, never misleading zeros.
+
+## 10. Accessibility and localization quality
 
 - All accessibility strings must use translated keys or localized database fields.
 - Do not concatenate translated fragments into a sentence. Translate the complete message with interpolation variables.
@@ -154,7 +263,7 @@ Small technical constants are allowed only when they are not editorial/public co
 - Do not truncate critical CTA or form copy merely because another language is longer.
 - Preserve native language names from `site_languages.native_name` in the selector.
 
-## 9. Supabase schema and migration discipline
+## 11. Supabase schema and migration discipline
 
 - Inspect existing tables, columns, foreign keys, RLS policies, RPCs and migrations before proposing schema changes.
 - Use migrations for DDL. Never modify production schema through ad-hoc undocumented SQL.
@@ -162,8 +271,12 @@ Small technical constants are allowed only when they are not editorial/public co
 - New public translatable entities require a translation strategy and table/RPC/view before frontend completion.
 - Keep RLS enabled and do not weaken policies to make frontend code easier.
 - Never expose service-role keys in frontend code.
+- Do not add redundant RPCs merely to work around an unverified frontend bug.
+- Prefer the simplest proven data path that preserves security and correctness.
+- Every new RPC must have a clear reason, explicit authorization and a tested response shape.
+- Every trigger or Edge Function must be verified with a real inserted or updated record.
 
-## 10. Required agent workflow
+## 12. Required agent workflow
 
 Before editing:
 
@@ -172,6 +285,8 @@ Before editing:
 3. Inspect the relevant Supabase tables and translation tables.
 4. Search for an existing translation key before creating another.
 5. Identify all visitor-visible strings and dynamic fields touched by the change.
+6. Write down the canonical source of truth for every displayed value.
+7. Prove the backend result before touching the component.
 
 During editing:
 
@@ -180,14 +295,20 @@ During editing:
 3. Connect real Supabase data; do not add mocks.
 4. Add loading, empty and error states through translation keys.
 5. Preserve responsive behavior, accessibility and RTL.
+6. Delete obsolete mock/hardcoded data in the same change.
+7. Do not introduce silent fallback arrays, zeroes or placeholder records.
+8. Keep database/backend changes ahead of frontend changes in the implementation history whenever practical.
 
 Before finishing:
 
 1. Search changed files for new visible hardcoded strings.
-2. Verify the feature in English plus at least Spanish and one substantially different language; verify RTL when an active RTL language exists.
-3. Switch languages while remaining on the same page and confirm all visible UI and dynamic content updates.
-4. Confirm missing translation fallback behavior.
-5. Run:
+2. Search changed files for arrays/objects that duplicate Supabase entities.
+3. Verify the feature in English plus at least Spanish and one substantially different language; verify RTL when an active RTL language exists.
+4. Switch languages while remaining on the same page and confirm all visible UI and dynamic content updates.
+5. Confirm missing translation fallback behavior.
+6. Verify the exact Supabase row count and returned API payload.
+7. Verify the live deployed component displays those same values.
+8. Run:
 
 ```bash
 npm run lint
@@ -196,19 +317,40 @@ npm test
 npm run build
 ```
 
-6. Report which Supabase tables/RPCs and translation keys were used or added.
+9. Report which Supabase tables/RPCs/views/Edge Functions and translation keys were used or added.
+10. Report the deployment commit and whether the live result was verified.
 
-## 11. Definition of done
+## 13. Mandatory prohibited shortcuts
 
-A public frontend change is complete only when:
+An agent must never:
 
-- it uses real Supabase data where content is dynamic;
+- build the frontend before checking the database;
+- guess column names or response shapes;
+- hardcode content because a query is inconvenient;
+- add a local language map;
+- use static JSON as a production content source;
+- return `[]` or `0` after a failed request;
+- call a backend correct based only on HTTP 200;
+- call a deployment correct based only on CI success;
+- weaken RLS to make data appear;
+- use a service-role key in browser code;
+- create duplicate tables/RPCs without first understanding existing ones;
+- claim “fixed” before the live UI proves it;
+- introduce an exception for a single component, page or deadline.
+
+## 14. Definition of done
+
+A public or admin frontend change is complete only when:
+
+- it uses real Supabase data for every dynamic value;
 - every new visible interface string has a canonical translation key;
 - all 15 active languages are supported through the established database translation system;
 - switching language updates the complete affected experience immediately;
 - English fallback is safe but not used as a substitute for missing translation work;
 - dates, numbers, accessibility copy, empty states, errors and SEO are localized;
 - no hardcoded editorial content, duplicate data source or mock production content was introduced;
+- loading, error, empty and success states are truthfully represented;
+- database, backend, API payload, frontend state and deployed rendering have all been verified;
 - lint, typecheck, tests and build pass.
 
 If any condition is unmet, the agent must state that the task is incomplete rather than claiming completion.
