@@ -1,6 +1,7 @@
 import { LoaderCircle, QrCode, X } from 'lucide-react';
 import { useEffect, useId, useState, type ButtonHTMLAttributes } from 'react';
 import { generateContentQrCode, type ContentQrEntityType } from '../lib/contentQrCodes';
+import { useShareCopy } from '../lib/shareI18n';
 import './PostQrCodeButton.css';
 
 type PostQrCodeButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'children' | 'type' | 'onClick'> & {
@@ -17,12 +18,13 @@ export function PostQrCodeButton({
   entityId,
   canonicalUrl,
   title,
-  label = 'Show Post QR Code',
-  instruction = 'Scan this QR code to open this post.',
+  label,
+  instruction,
   className = '',
   disabled,
   ...buttonProps
 }: PostQrCodeButtonProps) {
+  const copy = useShareCopy();
   const titleId = useId();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -74,7 +76,7 @@ export function PostQrCodeButton({
         onClick={showQrCode}
       >
         {loading ? <LoaderCircle aria-hidden="true" className="post-qr-button__spinner" size={18} /> : <QrCode aria-hidden="true" size={18} />}
-        <span>{loading ? 'Loading QR Code…' : label}</span>
+        <span>{loading ? copy.loadingQr : (label || copy.qrButton)}</span>
       </button>
 
       {open ? (
@@ -82,17 +84,17 @@ export function PostQrCodeButton({
           if (event.target === event.currentTarget) setOpen(false);
         }}>
           <div className="post-qr-modal__panel" role="dialog" aria-modal="true" aria-labelledby={titleId}>
-            <button className="post-qr-modal__close" type="button" onClick={() => setOpen(false)} aria-label="Close QR code">
+            <button className="post-qr-modal__close" type="button" onClick={() => setOpen(false)} aria-label={copy.closeQr}>
               <X aria-hidden="true" size={20} />
             </button>
-            <p className="eyebrow">Share in person</p>
-            <h2 className="post-qr-modal__title" id={titleId}>Show Post QR Code</h2>
+            <p className="eyebrow">{copy.shareInPerson}</p>
+            <h2 className="post-qr-modal__title" id={titleId}>{copy.qrTitle}</h2>
             <p className="post-qr-modal__post-title">{title}</p>
 
             {loading ? (
               <div className="post-qr-modal__state" role="status">
                 <LoaderCircle aria-hidden="true" className="post-qr-button__spinner" size={28} />
-                <span>Generating the QR code…</span>
+                <span>{copy.generatingQr}</span>
               </div>
             ) : null}
 
@@ -102,14 +104,14 @@ export function PostQrCodeButton({
                 <button className="button button--ghost button--small" type="button" onClick={() => {
                   setQrCodeUrl('');
                   void showQrCode();
-                }}>Try again</button>
+                }}>{copy.retry}</button>
               </div>
             ) : null}
 
             {!loading && qrCodeUrl ? (
               <>
-                <img className="post-qr-modal__image" src={qrCodeUrl} alt={`QR code for ${title}`} width={1024} height={1024} />
-                <p className="post-qr-modal__instruction">{instruction}</p>
+                <img className="post-qr-modal__image" src={qrCodeUrl} alt={`${copy.qrTitle}: ${title}`} width={1024} height={1024} />
+                <p className="post-qr-modal__instruction">{instruction || copy.qrInstruction}</p>
                 <p className="post-qr-modal__url">{resolvedUrl}</p>
               </>
             ) : null}
