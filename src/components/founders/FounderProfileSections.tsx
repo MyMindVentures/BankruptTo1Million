@@ -97,7 +97,7 @@ export function FounderSnapshot({ founder }: { founder: FounderProfile }) {
   return <section className="founder-snapshot section">
     <div><span>{t('founder_profile.snapshot.role', 'Current role')}</span><strong>{translateText(founder.role_title)}</strong></div>
     <div><span>{t('founder_profile.snapshot.based_in', 'Based in')}</span><strong>{founder.location ? translateText(founder.location) : t('founder_profile.to_be_added', 'To be added')}</strong></div>
-    <div><span>{t('founder_profile.snapshot.focus', 'Main focus')}</span><strong>{founder.expertise?.length ? founder.expertise.slice(0, 2).map(translateText).join(' · ') : t('founder_profile.snapshot.default_focus', 'Mission and ventures')}</strong></div>
+    <div><span>{t('founder_profile.snapshot.focus', 'Main focus')}</span><strong>{founder.expertise?.length ? founder.expertise.slice(0, 2).map((item) => translateText(item)).join(' · ') : t('founder_profile.snapshot.default_focus', 'Mission and ventures')}</strong></div>
     <div><span>{t('founder_profile.snapshot.public_since', 'Public since')}</span><strong>{t('founder_profile.snapshot.public_since_value', 'July 2026')}</strong></div>
   </section>;
 }
