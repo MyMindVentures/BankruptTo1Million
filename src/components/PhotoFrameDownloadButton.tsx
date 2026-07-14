@@ -9,13 +9,17 @@ function normalizeLanguageCode(language: string) {
   return language.trim().toLowerCase().split('-')[0] || DEFAULT_LANGUAGE;
 }
 
+function photoFramePath(language: string) {
+  return `photoframe-${language}.png`;
+}
+
 export function PhotoFrameDownloadButton({ className = '' }: { className?: string }) {
   const { language, t } = useWebsiteI18n();
   const normalizedLanguage = normalizeLanguageCode(language);
   const paths = useMemo(
     () => normalizedLanguage === DEFAULT_LANGUAGE
-      ? [`frames/${DEFAULT_LANGUAGE}.png`]
-      : [`frames/${normalizedLanguage}.png`, `frames/${DEFAULT_LANGUAGE}.png`],
+      ? [photoFramePath(DEFAULT_LANGUAGE)]
+      : [photoFramePath(normalizedLanguage), photoFramePath(DEFAULT_LANGUAGE)],
     [normalizedLanguage],
   );
 
