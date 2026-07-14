@@ -86,7 +86,7 @@ export function FounderLocalNav() {
     ['journey', 'founder_profile.nav.timeline', 'Timeline'],
     ['work', 'founder_profile.nav.work', 'Work'],
     ['mission', 'founder_profile.nav.mission', 'Mission'],
-  ];
+  ] as const;
   return <nav className="founder-local-nav section" aria-label={t('founder_profile.nav.aria', 'Founder profile sections')}>
     {items.map(([id, key, fallback]) => <a href={`#${id}`} key={id}>{t(key, fallback)}</a>)}
   </nav>;
@@ -155,8 +155,13 @@ export function FounderTimelineSection({ timeline }: { timeline: TimelineEvent[]
   const filtered = useMemo(() => filter === 'all' ? timeline : timeline.filter((event) => event.event_type === filter), [filter, timeline]);
   return <section className="section" id="journey">
     <div className="founder-section-heading"><div><p className="eyebrow">{t('founder_profile.timeline.eyebrow', 'Interactive founder timeline')}</p><h2>{t('founder_profile.timeline.title', 'The journey so far')}</h2><p>{t('founder_profile.timeline.description', 'Posts, hosts, places, concepts, partnerships and life experiences appear in one evolving timeline.')}</p></div><Compass size={34} aria-hidden="true" /></div>
-    <div className="founder-timeline-filters">{timelineFilters.map((item) => <button key={item} type="button" data-active={filter === item} onClick={() => setFilter(item)}>{translatedEnum(t, item)}<span>{formatNumber(item === 'all' ? timeline.length : timeline.filter((event) => event.event_type === item).length)}</span></button>)}</div>
-    {!filtered.length ? <div className="impact-state">{t('founder_profile.timeline.empty', 'No public events in this category yet.')}</div> : <div className="founder-timeline">{filtered.map((event) => {
+    <div className="founder-timeline-filters" role="group" aria-label={t('founder_profile.nav.timeline', 'Timeline')}>
+      {timelineFilters.map((item) => {
+        const count = item === 'all' ? timeline.length : timeline.filter((event) => event.event_type === item).length;
+        return <button key={item} type="button" data-active={filter === item} aria-pressed={filter === item} onClick={() => setFilter(item)}>{translatedEnum(t, item)}<span>{formatNumber(count)}</span></button>;
+      })}
+    </div>
+    {!filtered.length ? <div className="impact-state" role="status">{t('founder_profile.timeline.empty', 'No public events in this category yet.')}</div> : <div className="founder-timeline">{filtered.map((event) => {
       const link = event.journal_post_slug ? `/journal/${event.journal_post_slug}` : event.concept_slug ? `/proof-of-mind/${event.concept_slug}` : safeExternal(event.external_url);
       const location = [event.location_name, event.city, event.country].filter(Boolean).map((part) => translateText(String(part))).join(' · ');
       return <article key={event.id} className="founder-timeline-event" data-featured={event.is_featured}>
@@ -177,14 +182,14 @@ export function FounderWorkSection({ founder, founderPosts, concepts, posts }: {
     <section className="section" id="work">
       <div className="founder-section-heading"><div><p className="eyebrow">{t('founder_profile.work.eyebrow', 'Proof of work')}</p><h2>{t('founder_profile.work.title', 'What {name} is building and documenting', { name: founder.display_name })}</h2></div><Rocket size={34} aria-hidden="true" /></div>
       <div className="founder-work-columns">
-        <section><div className="founder-work-title"><h3>{t('founder_profile.work.founder_posts', 'Founder Posts')}</h3><span>{formatNumber(founder.founder_post_count)}</span></div>{founderPosts.length ? <div className="founder-profile-list">{founderPosts.map((post) => <article key={post.founder_post_id}><span>{translateText(post.concept_title)}</span><h4>{translateText(post.post_title)}</h4>{post.excerpt ? <p>{translateText(post.excerpt)}</p> : null}<div><time>{date(post.published_at)}</time><a href={`/journal/${post.post_slug}`}>{t('founder_profile.work.read', 'Read')} <ArrowRight size={14} aria-hidden="true" /></a></div></article>)}</div> : <div className="impact-state">{t('founder_profile.work.no_founder_posts', 'No public Founder Posts yet.')}</div>}</section>
+        <section><div className="founder-work-title"><h3>{t('founder_profile.work.founder_posts', 'Founder Posts')}</h3><span>{formatNumber(founder.founder_post_count)}</span></div>{founderPosts.length ? <div className="founder-profile-list">{founderPosts.map((post) => <article key={post.founder_post_id}><span>{translateText(post.concept_title)}</span><h4>{translateText(post.post_title)}</h4>{post.excerpt ? <p>{translateText(post.excerpt)}</p> : null}<div><time dateTime={post.published_at}>{date(post.published_at)}</time><a href={`/journal/${post.post_slug}`}>{t('founder_profile.work.read', 'Read')} <ArrowRight size={14} aria-hidden="true" /></a></div></article>)}</div> : <div className="impact-state">{t('founder_profile.work.no_founder_posts', 'No public Founder Posts yet.')}</div>}</section>
         <section><div className="founder-work-title"><h3>{t('founder_profile.work.concepts', 'Proof of Mind concepts')}</h3><span>{formatNumber(founder.concept_count)}</span></div>{concepts.length ? <div className="founder-profile-list">{concepts.map((link) => { const concept = link.proof_of_mind_concepts!; return <article key={concept.id}><span>{link.is_original_creator ? t('founder_profile.work.original_creator', 'Original creator') : translatedEnum(t, link.founder_role)}</span><h4>{translateText(concept.title)}</h4><p>{translateText(concept.tagline || concept.short_description)}</p><div><small>{translatedEnum(t, concept.concept_status)}</small><a href={`/proof-of-mind/${concept.slug}`}>{t('founder_profile.work.explore', 'Explore')} <ArrowRight size={14} aria-hidden="true" /></a></div></article>; })}</div> : <div className="impact-state">{t('founder_profile.work.no_concepts', 'No individually linked concepts yet.')}</div>}</section>
       </div>
     </section>
-    <section className="section">
+    {posts.length ? <section className="section">
       <div className="founder-section-heading"><div><p className="eyebrow">{t('founder_profile.publications.eyebrow', 'Latest publications')}</p><h2>{t('founder_profile.publications.title', 'Recent posts by {name}', { name: founder.display_name })}</h2></div><CalendarDays size={34} aria-hidden="true" /></div>
       <div className="founder-publication-grid">{posts.slice(0, 3).map((post) => <article key={post.id}><time dateTime={post.published_at}>{date(post.published_at, true)}</time><h3>{translateText(post.title)}</h3>{post.excerpt ? <p>{translateText(post.excerpt)}</p> : null}<div><span>{t('founder_profile.publications.reading_time', '{minutes} min read', { minutes: formatNumber(post.reading_time_minutes || 4) })}</span><a href={`/journal/${post.slug}`}>{t('founder_profile.publications.read_post', 'Read post')} <ArrowRight size={15} aria-hidden="true" /></a></div></article>)}</div>
-    </section>
+    </section> : null}
   </>;
 }
 
