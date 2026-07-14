@@ -1,5 +1,6 @@
-import { Check, Copy, ExternalLink, QrCode, Share2, Smartphone } from 'lucide-react';
-import { useState } from 'react';
+import { Check, Copy, ExternalLink, NotebookPen, QrCode, Share2, Smartphone } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { canCreateJournalPost } from '../lib/adminApi';
 import { MISSION_BRAND } from '../lib/brandAssets';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { MissionLogo } from './MissionLogo';
@@ -9,6 +10,15 @@ import './FounderSupportQrShare.css';
 export function FounderSupportQrShare() {
   const { t } = useWebsiteI18n();
   const [copied, setCopied] = useState(false);
+  const [canCreateJournal, setCanCreateJournal] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void canCreateJournalPost()
+      .then((allowed) => { if (mounted) setCanCreateJournal(allowed); })
+      .catch(() => { if (mounted) setCanCreateJournal(false); });
+    return () => { mounted = false; };
+  }, []);
 
   async function copyLink() {
     try {
@@ -80,6 +90,12 @@ export function FounderSupportQrShare() {
           <Smartphone size={15} aria-hidden="true" />
           <span>www.bankruptto1million.com</span>
         </div>
+        {canCreateJournal && (
+          <a className="button founder-support-qr__journal-button" href="/admin/journal?create=1">
+            <NotebookPen size={18} aria-hidden="true" />
+            Nieuwe journalpost aanmaken
+          </a>
+        )}
       </div>
 
       <div
