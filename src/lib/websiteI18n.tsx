@@ -28,14 +28,14 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v4.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v5.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
-const JOURNAL_ROOT_SELECTOR = '.journal-priority-page,.journal-page,.journal-article,.journal-comments,.journal-share,.founder-support-page';
+const PUBLIC_SITE_ROOT_SELECTOR = '#root';
 const WebsiteI18nContext = createContext<WebsiteI18nContextValue | null>(null);
 const bundleCache = new Map<string, TranslationBundle>();
-const journalOriginalText = new WeakMap<Text, string>();
-const journalOriginalAttributes = new WeakMap<Element, Map<string, string>>();
+const originalText = new WeakMap<Text, string>();
+const originalAttributes = new WeakMap<Element, Map<string, string>>();
 let translationKeysPromise: Promise<TranslationKeyRow[]> | null = null;
 
 async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
@@ -61,38 +61,43 @@ function translatedSource(bundle: TranslationBundle, language: string, source: s
   return bundle.bySource[normalizeText(source)] || source;
 }
 
-function translateJournalElement(root: Element, bundle: TranslationBundle, language: string) {
+function isIgnored(element: Element | null) {
+  return Boolean(element?.closest('[data-i18n-ignore="true"],script,style,noscript,textarea,code,pre'));
+}
+
+function translatePublicElement(root: Element, bundle: TranslationBundle, language: string) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   let node = walker.nextNode() as Text | null;
   while (node) {
     const parent = node.parentElement;
-    if (parent && !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'PRE'].includes(parent.tagName)) {
-      const original = journalOriginalText.get(node) ?? node.data;
-      if (!journalOriginalText.has(node)) journalOriginalText.set(node, original);
-      const normalized = normalizeText(original);
+    if (parent && !isIgnored(parent)) {
+      const source = originalText.get(node) ?? node.data;
+      if (!originalText.has(node)) originalText.set(node, source);
+      const normalized = normalizeText(source);
       if (normalized) {
         const translated = translatedSource(bundle, language, normalized);
-        const leading = original.match(/^\s*/)?.[0] || '';
-        const trailing = original.match(/\s*$/)?.[0] || '';
+        const leading = source.match(/^\s*/)?.[0] || '';
+        const trailing = source.match(/\s*$/)?.[0] || '';
         node.data = `${leading}${translated}${trailing}`;
       }
     }
     node = walker.nextNode() as Text | null;
   }
 
-  const attributes = ['aria-label', 'title', 'placeholder'];
+  const attributes = ['aria-label', 'aria-description', 'title', 'placeholder', 'alt'];
   root.querySelectorAll<HTMLElement>('*').forEach((element) => {
-    let originals = journalOriginalAttributes.get(element);
+    if (isIgnored(element)) return;
+    let originals = originalAttributes.get(element);
     if (!originals) {
       originals = new Map<string, string>();
-      journalOriginalAttributes.set(element, originals);
+      originalAttributes.set(element, originals);
     }
     attributes.forEach((attribute) => {
       const current = element.getAttribute(attribute);
       if (!current) return;
       if (!originals!.has(attribute)) originals!.set(attribute, current);
-      const original = originals!.get(attribute)!;
-      element.setAttribute(attribute, translatedSource(bundle, language, original));
+      const source = originals!.get(attribute)!;
+      element.setAttribute(attribute, translatedSource(bundle, language, source));
     });
   });
 }
@@ -194,10 +199,12 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
   }, [language, languages]);
 
   useEffect(() => {
-    const apply = () => document.querySelectorAll(JOURNAL_ROOT_SELECTOR).forEach((root) => translateJournalElement(root, bundle, language));
+    const root = document.querySelector(PUBLIC_SITE_ROOT_SELECTOR);
+    if (!root) return;
+    const apply = () => translatePublicElement(root, bundle, language);
     apply();
     const observer = new MutationObserver(apply);
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(root, { childList: true, subtree: true });
     return () => observer.disconnect();
   }, [bundle, language]);
 
