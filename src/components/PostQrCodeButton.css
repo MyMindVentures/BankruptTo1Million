@@ -1,0 +1,86 @@
+.post-qr-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  padding: 1rem;
+  background: rgba(5, 5, 5, 0.84);
+  backdrop-filter: blur(12px);
+}
+
+.post-qr-modal__panel {
+  position: relative;
+  width: min(100%, 32rem);
+  max-height: calc(100vh - 2rem);
+  overflow: auto;
+  padding: 2rem;
+  border: 1px solid rgba(232, 188, 87, 0.28);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, rgba(31, 27, 21, 0.99), rgba(17, 15, 13, 0.99));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.58);
+  text-align: center;
+}
+
+.post-qr-modal__close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: inherit;
+  cursor: pointer;
+}
+
+.post-qr-modal__title {
+  margin: 0.4rem 2rem 0.6rem;
+}
+
+.post-qr-modal__post-title {
+  margin: 0 0 1.2rem;
+  opacity: 0.76;
+}
+
+.post-qr-modal__image {
+  display: block;
+  width: min(100%, 24rem);
+  height: auto;
+  margin: 0 auto;
+  padding: 0.75rem;
+  border-radius: 1rem;
+  background: #fff;
+}
+
+.post-qr-modal__instruction {
+  margin: 1rem 0 0;
+  font-weight: 700;
+}
+
+.post-qr-modal__url {
+  margin: 0.55rem 0 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+  opacity: 0.62;
+}
+
+.post-qr-modal__error {
+  margin: 1rem 0 0;
+  color: #ffb4a8;
+}
+
+.post-qr-button[aria-busy='true'] {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+@media (max-width: 560px) {
+  .post-qr-modal__panel {
+    padding: 1.5rem 1rem 1.2rem;
+    border-radius: 1.2rem;
+  }
+}
