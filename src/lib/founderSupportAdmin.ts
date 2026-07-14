@@ -40,11 +40,20 @@ async function parse<T>(response: Response): Promise<T> {
 }
 
 export async function listFounderSupportMessages(): Promise<FounderSupportMessage[]> {
-  return parse(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_list_founder_support_messages`, {
+  const payload = await parse<FounderSupportMessage[] | string>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_messages_json`, {
     method: 'POST',
     headers: headers(),
     body: '{}',
   }));
+
+  if (Array.isArray(payload)) return payload;
+
+  try {
+    const parsed = JSON.parse(payload) as FounderSupportMessage[];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 export async function moderateFounderSupportMessage(input: {
