@@ -1,6 +1,5 @@
 import { supabase } from './lib/supabase';
 
-type TranslationPair = { source?: string | null; translated?: string | null };
 type ProfileRow = {
   id: string;
   headline?: string | null;
@@ -83,14 +82,14 @@ async function loadTranslations() {
     readJson<TimelineRow[]>(supabase.from('founder_timeline_public').request({ query: `select=id,title,subtitle,description,location_name,host_thank_you&founder_slug=eq.${encodeURIComponent(slug)}` })),
     readJson<JournalRow[]>(supabase.from('journal_posts').request({ query: 'select=id,title,subtitle,excerpt&status=eq.published' })),
     readJson<JournalTranslation[]>(supabase.from('journal_translations').request({ query: `select=journal_post_id,language_code,title,subtitle,excerpt,translation_status&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` })),
-    readJson<ConceptRow[]>(supabase.from('proof_of_mind_concepts').request({ query: 'select=id,title,tagline,short_description&is_public=eq.true' })),
+    readJson<ConceptRow[]>(supabase.from('proof_of_mind_concepts').request({ query: 'select=id,title,tagline,short_description&visibility=eq.public' })),
     readJson<ConceptTranslation[]>(supabase.from('proof_of_mind_concept_translations').request({ query: `select=concept_id,language_code,title,tagline,short_description,translation_status&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` })),
     readJson<WebsiteKey[]>(supabase.from('website_translation_keys').request({ query: 'select=id,default_text&is_active=eq.true' })),
     readJson<WebsiteValue[]>(supabase.from('website_translations').request({ query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` })),
   ]);
 
-  const swatTranslations = await readJson<SwatTranslation[]>(supabase.from('founder_profile_swat_translations').request({ query: `select=swat_point_id,language_code,title,summary,evidence,practical_impact,management_strategy,translation_status&swat_point_id=in.(${swatRows.map((row) => row.id).join(',')})&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` }));
-  const timelineTranslations = await readJson<TimelineTranslation[]>(supabase.from('founder_timeline_event_translations').request({ query: `select=timeline_event_id,language_code,title,subtitle,description,location_name,host_thank_you,translation_status&timeline_event_id=in.(${timelineRows.map((row) => row.id).join(',')})&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` }));
+  const swatTranslations = swatRows.length ? await readJson<SwatTranslation[]>(supabase.from('founder_profile_swat_translations').request({ query: `select=swat_point_id,language_code,title,summary,evidence,practical_impact,management_strategy,translation_status&swat_point_id=in.(${swatRows.map((row) => row.id).join(',')})&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` })) : [];
+  const timelineTranslations = timelineRows.length ? await readJson<TimelineTranslation[]>(supabase.from('founder_timeline_event_translations').request({ query: `select=timeline_event_id,language_code,title,subtitle,description,location_name,host_thank_you,translation_status&timeline_event_id=in.(${timelineRows.map((row) => row.id).join(',')})&language_code=eq.${encodeURIComponent(language)}&translation_status=eq.published` })) : [];
 
   if (token !== loadingToken) return;
   const map = new Map<string, string>();
