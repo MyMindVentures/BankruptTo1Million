@@ -10,28 +10,11 @@ export type WebsiteLanguage = {
   display_order: number;
 };
 
-type TranslationRow = {
-  translation_key: string;
-  translated_text: string;
-};
-
-type TranslationKeyRow = {
-  id: string;
-  translation_key: string;
-  default_text: string;
-};
-
-type TranslationValueRow = {
-  translation_key_id: string;
-  translated_text: string;
-};
-
+type TranslationRow = { translation_key: string; translated_text: string };
+type TranslationKeyRow = { id: string; translation_key: string; default_text: string };
+type TranslationValueRow = { translation_key_id: string; translated_text: string };
 type TranslationVariables = Record<string, string | number>;
-
-type TranslationBundle = {
-  byKey: Record<string, string>;
-  bySource: Record<string, string>;
-};
+type TranslationBundle = { byKey: Record<string, string>; bySource: Record<string, string> };
 
 type WebsiteI18nContextValue = {
   language: string;
@@ -48,9 +31,11 @@ const STORAGE_KEY = 'b1m.website.language';
 const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v3.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
-
+const JOURNAL_ROOT_SELECTOR = '.journal-priority-page,.journal-page,.journal-article,.journal-comments,.journal-share';
 const WebsiteI18nContext = createContext<WebsiteI18nContextValue | null>(null);
 const bundleCache = new Map<string, TranslationBundle>();
+const journalOriginalText = new WeakMap<Text, string>();
+const journalOriginalAttributes = new WeakMap<Element, Map<string, string>>();
 let translationKeysPromise: Promise<TranslationKeyRow[]> | null = null;
 
 async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
@@ -71,10 +56,50 @@ function normalizeText(value: string) {
   return value.replace(/\s+/g, ' ').trim();
 }
 
+function translatedSource(bundle: TranslationBundle, language: string, source: string) {
+  if (language === DEFAULT_LANGUAGE) return source;
+  return bundle.bySource[normalizeText(source)] || source;
+}
+
+function translateJournalElement(root: Element, bundle: TranslationBundle, language: string) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode() as Text | null;
+  while (node) {
+    const parent = node.parentElement;
+    if (parent && !['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEXTAREA', 'CODE', 'PRE'].includes(parent.tagName)) {
+      const original = journalOriginalText.get(node) ?? node.data;
+      if (!journalOriginalText.has(node)) journalOriginalText.set(node, original);
+      const normalized = normalizeText(original);
+      if (normalized) {
+        const translated = translatedSource(bundle, language, normalized);
+        const leading = original.match(/^\s*/)?.[0] || '';
+        const trailing = original.match(/\s*$/)?.[0] || '';
+        node.data = `${leading}${translated}${trailing}`;
+      }
+    }
+    node = walker.nextNode() as Text | null;
+  }
+
+  const attributes = ['aria-label', 'title', 'placeholder'];
+  root.querySelectorAll<HTMLElement>('*').forEach((element) => {
+    let originals = journalOriginalAttributes.get(element);
+    if (!originals) {
+      originals = new Map<string, string>();
+      journalOriginalAttributes.set(element, originals);
+    }
+    attributes.forEach((attribute) => {
+      const current = element.getAttribute(attribute);
+      if (!current) return;
+      if (!originals!.has(attribute)) originals!.set(attribute, current);
+      const original = originals!.get(attribute)!;
+      element.setAttribute(attribute, translatedSource(bundle, language, original));
+    });
+  });
+}
+
 function detectPreferredLanguage(languages: WebsiteLanguage[]) {
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored && languages.some((language) => language.code === stored)) return stored;
-
   const browserCodes = navigator.languages?.length ? navigator.languages : [navigator.language];
   for (const browserCode of browserCodes) {
     const normalized = browserCode.toLowerCase();
@@ -84,14 +109,12 @@ function detectPreferredLanguage(languages: WebsiteLanguage[]) {
     const partial = languages.find((language) => language.code.toLowerCase() === base);
     if (partial) return partial.code;
   }
-
   return DEFAULT_LANGUAGE;
 }
 
 function readCachedBundle(language: string): TranslationBundle | null {
   const memory = bundleCache.get(language);
   if (memory) return memory;
-
   try {
     const raw = window.sessionStorage.getItem(`${BUNDLE_CACHE_PREFIX}${language}`);
     if (!raw) return null;
@@ -99,25 +122,17 @@ function readCachedBundle(language: string): TranslationBundle | null {
     if (!parsed?.byKey || !parsed?.bySource) return null;
     bundleCache.set(language, parsed);
     return parsed;
-  } catch {
-    return null;
-  }
+  } catch { return null; }
 }
 
 function cacheBundle(language: string, bundle: TranslationBundle) {
   bundleCache.set(language, bundle);
-  try {
-    window.sessionStorage.setItem(`${BUNDLE_CACHE_PREFIX}${language}`, JSON.stringify(bundle));
-  } catch {
-    // Session storage can be unavailable or full; the in-memory cache still works.
-  }
+  try { window.sessionStorage.setItem(`${BUNDLE_CACHE_PREFIX}${language}`, JSON.stringify(bundle)); } catch { /* in-memory cache remains available */ }
 }
 
 function getTranslationKeys() {
   if (!translationKeysPromise) {
-    translationKeysPromise = readJson<TranslationKeyRow[]>(supabase.from('website_translation_keys').request({
-      query: 'select=id,translation_key,default_text&order=translation_key.asc',
-    })).catch((error) => {
+    translationKeysPromise = readJson<TranslationKeyRow[]>(supabase.from('website_translation_keys').request({ query: 'select=id,translation_key,default_text&order=translation_key.asc' })).catch((error) => {
       translationKeysPromise = null;
       throw error;
     });
@@ -128,30 +143,20 @@ function getTranslationKeys() {
 async function loadBundle(language: string): Promise<TranslationBundle> {
   const cached = readCachedBundle(language);
   if (cached) return cached;
-
   const [resolvedRows, keyRows, valueRows] = await Promise.all([
     readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language })),
     getTranslationKeys(),
-    language === DEFAULT_LANGUAGE
-      ? Promise.resolve([] as TranslationValueRow[])
-      : readJson<TranslationValueRow[]>(supabase.from('website_translations').request({
-          query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}`,
-        })),
+    language === DEFAULT_LANGUAGE ? Promise.resolve([] as TranslationValueRow[]) : readJson<TranslationValueRow[]>(supabase.from('website_translations').request({ query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}` })),
   ]);
-
   const byKey = Object.fromEntries(resolvedRows.map((row) => [row.translation_key, row.translated_text]));
   const valuesByKeyId = new Map(valueRows.map((row) => [row.translation_key_id, row.translated_text]));
   const bySource: Record<string, string> = {};
-
   for (const keyRow of keyRows) {
     const source = normalizeText(keyRow.default_text || '');
     if (!source) continue;
-    const translated = language === DEFAULT_LANGUAGE
-      ? keyRow.default_text
-      : valuesByKeyId.get(keyRow.id);
+    const translated = language === DEFAULT_LANGUAGE ? keyRow.default_text : valuesByKeyId.get(keyRow.id);
     if (translated) bySource[source] = translated;
   }
-
   const bundle = { byKey, bySource };
   cacheBundle(language, bundle);
   return bundle;
@@ -165,118 +170,80 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-
-    readJson<WebsiteLanguage[]>(supabase.from('site_languages').request({
-      query: 'select=code,english_name,native_name,is_rtl,display_order&is_active=eq.true&order=display_order.asc,code.asc',
-    }))
-      .then((rows) => {
-        if (cancelled) return;
-        setLanguages(rows);
-        setLanguageState(detectPreferredLanguage(rows));
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLanguages([{ code: 'en', english_name: 'English', native_name: 'English', is_rtl: false, display_order: 0 }]);
-        setLanguageState(DEFAULT_LANGUAGE);
-      });
-
+    readJson<WebsiteLanguage[]>(supabase.from('site_languages').request({ query: 'select=code,english_name,native_name,is_rtl,display_order&is_active=eq.true&order=display_order.asc,code.asc' }))
+      .then((rows) => { if (!cancelled) { setLanguages(rows); setLanguageState(detectPreferredLanguage(rows)); } })
+      .catch(() => { if (!cancelled) { setLanguages([{ code: 'en', english_name: 'English', native_name: 'English', is_rtl: false, display_order: 0 }]); setLanguageState(DEFAULT_LANGUAGE); } });
     return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (!languages.length || !languages.some((item) => item.code === language)) return;
-
     let cancelled = false;
     const cached = readCachedBundle(language);
-
-    if (cached) {
-      setBundle(cached);
-      setIsLoading(false);
-    } else {
+    if (cached) { setBundle(cached); setIsLoading(false); }
+    else {
       setIsLoading(true);
-      loadBundle(language)
-        .then((nextBundle) => {
-          if (!cancelled) setBundle(nextBundle);
-        })
-        .catch(() => {
-          if (!cancelled) setBundle(EMPTY_BUNDLE);
-        })
-        .finally(() => {
-          if (!cancelled) setIsLoading(false);
-        });
+      loadBundle(language).then((nextBundle) => { if (!cancelled) setBundle(nextBundle); }).catch(() => { if (!cancelled) setBundle(EMPTY_BUNDLE); }).finally(() => { if (!cancelled) setIsLoading(false); });
     }
-
     const selected = languages.find((item) => item.code === language);
     document.documentElement.lang = language;
     document.documentElement.dir = selected?.is_rtl ? 'rtl' : 'ltr';
     window.localStorage.setItem(STORAGE_KEY, language);
     window.dispatchEvent(new CustomEvent('b1m:languagechange', { detail: { language } }));
-
     return () => { cancelled = true; };
   }, [language, languages]);
 
   useEffect(() => {
-    if (languages.length < 2) return;
+    const apply = () => document.querySelectorAll(JOURNAL_ROOT_SELECTOR).forEach((root) => translateJournalElement(root, bundle, language));
+    apply();
+    const observer = new MutationObserver(apply);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [bundle, language]);
 
+  useEffect(() => {
+    if (languages.length < 2) return;
     let cancelled = false;
     const timeoutId = window.setTimeout(() => {
       void (async () => {
         for (const item of languages) {
           if (cancelled) return;
-          if (item.code !== language && !readCachedBundle(item.code)) {
-            await loadBundle(item.code).catch(() => undefined);
-          }
+          if (item.code !== language && !readCachedBundle(item.code)) await loadBundle(item.code).catch(() => undefined);
         }
       })();
     }, 1000);
-
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timeoutId);
-    };
+    return () => { cancelled = true; window.clearTimeout(timeoutId); };
   }, [language, languages]);
 
   const setLanguage = useCallback((languageCode: string) => {
     if (!languages.some((item) => item.code === languageCode)) return;
     window.localStorage.setItem(STORAGE_KEY, languageCode);
+    const articleRoute = /^\/journal\/[^/]+/.test(window.location.pathname);
+    if (articleRoute) {
+      const params = new URLSearchParams(window.location.search);
+      params.set('lang', languageCode);
+      window.location.assign(`${window.location.pathname}?${params.toString()}${window.location.hash}`);
+      return;
+    }
     const cached = readCachedBundle(languageCode);
     if (cached) setBundle(cached);
     setLanguageState(languageCode);
   }, [languages]);
 
-  const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => {
-    return interpolate(bundle.byKey[key] || fallback, variables);
-  }, [bundle]);
-
+  const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => interpolate(bundle.byKey[key] || fallback, variables), [bundle]);
   const translateText = useCallback((fallback: string, variables?: TranslationVariables) => {
-    const translated = language === DEFAULT_LANGUAGE
-      ? fallback
-      : bundle.bySource[normalizeText(fallback)] || fallback;
+    const translated = language === DEFAULT_LANGUAGE ? fallback : bundle.bySource[normalizeText(fallback)] || fallback;
     return interpolate(translated, variables);
   }, [bundle, language]);
-
   const locale = language === 'en' ? 'en-GB' : language;
   const formatDate = useCallback((value: string | Date, options?: Intl.DateTimeFormatOptions) => {
     const date = value instanceof Date ? value : new Date(value);
     if (Number.isNaN(date.getTime())) return '';
     return new Intl.DateTimeFormat(locale, options || { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
   }, [locale]);
+  const formatNumber = useCallback((value: number, options?: Intl.NumberFormatOptions) => new Intl.NumberFormat(locale, options).format(value), [locale]);
 
-  const formatNumber = useCallback((value: number, options?: Intl.NumberFormatOptions) => {
-    return new Intl.NumberFormat(locale, options).format(value);
-  }, [locale]);
-
-  const value = useMemo<WebsiteI18nContextValue>(() => ({
-    language,
-    languages,
-    isLoading,
-    setLanguage,
-    t,
-    translateText,
-    formatDate,
-    formatNumber,
-  }), [formatDate, formatNumber, isLoading, language, languages, setLanguage, t, translateText]);
-
+  const value = useMemo<WebsiteI18nContextValue>(() => ({ language, languages, isLoading, setLanguage, t, translateText, formatDate, formatNumber }), [formatDate, formatNumber, isLoading, language, languages, setLanguage, t, translateText]);
   return <WebsiteI18nContext.Provider value={value}>{children}</WebsiteI18nContext.Provider>;
 }
 
