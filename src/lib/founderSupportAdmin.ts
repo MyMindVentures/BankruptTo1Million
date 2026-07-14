@@ -24,18 +24,16 @@ export type FounderSupportMessage = {
   original_language: string | null;
 };
 
+export type FounderSupportCounts = Record<FounderSupportMessage['status'], number> & { total: number };
+export type FounderSupportInbox = { messages: FounderSupportMessage[]; counts: FounderSupportCounts };
+
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 function headers() {
   const token = getAdminSession()?.access_token;
   if (!supabaseUrl || !anonKey || !token) throw new Error('Geen geldige adminsessie.');
-  return {
-    apikey: anonKey,
-    Authorization: `Bearer ${token}`,
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-store',
-  };
+  return { apikey: anonKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 }
 
 async function parse<T>(response: Response): Promise<T> {
@@ -47,39 +45,15 @@ async function parse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-export async function listFounderSupportMessages(): Promise<FounderSupportMessage[]> {
-  const select = [
-    'id',
-    'founder_profile_id',
-    'recipient_scope',
-    'sender_name',
-    'sender_email',
-    'sender_location',
-    'sender_relationship',
-    'message_type',
-    'title',
-    'body',
-    'status',
-    'is_featured',
-    'is_anonymous',
-    'consent_to_publish',
-    'consent_to_contact',
-    'moderation_notes',
-    'moderated_at',
-    'published_at',
-    'created_at',
-    'updated_at',
-    'original_language',
-  ].join(',');
+export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
+  const payload = await parse<FounderSupportInbox>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
+    method: 'POST', headers: headers(), body: '{}', cache: 'no-store',
+  }));
 
-  const response = await fetch(
-    `${supabaseUrl}/rest/v1/founder_support_messages?select=${encodeURIComponent(select)}&order=created_at.desc`,
-    { method: 'GET', headers: headers(), cache: 'no-store' },
-  );
-
-  const rows = await parse<FounderSupportMessage[]>(response);
-  if (!Array.isArray(rows)) throw new Error('Support message query returned an invalid response.');
-  return rows;
+  if (!payload || !Array.isArray(payload.messages) || !payload.counts) {
+    throw new Error('Support inbox returned an invalid payload.');
+  }
+  return payload;
 }
 
 export async function moderateFounderSupportMessage(input: {
