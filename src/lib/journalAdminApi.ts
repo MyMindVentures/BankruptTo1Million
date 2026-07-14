@@ -26,6 +26,7 @@ export type JournalAiStatus = {
   ai_generated_at: string | null;
   translation_count: number;
 };
+export type JournalAiProgressStage = 'generating' | 'translating' | 'publishing';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -46,8 +47,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     headers: { apikey: anonKey, Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { message?: string; details?: string; error?: string } | null;
-    throw new Error(payload?.message || payload?.details || payload?.error || `Supabase request failed (${response.status})`);
+    const payload = await response.json().catch(() => null) as { message?: string; details?: string; error?: string; hint?: string } | null;
+    throw new Error(payload?.message || payload?.details || payload?.error || payload?.hint || `Supabase request failed (${response.status})`);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -110,18 +111,32 @@ export async function getJournalAiSource(postId: string): Promise<string> {
 export async function createJournalPost(payload: Partial<JournalPayload>) {
   return request<JournalPost>('/rest/v1/rpc/admin_create_journal_post', { method: 'POST', body: JSON.stringify({ payload }) });
 }
+
 export async function updateJournalPost(id: string, payload: Partial<JournalPayload>) {
   return request<JournalPost>('/rest/v1/rpc/admin_update_journal_post', { method: 'POST', body: JSON.stringify({ post_id: id, payload }) });
 }
+
 export async function deleteJournalPost(id: string) {
   return request<boolean>('/rest/v1/rpc/admin_delete_journal_post', { method: 'POST', body: JSON.stringify({ post_id: id }) });
 }
-export async function saveJournalEventContext(postId: string, payload: JournalEventPayload) {
-  return request<string>('/rest/v1/rpc/admin_save_journal_event_context', { method: 'POST', body: JSON.stringify({ post_id: postId, payload }) });
+
+export async function prepareJournalAi(
+  postId: string,
+  eventPayload: JournalEventPayload,
+  rawDescription: string,
+  sourceMetadata: Record<string, unknown>,
+) {
+  return request('/rest/v1/rpc/admin_prepare_journal_ai', {
+    method: 'POST',
+    body: JSON.stringify({
+      post_id: postId,
+      event_payload: eventPayload,
+      raw_description: rawDescription,
+      source_metadata: sourceMetadata,
+    }),
+  });
 }
-export async function saveJournalAiSource(postId: string, rawDescription: string, metadata: Record<string, unknown>) {
-  return request('/rest/v1/rpc/admin_save_journal_ai_source', { method: 'POST', body: JSON.stringify({ post_id: postId, raw_description: rawDescription, metadata }) });
-}
+
 export async function getJournalAiStatus(postId: string) {
   const rows = await request<JournalAiStatus[]>('/rest/v1/rpc/admin_get_journal_ai_status', {
     method: 'POST',
@@ -134,30 +149,54 @@ function wait(milliseconds: number) {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
-export async function generateJournalAiPost(postId: string) {
-  if (!supabaseUrl) throw new Error('Supabase configuration is missing.');
+function progressStage(status: JournalAiStatus): JournalAiProgressStage {
+  if (Number(status.translation_count) > 0 && Number(status.translation_count) < 15) return 'translating';
+  if (Number(status.translation_count) >= 15 || status.status === 'published') return 'publishing';
+  return 'generating';
+}
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post-browser`, {
+export async function generateJournalAiPost(
+  postId: string,
+  onProgress?: (stage: JournalAiProgressStage, status: JournalAiStatus) => void,
+) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post`, {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({ post_id: postId, access_token: token() }),
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ post_id: postId }),
   });
 
-  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
-  if (!response.ok) throw new Error(result?.error || `AI generation could not start (${response.status}).`);
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string; message?: string } | null;
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || result?.message || `AI generation could not start (${response.status}).`);
+  }
 
-  for (let attempt = 0; attempt < 120; attempt += 1) {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
     const status = await getJournalAiStatus(postId);
     if (!status) throw new Error('The saved journal post could not be found.');
-    if (status.generation_status === 'failed') throw new Error(status.last_error || 'AI generation failed.');
-    if (status.generation_status === 'completed' && status.status === 'published' && Number(status.translation_count) >= 15) {
-      window.alert('Journal post published successfully in 15 languages.');
+    onProgress?.(progressStage(status), status);
+
+    if (status.generation_status === 'failed') {
+      throw new Error(status.last_error || 'AI generation failed.');
+    }
+
+    if (
+      status.generation_status === 'completed'
+      && status.status === 'published'
+      && Number(status.translation_count) === 15
+    ) {
       return status;
     }
+
     await wait(1000);
   }
 
-  throw new Error('AI generation is taking too long. The event is saved and processing; refresh the journal overview to check its confirmed status.');
+  throw new Error('AI generation timed out before publication was confirmed. The editor remains open so you can retry safely.');
 }
 
 export async function createJourneyPerson(payload: Record<string, unknown>) {

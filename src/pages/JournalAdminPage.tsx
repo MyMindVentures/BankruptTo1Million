@@ -9,8 +9,7 @@ import {
   getJournalEventContext,
   getJournalOptions,
   listJournalPosts,
-  saveJournalAiSource,
-  saveJournalEventContext,
+  prepareJournalAi,
   updateJournalPost,
   uploadJournalFootage,
   type EventTypeOption,
@@ -143,9 +142,10 @@ export function JournalAdminPage() {
     }
     setSaving(true);
     setError(null);
-    setSaveStage('Creating event record…');
+    setSaveStage('Saving event…');
 
     try {
+      const occurredAt = new Date(eventForm.occurred_at).toISOString();
       const placeholderTitle = editingId && form.title
         ? form.title
         : `Journal event ${new Date(eventForm.occurred_at).toLocaleString()}`;
@@ -155,7 +155,7 @@ export function JournalAdminPage() {
         title: placeholderTitle,
         body: editingId ? form.body || '' : '',
         excerpt: editingId ? form.excerpt || '' : '',
-        status: editingId ? form.status || 'draft' : 'draft',
+        status: 'draft' as const,
         published_at: editingId ? form.published_at || '' : '',
         category_id: form.category_id || '',
         primary_creator_id: form.primary_creator_id || '',
@@ -165,41 +165,61 @@ export function JournalAdminPage() {
         ? await updateJournalPost(editingId, basePayload)
         : await createJournalPost(basePayload);
 
-      setSaveStage('Saving people, location and event metadata…');
-      await saveJournalEventContext(saved.id, {
-        ...eventForm,
-        occurred_at: new Date(eventForm.occurred_at).toISOString(),
-        description: '',
-      });
+      setEditingId(saved.id);
 
-      setSaveStage(`Uploading ${footage.length} footage file${footage.length === 1 ? '' : 's'}…`);
+      setSaveStage(`Uploading media${footage.length ? ` (${footage.length})` : ''}…`);
+      const uploadedAssetIds: string[] = [];
       for (let index = 0; index < footage.length; index += 1) {
-        await uploadJournalFootage(saved.id, footage[index], index, eventForm);
+        uploadedAssetIds.push(await uploadJournalFootage(saved.id, footage[index], index, {
+          ...eventForm,
+          occurred_at: occurredAt,
+        }));
       }
 
-      setSaveStage('Saving private notes for AI…');
-      await saveJournalAiSource(saved.id, eventForm.description, {
-        event_type: eventForm.event_type,
-        occurred_at: new Date(eventForm.occurred_at).toISOString(),
-        location_name: eventForm.location_name,
-        address_text: eventForm.address_text,
-        plus_code: eventForm.plus_code,
-        latitude: eventForm.latitude,
-        longitude: eventForm.longitude,
-        subject_founder_ids: eventForm.subject_founder_ids,
-        person_ids: eventForm.person_ids,
-        footage: footage.map((file) => ({ name: file.name, type: file.type, size: file.size })),
+      setSaveStage('Preparing AI source…');
+      await prepareJournalAi(
+        saved.id,
+        {
+          ...eventForm,
+          occurred_at: occurredAt,
+          description: '',
+        },
+        eventForm.description.trim(),
+        {
+          event_type: eventForm.event_type,
+          occurred_at: occurredAt,
+          timezone: eventForm.timezone,
+          journey_person: eventForm.journey_person,
+          location_name: eventForm.location_name,
+          address_text: eventForm.address_text,
+          plus_code: eventForm.plus_code,
+          latitude: eventForm.latitude,
+          longitude: eventForm.longitude,
+          featured_business_name: eventForm.featured_business_name || '',
+          subject_founder_ids: eventForm.subject_founder_ids,
+          person_ids: eventForm.person_ids,
+          media_asset_ids: uploadedAssetIds,
+          footage: footage.map((file) => ({ name: file.name, type: file.type, size: file.size })),
+        },
+      );
+
+      setSaveStage('Generating story…');
+      await generateJournalAiPost(saved.id, (stage, aiStatus) => {
+        if (stage === 'translating') {
+          setSaveStage(`Translating 15 languages… (${Math.min(Number(aiStatus.translation_count), 15)}/15)`);
+        } else if (stage === 'publishing') {
+          setSaveStage('Publishing…');
+        } else {
+          setSaveStage('Generating story…');
+        }
       });
 
-      setSaveStage('AI is writing and translating the public story…');
-      await generateJournalAiPost(saved.id);
-
+      setSaveStage('Published successfully in 15 languages.');
       setEditorOpen(false);
-      setSaveStage('');
       window.history.replaceState({}, '', '/admin/journal');
       await load();
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'AI publication failed. The event remains safely stored as a draft.');
+      setError(reason instanceof Error ? reason.message : 'AI publication failed. The editor remains open and the event can be retried safely.');
     } finally {
       setSaving(false);
       setSaveStage('');
@@ -264,7 +284,7 @@ export function JournalAdminPage() {
         </aside>
       </div>
 
-      <footer><button type="button" onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>{saving && <span className="journal-save-stage">{saveStage}</span>}<button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? 'Regenerate and update public story' : 'Generate and publish in 15 languages'}</button></footer>
+      <footer><button type="button" disabled={saving} onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>{saving && <span className="journal-save-stage" role="status" aria-live="polite">{saveStage}</span>}<button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? 'Regenerate and update public story' : 'Generate and publish in 15 languages'}</button></footer>
     </form></div>}
   </div>;
 }
