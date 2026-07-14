@@ -25,59 +25,49 @@ export type AdminSession = { access_token: string; refresh_token: string; expire
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 export type AdminRow = Record<string, unknown>;
 
-export type AiRetryPolicy = { max_attempts?: number; base_delay_ms?: number; retry_on?: number[] };
-export type AiEdgeFunctionConfig = AdminRow & {
-  id: string;
-  edge_function_slug: string;
-  display_name?: string | null;
-  description?: string | null;
-  provider?: string | null;
-  model?: string | null;
-  primary_model_id?: string | null;
-  active_prompt_version_id?: string | null;
-  temperature?: number | string | null;
-  max_output_tokens?: number | null;
-  timeout_ms?: number | null;
-  retry_policy?: AiRetryPolicy | null;
-  cost_limit_usd?: number | string | null;
-  latency_warning_ms?: number | null;
-  enable_run_logging?: boolean | null;
-  verify_jwt?: boolean | null;
-  is_active?: boolean | null;
-  is_deprecated?: boolean | null;
-  config_version?: number | null;
-  updated_at?: string | null;
+export type AdminSectionField = {
+  name: string;
+  labelKey: string;
+  labelFallback: string;
+  displayOrder: number;
+  showInList: boolean;
+  showInEditor: boolean;
+  readOnly: boolean;
+  required: boolean;
+  inputType: 'text' | 'textarea' | 'boolean' | 'number' | 'datetime' | 'date' | 'url' | 'email' | 'select' | 'json';
+  options: unknown[];
 };
+
+export type AdminSectionDefinition = {
+  key: string;
+  route: string;
+  titleKey: string;
+  titleFallback: string;
+  descriptionKey: string;
+  descriptionFallback: string;
+  sourceTable: string;
+  primaryKey: string;
+  titleField: string;
+  subtitleField?: string | null;
+  statusField?: string | null;
+  dateField?: string | null;
+  imageField?: string | null;
+  linkField?: string | null;
+  variant: 'table' | 'cards' | 'media' | 'timeline' | 'settings' | 'audit';
+  orderField: string;
+  orderDirection: 'asc' | 'desc';
+  defaultLimit: number;
+  requiredRoles: string[];
+  fields: AdminSectionField[];
+};
+
+export type AiRetryPolicy = { max_attempts?: number; base_delay_ms?: number; retry_on?: number[] };
+export type AiEdgeFunctionConfig = AdminRow & { id: string; edge_function_slug: string; display_name?: string | null; description?: string | null; provider?: string | null; model?: string | null; primary_model_id?: string | null; active_prompt_version_id?: string | null; temperature?: number | string | null; max_output_tokens?: number | null; timeout_ms?: number | null; retry_policy?: AiRetryPolicy | null; cost_limit_usd?: number | string | null; latency_warning_ms?: number | null; enable_run_logging?: boolean | null; verify_jwt?: boolean | null; is_active?: boolean | null; is_deprecated?: boolean | null; config_version?: number | null; updated_at?: string | null; };
 export type AiProvider = AdminRow & { id: string; slug: string; display_name: string; is_active?: boolean | null; };
 export type AiModel = AdminRow & { id: string; model_key: string; display_name?: string | null; provider_id?: string | null; is_active?: boolean | null; max_output_tokens?: number | null; };
-export type AiPromptVersion = AdminRow & {
-  id: string;
-  edge_function_config_id: string;
-  name: string;
-  version?: number | null;
-  system_prompt?: string | null;
-  user_prompt_template?: string | null;
-  change_summary?: string | null;
-  is_active?: boolean | null;
-  created_at?: string | null;
-};
-export type AiFunctionRun = AdminRow & {
-  id: string;
-  edge_function_slug?: string | null;
-  status?: string | null;
-  provider?: string | null;
-  model?: string | null;
-  latency_ms?: number | null;
-  estimated_cost_usd?: number | string | null;
-  started_at?: string | null;
-};
-export type AiControlCenterData = {
-  configs: AiEdgeFunctionConfig[];
-  providers: AiProvider[];
-  models: AiModel[];
-  prompts: AiPromptVersion[];
-  runs: AiFunctionRun[];
-};
+export type AiPromptVersion = AdminRow & { id: string; edge_function_config_id: string; name: string; version?: number | null; system_prompt?: string | null; user_prompt_template?: string | null; change_summary?: string | null; is_active?: boolean | null; created_at?: string | null; };
+export type AiFunctionRun = AdminRow & { id: string; edge_function_slug?: string | null; status?: string | null; provider?: string | null; model?: string | null; latency_ms?: number | null; estimated_cost_usd?: number | string | null; started_at?: string | null; };
+export type AiControlCenterData = { configs: AiEdgeFunctionConfig[]; providers: AiProvider[]; models: AiModel[]; prompts: AiPromptVersion[]; runs: AiFunctionRun[]; };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -106,16 +96,27 @@ export function getAdminSession(): AdminSession | null {
 
 function accessToken(): string | null { return getAdminSession()?.access_token || null; }
 
+function formatSupabaseError(payload: unknown, status: number): string {
+  if (!payload || typeof payload !== 'object') return `Supabase request failed (${status})`;
+  const error = payload as { message?: string; error_description?: string; code?: string; details?: string; hint?: string };
+  const parts = [error.message || error.error_description || `Supabase request failed (${status})`];
+  if (error.code) parts.push(`code: ${error.code}`);
+  if (error.details) parts.push(`details: ${error.details}`);
+  if (error.hint) parts.push(`hint: ${error.hint}`);
+  return parts.join(' · ');
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   requireConfig();
   const token = accessToken();
   const response = await fetch(`${supabaseUrl}${path}`, {
     ...init,
+    cache: 'no-store',
     headers: { apikey: anonKey!, Authorization: `Bearer ${token || anonKey}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
   });
   if (!response.ok) {
-    const payload = await response.json().catch(() => null) as { message?: string; error_description?: string } | null;
-    throw new Error(payload?.message || payload?.error_description || `Supabase request failed (${response.status})`);
+    const payload = await response.json().catch(() => null);
+    throw new Error(formatSupabaseError(payload, response.status));
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -123,22 +124,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function signInAdmin(email: string, password: string): Promise<{ session: AdminSession; access: AdminAccess }> {
   requireConfig();
-  const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
-    method: 'POST',
-    headers: { apikey: anonKey!, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password }),
-  });
+  const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, { method: 'POST', headers: { apikey: anonKey!, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }) });
   const payload = await response.json() as AdminSession & { error_description?: string; msg?: string };
   if (!response.ok || !payload.access_token) throw new Error(payload.error_description || payload.msg || 'Ongeldige login.');
   payload.expires_at = payload.expires_at || Math.floor(Date.now() / 1000) + 3600;
   localStorage.setItem(sessionKey, JSON.stringify(payload));
-  try {
-    const access = await getAdminAccess();
-    return { session: payload, access };
-  } catch (error) {
-    localStorage.removeItem(sessionKey);
-    throw error;
-  }
+  try { return { session: payload, access: await getAdminAccess() }; }
+  catch (error) { localStorage.removeItem(sessionKey); throw error; }
 }
 
 export async function getAdminAccess(): Promise<AdminAccess> {
@@ -163,53 +155,81 @@ export async function restoreAdminAuth(): Promise<{ session: AdminSession; acces
 
 export async function signOutAdmin() {
   const token = accessToken();
-  if (token && supabaseUrl && anonKey) {
-    await fetch(`${supabaseUrl}/auth/v1/logout`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${token}` } }).catch(() => undefined);
-  }
+  if (token && supabaseUrl && anonKey) await fetch(`${supabaseUrl}/auth/v1/logout`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${token}` } }).catch(() => undefined);
   localStorage.removeItem(sessionKey);
 }
 
 export async function getAdminDashboardData() {
-  const [modules, overview, tasks, notifications, audit] = await Promise.all([
-    request<AdminModule[]>('/rest/v1/admin_modules?select=key,label,route,icon,group_key,display_order,required_roles,badge_source,is_enabled&is_enabled=eq.true&order=group_key.asc,display_order.asc'),
-    request<AdminOverview>('/rest/v1/rpc/get_admin_dashboard_overview', { method: 'POST', body: '{}' }),
-    request<AdminTask[]>('/rest/v1/admin_tasks?select=id,title,status,priority,due_at&status=not.in.(done,cancelled)&order=due_at.asc.nullslast&limit=6'),
-    request<AdminNotification[]>('/rest/v1/admin_notifications?select=id,title,message,severity,created_at,is_read&order=created_at.desc&limit=6'),
-    request<AuditEntry[]>('/rest/v1/admin_audit_log?select=id,action,table_name,occurred_at,actor_email&order=occurred_at.desc&limit=8'),
-  ]);
-  const hasAiControlCenter = modules.some((module) => module.route === '/admin/ai');
-  const normalizedModules = hasAiControlCenter ? modules : [...modules, {
-    key: 'ai_control_center', label: 'AI Control Center', route: '/admin/ai', icon: 'bot', group_key: 'intelligence', display_order: 10,
-    required_roles: ['admin'], badge_source: null, is_enabled: true,
-  }];
-  return { modules: normalizedModules, overview, tasks, notifications, audit };
+  const sources = {
+    modules: request<AdminModule[]>('/rest/v1/admin_modules?select=key,label,route,icon,group_key,display_order,required_roles,badge_source,is_enabled&is_enabled=eq.true&order=group_key.asc,display_order.asc'),
+    overview: request<AdminOverview>('/rest/v1/rpc/get_admin_dashboard_overview', { method: 'POST', body: '{}' }),
+    tasks: request<AdminTask[]>('/rest/v1/admin_tasks?select=id,title,status,priority,due_at&status=not.in.(done,cancelled)&order=due_at.asc.nullslast&limit=6'),
+    notifications: request<AdminNotification[]>('/rest/v1/admin_notifications?select=id,title,message,severity,created_at,is_read&order=created_at.desc&limit=6'),
+    audit: request<AuditEntry[]>('/rest/v1/admin_audit_log?select=id,action,table_name,occurred_at,actor_email&order=occurred_at.desc&limit=8'),
+  };
+  const entries = await Promise.all(Object.entries(sources).map(async ([name, promise]) => {
+    try { return [name, { value: await promise }] as const; }
+    catch (error) { return [name, { error: error instanceof Error ? error.message : 'Unknown query error' }] as const; }
+  }));
+  const result = Object.fromEntries(entries) as Record<string, { value?: unknown; error?: string }>;
+  const modules = (result.modules.value as AdminModule[] | undefined) || [];
+  return {
+    modules,
+    overview: (result.overview.value as AdminOverview | undefined) || {},
+    tasks: (result.tasks.value as AdminTask[] | undefined) || [],
+    notifications: (result.notifications.value as AdminNotification[] | undefined) || [],
+    audit: (result.audit.value as AuditEntry[] | undefined) || [],
+    errors: Object.fromEntries(Object.entries(result).filter(([, item]) => item.error).map(([name, item]) => [name, item.error!])) as Record<string, string>,
+  };
 }
 
-export async function getAdminSectionRows(table: string, select: string, order: string, limit = 100): Promise<AdminRow[]> {
-  return request<AdminRow[]>(`/rest/v1/${table}?select=${encodeURIComponent(select)}&order=${encodeURIComponent(order)}&limit=${limit}`);
+export async function getAdminSectionDefinition(route: string, signal?: AbortSignal): Promise<AdminSectionDefinition> {
+  const definition = await request<AdminSectionDefinition>('/rest/v1/rpc/get_admin_section_definition', {
+    method: 'POST',
+    body: JSON.stringify({ p_route: route }),
+    signal,
+  });
+  if (!definition?.sourceTable || !definition.fields?.length) throw new Error(`Incomplete Admin metadata returned for ${route}.`);
+  return definition;
 }
 
-export async function updateAdminRow(table: string, key: string, value: string, changes: AdminRow): Promise<AdminRow[]> {
-  return request<AdminRow[]>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, {
+function uniqueFields(definition: AdminSectionDefinition): string[] {
+  return [...new Set([
+    definition.primaryKey,
+    definition.titleField,
+    definition.subtitleField,
+    definition.statusField,
+    definition.dateField,
+    definition.imageField,
+    definition.linkField,
+    definition.orderField,
+    ...definition.fields.map((field) => field.name),
+  ].filter((field): field is string => Boolean(field)))];
+}
+
+export async function getAdminSectionRows(definition: AdminSectionDefinition, signal?: AbortSignal): Promise<AdminRow[]> {
+  const select = uniqueFields(definition).join(',');
+  const order = `${definition.orderField}.${definition.orderDirection}`;
+  return request<AdminRow[]>(`/rest/v1/${encodeURIComponent(definition.sourceTable)}?select=${encodeURIComponent(select)}&order=${encodeURIComponent(order)}&limit=${definition.defaultLimit}`, { signal });
+}
+
+export async function updateAdminSectionRow(definition: AdminSectionDefinition, keyValue: string, changes: AdminRow): Promise<AdminRow[]> {
+  const allowed = new Set(definition.fields.filter((field) => field.showInEditor && !field.readOnly).map((field) => field.name));
+  const sanitized = Object.fromEntries(Object.entries(changes).filter(([key]) => allowed.has(key)));
+  if (!Object.keys(sanitized).length) throw new Error('No editable fields were supplied.');
+  return request<AdminRow[]>(`/rest/v1/${encodeURIComponent(definition.sourceTable)}?${encodeURIComponent(definition.primaryKey)}=eq.${encodeURIComponent(keyValue)}`, {
     method: 'PATCH',
     headers: { Prefer: 'return=representation' },
-    body: JSON.stringify(changes),
+    body: JSON.stringify(sanitized),
   });
 }
 
 export async function createAdminRow(table: string, values: AdminRow): Promise<AdminRow[]> {
-  return request<AdminRow[]>(`/rest/v1/${table}`, {
-    method: 'POST',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify(values),
-  });
+  return request<AdminRow[]>(`/rest/v1/${table}`, { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify(values) });
 }
 
 export async function deleteAdminRow(table: string, key: string, value: string): Promise<void> {
-  await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, {
-    method: 'DELETE',
-    headers: { Prefer: 'return=minimal' },
-  });
+  await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
 }
 
 export async function getAiControlCenterData(): Promise<AiControlCenterData> {
@@ -224,36 +244,13 @@ export async function getAiControlCenterData(): Promise<AiControlCenterData> {
 }
 
 export async function updateAiEdgeFunctionConfig(edgeFunctionSlug: string, patch: AdminRow): Promise<unknown> {
-  return request('/rest/v1/rpc/admin_update_ai_edge_function_config', {
-    method: 'POST',
-    body: JSON.stringify({ p_edge_function_slug: edgeFunctionSlug, p_patch: patch }),
-  });
+  return request('/rest/v1/rpc/admin_update_ai_edge_function_config', { method: 'POST', body: JSON.stringify({ p_edge_function_slug: edgeFunctionSlug, p_patch: patch }) });
 }
 
-export async function createAiPromptVersion(input: {
-  edgeFunctionSlug: string;
-  name: string;
-  systemPrompt: string;
-  userPromptTemplate: string;
-  changeSummary: string;
-  activate: boolean;
-}): Promise<unknown> {
-  return request('/rest/v1/rpc/admin_create_ai_prompt_version', {
-    method: 'POST',
-    body: JSON.stringify({
-      p_edge_function_slug: input.edgeFunctionSlug,
-      p_name: input.name,
-      p_system_prompt: input.systemPrompt,
-      p_user_prompt_template: input.userPromptTemplate,
-      p_change_summary: input.changeSummary,
-      p_activate: input.activate,
-    }),
-  });
+export async function createAiPromptVersion(input: { edgeFunctionSlug: string; name: string; systemPrompt: string; userPromptTemplate: string; changeSummary: string; activate: boolean; }): Promise<unknown> {
+  return request('/rest/v1/rpc/admin_create_ai_prompt_version', { method: 'POST', body: JSON.stringify({ p_edge_function_slug: input.edgeFunctionSlug, p_name: input.name, p_system_prompt: input.systemPrompt, p_user_prompt_template: input.userPromptTemplate, p_change_summary: input.changeSummary, p_activate: input.activate }) });
 }
 
 export async function activateAiPromptVersion(promptVersionId: string): Promise<unknown> {
-  return request('/rest/v1/rpc/admin_activate_ai_prompt_version', {
-    method: 'POST',
-    body: JSON.stringify({ p_prompt_version_id: promptVersionId }),
-  });
+  return request('/rest/v1/rpc/admin_activate_ai_prompt_version', { method: 'POST', body: JSON.stringify({ p_prompt_version_id: promptVersionId }) });
 }

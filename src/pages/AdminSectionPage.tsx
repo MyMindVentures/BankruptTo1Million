@@ -1,42 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, ExternalLink, Filter, LoaderCircle, RefreshCw, Search, Save, X } from 'lucide-react';
-import { getAdminSectionRows, updateAdminRow, type AdminRow } from '../lib/adminApi';
-
-type SectionConfig = {
-  key: string;
-  title: string;
-  description: string;
-  table: string;
-  select: string;
-  order: string;
-  primaryKey: string;
-  titleField: string;
-  subtitleField?: string;
-  statusField?: string;
-  dateField?: string;
-  imageField?: string;
-  linkField?: string;
-  variant: 'table' | 'cards' | 'media' | 'timeline' | 'settings' | 'audit';
-  columns: string[];
-  statusOptions?: string[];
-};
-
-const configs: Record<string, SectionConfig> = {
-  '/admin/journal': { key:'journal', title:'Journal', description:'Create, review and publish mission stories.', table:'journal_posts', select:'id,title,slug,status,excerpt,is_featured,published_at,updated_at', order:'updated_at.desc', primaryKey:'id', titleField:'title', subtitleField:'excerpt', statusField:'status', dateField:'updated_at', variant:'cards', columns:['title','status','is_featured','published_at'], statusOptions:['draft','scheduled','published','archived'] },
-  '/admin/journey': { key:'journey', title:'Journey', description:'Manage map points, timeline entries and lived experiences.', table:'journal_journey_entries', select:'id,entry_type,occurred_at,city_name,location_name,what_happened,mood,show_on_map,show_on_timeline,is_milestone', order:'occurred_at.desc', primaryKey:'id', titleField:'location_name', subtitleField:'what_happened', statusField:'entry_type', dateField:'occurred_at', variant:'timeline', columns:['location_name','city_name','entry_type','occurred_at','show_on_map','show_on_timeline'] },
-  '/admin/break-the-circle': { key:'break_the_circle', title:'Break the Circle', description:'Manage featured campaign stories and calls to action.', table:'break_the_circle_posts', select:'id,journal_post_id,cta_label,cta_url,is_featured,featured_order,updated_at', order:'featured_order.asc', primaryKey:'id', titleField:'cta_label', subtitleField:'cta_url', statusField:'is_featured', dateField:'updated_at', linkField:'cta_url', variant:'cards', columns:['cta_label','cta_url','is_featured','featured_order'] },
-  '/admin/media': { key:'media_vault', title:'Media Vault', description:'Review assets, metadata, publication status and visibility.', table:'media_assets', select:'id,title,asset_type,description,thumbnail_url,external_url,storage_bucket,storage_path,status,visibility,show_in_media_vault,created_at', order:'created_at.desc', primaryKey:'id', titleField:'title', subtitleField:'description', statusField:'status', dateField:'created_at', imageField:'thumbnail_url', linkField:'external_url', variant:'media', columns:['title','asset_type','status','visibility','show_in_media_vault'], statusOptions:['ready','uploading','processing','failed','archived'] },
-  '/admin/people': { key:'people', title:'People & Hosts', description:'Manage hosts, contacts, consent and public profiles.', table:'journey_people', select:'id,display_name,full_name,person_type,role_title,short_bio,location,email,consent_to_publish,is_public,updated_at', order:'updated_at.desc', primaryKey:'id', titleField:'display_name', subtitleField:'short_bio', statusField:'person_type', dateField:'updated_at', variant:'cards', columns:['display_name','person_type','role_title','location','is_public'] },
-  '/admin/proof-of-mind': { key:'proof_of_mind', title:'Proof of Mind', description:'Manage concepts, visibility, scores and publication state.', table:'proof_of_mind_concepts', select:'id,title,slug,tagline,category,concept_status,visibility,concept_score,is_featured,published_at,updated_at', order:'display_order.asc', primaryKey:'id', titleField:'title', subtitleField:'tagline', statusField:'concept_status', dateField:'updated_at', variant:'cards', columns:['title','category','concept_status','visibility','concept_score','is_featured'], statusOptions:['idea','concept','validation','building','launched','archived'] },
-  '/admin/leads': { key:'leads', title:'Leads & Pipeline', description:'Track people, companies, interest and outreach status.', table:'leads', select:'id,full_name,email,company_name,role,lead_type,status,interest,country,updated_at', order:'updated_at.desc', primaryKey:'id', titleField:'full_name', subtitleField:'company_name', statusField:'status', dateField:'updated_at', variant:'table', columns:['full_name','company_name','role','lead_type','status','country'], statusOptions:['new','contacted','qualified','proposal','won','lost'] },
-  '/admin/applications': { key:'applications', title:'Applications', description:'Review applicants, motivation and availability.', table:'applications', select:'id,full_name,email,location,availability,status,motivation,experience_summary,created_at', order:'created_at.desc', primaryKey:'id', titleField:'full_name', subtitleField:'motivation', statusField:'status', dateField:'created_at', variant:'cards', columns:['full_name','email','location','availability','status'], statusOptions:['new','reviewing','interview','accepted','rejected'] },
-  '/admin/founding-heroes': { key:'founding_heroes', title:'Founding Heroes', description:'Manage public recognition for contributors and supporters.', table:'founding_heroes', select:'id,display_name,role_title,short_bio,location,avatar_url,recognition_level,is_published,featured,joined_at,updated_at', order:'updated_at.desc', primaryKey:'id', titleField:'display_name', subtitleField:'short_bio', statusField:'recognition_level', dateField:'joined_at', imageField:'avatar_url', variant:'cards', columns:['display_name','role_title','recognition_level','is_published','featured'] },
-  '/admin/journal/comments': { key:'comments', title:'Comments', description:'Moderate visitor comments and pinned conversations.', table:'journal_comments', select:'id,display_name,email,body,status,is_pinned,created_at', order:'created_at.desc', primaryKey:'id', titleField:'display_name', subtitleField:'body', statusField:'status', dateField:'created_at', variant:'cards', columns:['display_name','email','status','is_pinned','created_at'], statusOptions:['pending','approved','rejected','spam'] },
-  '/admin/issues': { key:'issues', title:'GitHub Issues', description:'Follow delivery status, difficulty and implementation evidence.', table:'github_issues', select:'id,issue_number,repository_full_name,display_title,title,state,discipline,difficulty,delivery_status,verification_status,issue_url,github_updated_at', order:'github_updated_at.desc', primaryKey:'id', titleField:'display_title', subtitleField:'repository_full_name', statusField:'state', dateField:'github_updated_at', linkField:'issue_url', variant:'table', columns:['issue_number','display_title','repository_full_name','state','discipline','difficulty','delivery_status'], statusOptions:['open','closed'] },
-  '/admin/users': { key:'users', title:'Users & Roles', description:'Manage the admin allowlist and role access.', table:'admin_allowlist', select:'email,full_name,role,is_active,created_at,updated_at', order:'updated_at.desc', primaryKey:'email', titleField:'full_name', subtitleField:'email', statusField:'role', dateField:'updated_at', variant:'table', columns:['full_name','email','role','is_active','updated_at'], statusOptions:['admin','editor','media_manager'] },
-  '/admin/settings': { key:'settings', title:'Site Settings', description:'Configure mission-control system settings.', table:'admin_system_settings', select:'key,category,label,description,value,is_secret,updated_at', order:'category.asc', primaryKey:'key', titleField:'label', subtitleField:'description', statusField:'category', dateField:'updated_at', variant:'settings', columns:['label','category','value','is_secret','updated_at'] },
-  '/admin/audit': { key:'audit', title:'Audit Log', description:'Trace all recent administrative and content changes.', table:'admin_audit_log', select:'id,occurred_at,actor_email,action,table_name,record_id,changed_fields', order:'occurred_at.desc', primaryKey:'id', titleField:'action', subtitleField:'table_name', dateField:'occurred_at', variant:'audit', columns:['occurred_at','actor_email','action','table_name','record_id'] },
-};
+import { ExternalLink, Filter, LoaderCircle, RefreshCw, Save, Search, X } from 'lucide-react';
+import {
+  getAdminSectionDefinition,
+  getAdminSectionRows,
+  updateAdminSectionRow,
+  type AdminRow,
+  type AdminSectionDefinition,
+  type AdminSectionField,
+} from '../lib/adminApi';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 function text(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';
@@ -45,11 +17,37 @@ function text(value: unknown) {
   return String(value);
 }
 
-function label(value: string) { return value.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()); }
+function editorValue(value: unknown, field: AdminSectionField): string {
+  if (value === null || value === undefined) return '';
+  if (field.inputType === 'json') return typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+  if (field.inputType === 'datetime' && typeof value === 'string') return value.slice(0, 16);
+  return String(value);
+}
+
+function coerceValue(value: unknown, field: AdminSectionField): unknown {
+  if (field.inputType === 'boolean') return Boolean(value);
+  const raw = typeof value === 'string' ? value.trim() : value;
+  if (raw === '') {
+    if (field.required) throw new Error(`${field.labelFallback} is required.`);
+    return null;
+  }
+  if (field.inputType === 'number') {
+    const number = Number(raw);
+    if (!Number.isFinite(number)) throw new Error(`${field.labelFallback} must be a valid number.`);
+    return number;
+  }
+  if (field.inputType === 'json') {
+    try { return typeof raw === 'string' ? JSON.parse(raw) : raw; }
+    catch { throw new Error(`${field.labelFallback} must contain valid JSON.`); }
+  }
+  if (field.inputType === 'datetime' && typeof raw === 'string') return new Date(raw).toISOString();
+  return raw;
+}
 
 export function AdminSectionPage({ path }: { path: string }) {
-  const config = configs[path];
-  const [rows, setRows] = useState<AdminRow[]>([]);
+  const { t } = useWebsiteI18n();
+  const [definition, setDefinition] = useState<AdminSectionDefinition | null>(null);
+  const [rows, setRows] = useState<AdminRow[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -57,66 +55,125 @@ export function AdminSectionPage({ path }: { path: string }) {
   const [editing, setEditing] = useState<AdminRow | null>(null);
   const [saving, setSaving] = useState(false);
 
-  async function load() {
-    if (!config) return;
-    setLoading(true); setError(null);
-    try { setRows(await getAdminSectionRows(config.table, config.select, config.order)); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : 'Data kon niet worden geladen.'); }
-    finally { setLoading(false); }
+  async function load(signal?: AbortSignal) {
+    setLoading(true);
+    setError(null);
+    setRows(null);
+    try {
+      const nextDefinition = await getAdminSectionDefinition(path, signal);
+      const nextRows = await getAdminSectionRows(nextDefinition, signal);
+      setDefinition(nextDefinition);
+      setRows(nextRows);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === 'AbortError') return;
+      setDefinition(null);
+      setError(reason instanceof Error ? reason.message : t('admin.error.load', 'Data could not be loaded.'));
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
   }
 
-  useEffect(() => { void load(); }, [path]);
+  useEffect(() => {
+    const controller = new AbortController();
+    setQuery('');
+    setStatus('all');
+    setEditing(null);
+    void load(controller.signal);
+    return () => controller.abort();
+  }, [path]);
 
-  const filtered = useMemo(() => rows.filter((row) => {
-    const haystack = JSON.stringify(row).toLowerCase();
-    const matchesQuery = haystack.includes(query.toLowerCase());
-    const matchesStatus = status === 'all' || text(row[config?.statusField || '']).toLowerCase() === status.toLowerCase();
-    return matchesQuery && matchesStatus;
-  }), [rows, query, status, config]);
+  const listFields = useMemo(() => definition?.fields.filter((field) => field.showInList).sort((a, b) => a.displayOrder - b.displayOrder) || [], [definition]);
+  const editorFields = useMemo(() => definition?.fields.filter((field) => field.showInEditor).sort((a, b) => a.displayOrder - b.displayOrder) || [], [definition]);
 
-  if (!config) return <div className="admin-section-empty">Unknown admin section.</div>;
+  const filtered = useMemo(() => {
+    if (!rows || !definition) return [];
+    return rows.filter((row) => {
+      const haystack = JSON.stringify(row).toLowerCase();
+      const matchesQuery = haystack.includes(query.toLowerCase());
+      const matchesStatus = status === 'all' || text(row[definition.statusField || '']).toLowerCase() === status.toLowerCase();
+      return matchesQuery && matchesStatus;
+    });
+  }, [rows, query, status, definition]);
+
+  const statusOptions = useMemo(() => {
+    if (!rows || !definition?.statusField) return [];
+    const configured = definition.fields.find((field) => field.name === definition.statusField)?.options || [];
+    const values = configured.length ? configured.map(String) : rows.map((row) => text(row[definition.statusField!])).filter((value) => value !== '—');
+    return [...new Set(values)];
+  }, [rows, definition]);
 
   async function saveEdit() {
-    if (!editing) return;
-    setSaving(true); setError(null);
+    if (!editing || !definition) return;
+    setSaving(true);
+    setError(null);
     try {
-      const keyValue = text(editing[config.primaryKey]);
-      const mutable: AdminRow = {};
-      config.columns.forEach((column) => { if (column !== config.primaryKey) mutable[column] = editing[column]; });
-      await updateAdminRow(config.table, config.primaryKey, keyValue, mutable);
+      const keyValue = editing[definition.primaryKey];
+      if (keyValue === null || keyValue === undefined || keyValue === '') throw new Error('The record primary key is missing.');
+      const changes: AdminRow = {};
+      for (const field of editorFields) {
+        if (field.readOnly) continue;
+        changes[field.name] = coerceValue(editing[field.name], field);
+      }
+      await updateAdminSectionRow(definition, String(keyValue), changes);
       setEditing(null);
       await load();
-    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Opslaan mislukt.'); }
-    finally { setSaving(false); }
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t('admin.error.save', 'Saving failed.'));
+    } finally {
+      setSaving(false);
+    }
   }
+
+  function renderInput(field: AdminSectionField) {
+    if (!editing) return null;
+    const value = editing[field.name];
+    const disabled = field.readOnly;
+    if (field.inputType === 'boolean') {
+      return <button type="button" disabled={disabled} className={`admin-toggle ${value ? 'on' : ''}`} onClick={() => setEditing({ ...editing, [field.name]: !value })}><i />{value ? t('admin.enabled', 'Enabled') : t('admin.disabled', 'Disabled')}</button>;
+    }
+    if (field.inputType === 'select') {
+      return <select disabled={disabled} value={value === null || value === undefined ? '' : String(value)} onChange={(event) => setEditing({ ...editing, [field.name]: event.target.value })}><option value="">—</option>{field.options.map((option) => <option key={String(option)} value={String(option)}>{String(option)}</option>)}</select>;
+    }
+    if (field.inputType === 'textarea' || field.inputType === 'json') {
+      return <textarea disabled={disabled} value={editorValue(value, field)} onChange={(event) => setEditing({ ...editing, [field.name]: event.target.value })} />;
+    }
+    const inputType = field.inputType === 'datetime' ? 'datetime-local' : field.inputType === 'number' ? 'number' : field.inputType;
+    return <input disabled={disabled} required={field.required} type={inputType} value={editorValue(value, field)} onChange={(event) => setEditing({ ...editing, [field.name]: event.target.value })} />;
+  }
+
+  if (loading) return <div className="admin-loading"><LoaderCircle className="spin" /> {t('admin.loading.live_data', 'Loading live data…')}</div>;
+  if (error && !definition) return <div className="admin-error">{error}</div>;
+  if (!definition || rows === null) return <div className="admin-section-empty">{t('admin.metadata.missing', 'Admin metadata is unavailable.')}</div>;
+
+  const title = t(definition.titleKey, definition.titleFallback);
+  const description = t(definition.descriptionKey, definition.descriptionFallback);
 
   return (
     <div className="admin-section-page">
       <div className="admin-section-heading">
-        <div><p>ADMIN SECTION</p><h1>{config.title}</h1><span>{config.description}</span></div>
-        <button onClick={() => void load()}><RefreshCw size={16} /> Refresh</button>
+        <div><p>{t('admin.section.eyebrow', 'ADMIN SECTION')}</p><h1>{title}</h1><span>{description}</span></div>
+        <button onClick={() => void load()}><RefreshCw size={16} /> {t('admin.refresh', 'Refresh')}</button>
       </div>
 
       <div className="admin-section-toolbar">
-        <div><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={`Search ${config.title.toLowerCase()}...`} /></div>
-        {config.statusField && <label><Filter size={15} /><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All</option>{[...new Set(rows.map((r) => text(r[config.statusField!])).filter((v) => v !== '—'))].map((v) => <option key={v} value={v}>{label(v)}</option>)}</select></label>}
-        <span>{filtered.length} records</span>
+        <div><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.search.placeholder', 'Search {section}…', { section: title.toLowerCase() })} /></div>
+        {definition.statusField && <label><Filter size={15} /><select value={status} onChange={(event) => setStatus(event.target.value)}><option value="all">{t('admin.filter.all', 'All')}</option>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>}
+        <span>{t('admin.records.count', '{count} records', { count: filtered.length })}</span>
       </div>
 
-      {loading && <div className="admin-loading"><LoaderCircle className="spin" /> Loading live data…</div>}
       {error && <div className="admin-error">{error}</div>}
 
-      {!loading && config.variant === 'media' && <div className="admin-media-grid">{filtered.map((row) => <article key={text(row[config.primaryKey])} onClick={() => setEditing(row)}>{row[config.imageField || ''] ? <img src={text(row[config.imageField || ''])} alt="" /> : <div className="admin-media-placeholder">MEDIA</div>}<div><strong>{text(row[config.titleField])}</strong><span>{text(row[config.subtitleField || 'asset_type'])}</span><small>{text(row[config.statusField || 'status'])}</small></div></article>)}</div>}
+      {definition.variant === 'media' && <div className="admin-media-grid">{filtered.map((row) => <article key={text(row[definition.primaryKey])} onClick={() => setEditing({ ...row })}>{definition.imageField && row[definition.imageField] ? <img src={String(row[definition.imageField])} alt="" /> : <div className="admin-media-placeholder">MEDIA</div>}<div><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span><small>{text(row[definition.statusField || ''])}</small></div></article>)}</div>}
 
-      {!loading && config.variant === 'timeline' && <div className="admin-timeline-list">{filtered.map((row) => <button key={text(row[config.primaryKey])} onClick={() => setEditing(row)}><i /><div><time>{text(row[config.dateField || ''])}</time><strong>{text(row[config.titleField])}</strong><span>{text(row[config.subtitleField || ''])}</span></div></button>)}</div>}
+      {definition.variant === 'timeline' && <div className="admin-timeline-list">{filtered.map((row) => <button key={text(row[definition.primaryKey])} onClick={() => setEditing({ ...row })}><i /><div><time>{text(row[definition.dateField || ''])}</time><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span></div></button>)}</div>}
 
-      {!loading && ['cards','settings'].includes(config.variant) && <div className="admin-record-grid">{filtered.map((row) => <article key={text(row[config.primaryKey])}><div><strong>{text(row[config.titleField])}</strong><span>{text(row[config.subtitleField || ''])}</span></div><div className="admin-record-meta">{config.columns.slice(1,5).map((column) => <p key={column}><small>{label(column)}</small><b>{text(row[column])}</b></p>)}</div><footer><button onClick={() => setEditing(row)}>Edit</button>{config.linkField && row[config.linkField] ? <a href={text(row[config.linkField])} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Open</a> : null}</footer></article>)}</div>}
+      {['cards', 'settings'].includes(definition.variant) && <div className="admin-record-grid">{filtered.map((row) => <article key={text(row[definition.primaryKey])}><div><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span></div><div className="admin-record-meta">{listFields.slice(1, 5).map((field) => <p key={field.name}><small>{t(field.labelKey, field.labelFallback)}</small><b>{text(row[field.name])}</b></p>)}</div><footer>{editorFields.some((field) => !field.readOnly) && <button onClick={() => setEditing({ ...row })}>{t('admin.edit', 'Edit')}</button>}{definition.linkField && row[definition.linkField] ? <a href={String(row[definition.linkField])} target="_blank" rel="noreferrer"><ExternalLink size={14} /> {t('admin.open', 'Open')}</a> : null}</footer></article>)}</div>}
 
-      {!loading && ['table','audit'].includes(config.variant) && <div className="admin-data-table"><table><thead><tr>{config.columns.map((column) => <th key={column}>{label(column)}</th>)}{config.variant !== 'audit' && <th />}</tr></thead><tbody>{filtered.map((row) => <tr key={text(row[config.primaryKey])}>{config.columns.map((column) => <td key={column}>{column === config.linkField && row[column] ? <a href={text(row[column])} target="_blank" rel="noreferrer">Open <ExternalLink size={12} /></a> : text(row[column])}</td>)}{config.variant !== 'audit' && <td><button onClick={() => setEditing(row)}>Edit</button></td>}</tr>)}</tbody></table></div>}
+      {['table', 'audit'].includes(definition.variant) && <div className="admin-data-table"><table><thead><tr>{listFields.map((field) => <th key={field.name}>{t(field.labelKey, field.labelFallback)}</th>)}{definition.variant !== 'audit' && editorFields.some((field) => !field.readOnly) && <th />}</tr></thead><tbody>{filtered.map((row) => <tr key={text(row[definition.primaryKey])}>{listFields.map((field) => <td key={field.name}>{field.name === definition.linkField && row[field.name] ? <a href={String(row[field.name])} target="_blank" rel="noreferrer">{t('admin.open', 'Open')} <ExternalLink size={12} /></a> : text(row[field.name])}</td>)}{definition.variant !== 'audit' && editorFields.some((field) => !field.readOnly) && <td><button onClick={() => setEditing({ ...row })}>{t('admin.edit', 'Edit')}</button></td>}</tr>)}</tbody></table></div>}
 
-      {!loading && filtered.length === 0 && <div className="admin-section-empty">No records found.</div>}
+      {filtered.length === 0 && <div className="admin-section-empty">{t('admin.records.empty', 'No records found.')}</div>}
 
-      {editing && <div className="admin-editor-backdrop"><section className="admin-editor"><header><div><p>EDIT RECORD</p><h2>{text(editing[config.titleField])}</h2></div><button onClick={() => setEditing(null)}><X /></button></header><div className="admin-editor-fields">{config.columns.filter((column) => column !== config.primaryKey).map((column) => <label key={column}><span>{label(column)}</span>{config.statusOptions && column === config.statusField ? <select value={text(editing[column])} onChange={(e) => setEditing({ ...editing, [column]: e.target.value })}>{config.statusOptions.map((option) => <option key={option} value={option}>{label(option)}</option>)}</select> : typeof editing[column] === 'boolean' ? <button className={`admin-toggle ${editing[column] ? 'on' : ''}`} onClick={() => setEditing({ ...editing, [column]: !editing[column] })}><i />{editing[column] ? 'Enabled' : 'Disabled'}</button> : <input value={text(editing[column]) === '—' ? '' : text(editing[column])} onChange={(e) => setEditing({ ...editing, [column]: e.target.value })} />}</label>)}</div><footer><button onClick={() => setEditing(null)}>Cancel</button><button className="primary" onClick={() => void saveEdit()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} Save changes</button></footer></section></div>}
+      {editing && <div className="admin-editor-backdrop"><section className="admin-editor"><header><div><p>{t('admin.editor.eyebrow', 'EDIT RECORD')}</p><h2>{text(editing[definition.titleField])}</h2></div><button onClick={() => setEditing(null)}><X /></button></header><div className="admin-editor-fields">{editorFields.map((field) => <label key={field.name}><span>{t(field.labelKey, field.labelFallback)}</span>{renderInput(field)}</label>)}</div><footer><button onClick={() => setEditing(null)}>{t('admin.cancel', 'Cancel')}</button><button className="primary" onClick={() => void saveEdit()} disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Save size={16} />} {t('admin.save_changes', 'Save changes')}</button></footer></section></div>}
     </div>
   );
 }
