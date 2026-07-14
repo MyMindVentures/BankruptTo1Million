@@ -3,6 +3,7 @@ import { Activity, Bell, ChevronRight, CircleAlert, Database, FileText, FolderKa
 import type { LucideIcon } from 'lucide-react';
 import { getAdminDashboardData, type AdminModule, type AdminNotification, type AdminTask, type AuditEntry } from '../lib/adminApi';
 import { AdminSectionPage } from './AdminSectionPage';
+import { JournalAdminPage } from './JournalAdminPage';
 
 const iconMap: Record<string, LucideIcon> = {
   activity: Activity, award: Sparkles, bookopentext: FileText, circledotdashed: Sparkles, database: Database,
@@ -78,7 +79,7 @@ export function AdminDashboardPage() {
     <main className="admin-main">
       <header className="admin-topbar"><button className="admin-icon-button admin-menu" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><div className="admin-search"><Search size={18} /><input placeholder="Search content, people, media..." /></div><div className="admin-topbar-actions"><button className="admin-icon-button"><Bell size={20} /></button><div className="admin-avatar">KD</div></div></header>
       <div className="admin-content">
-        {!isOverview ? <AdminSectionPage path={path} /> : <>
+        {path === '/admin/journal' ? <JournalAdminPage /> : !isOverview ? <AdminSectionPage path={path} /> : <>
           <section className="admin-heading"><div><p>MISSION CONTROL</p><h1>Admin overview</h1><span>Live operational view of the Bankrupt to 1 Million platform.</span></div><div className="admin-health"><span /><strong>{error ? 'Connection issue' : 'Platform connected'}</strong></div></section>
           {loading && <div className="admin-loading"><LoaderCircle className="spin" /> Loading dashboard data…</div>}
           {error && <div className="admin-error"><CircleAlert size={20} /><div><strong>Live data unavailable</strong><span>{error}</span></div></div>}
