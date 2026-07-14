@@ -135,29 +135,23 @@ function wait(milliseconds: number) {
 }
 
 export async function generateJournalAiPost(postId: string) {
-  if (!supabaseUrl) throw new Error('Supabase configuration is missing.');
-
-  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post-browser`, {
+  await request<number>('/rest/v1/rpc/admin_start_journal_ai', {
     method: 'POST',
-    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-    body: JSON.stringify({ post_id: postId, access_token: token() }),
+    body: JSON.stringify({ post_id: postId }),
   });
 
-  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string; languages?: string[] } | null;
-  if (!response.ok) throw new Error(result?.error || `AI generation could not start (${response.status}).`);
-
-  for (let attempt = 0; attempt < 90; attempt += 1) {
+  for (let attempt = 0; attempt < 120; attempt += 1) {
     const status = await getJournalAiStatus(postId);
     if (!status) throw new Error('The saved journal post could not be found.');
     if (status.generation_status === 'failed') throw new Error(status.last_error || 'AI generation failed.');
-    if (status.generation_status === 'completed' && status.status === 'published' && status.translation_count >= 15) {
+    if (status.generation_status === 'completed' && status.status === 'published' && Number(status.translation_count) >= 15) {
       window.alert('Journal post published successfully in 15 languages.');
       return status;
     }
     await wait(1000);
   }
 
-  throw new Error('AI generation is taking too long. The event is saved; refresh the journal overview to check its status.');
+  throw new Error('AI generation is taking too long. The event is saved and processing; refresh the journal overview to check its confirmed status.');
 }
 
 export async function createJourneyPerson(payload: Record<string, unknown>) {
