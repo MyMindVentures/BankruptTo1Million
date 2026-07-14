@@ -145,7 +145,7 @@ export function FounderProfilePage({ slug }: { slug: string }) {
           </section>
         ) : null}
 
-        {founder ? <>
+        {founder ? <div key={founder.id}>
           <FounderProfileHero founder={founder} milestoneCount={timeline.length} />
           <FounderLocalNav />
           <FounderSnapshot founder={founder} />
@@ -157,7 +157,7 @@ export function FounderProfilePage({ slug }: { slug: string }) {
           <FounderMissionSection founder={founder} />
           <FounderFinalCta founder={founder} />
           <FounderSwitch currentSlug={founder.slug} />
-        </> : null}
+        </div> : null}
       </main>
     </div>
     <Footer />
