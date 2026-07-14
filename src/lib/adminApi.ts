@@ -140,3 +140,10 @@ export async function createAdminRow(table: string, values: AdminRow): Promise<A
     body: JSON.stringify(values),
   });
 }
+
+export async function deleteAdminRow(table: string, key: string, value: string): Promise<void> {
+  await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, {
+    method: 'DELETE',
+    headers: { Prefer: 'return=minimal' },
+  });
+}
