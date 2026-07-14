@@ -1,3 +1,7 @@
+.post-qr-modal-open {
+  overflow: hidden;
+}
+
 .post-qr-modal {
   position: fixed;
   inset: 0;
@@ -68,9 +72,20 @@
   opacity: 0.62;
 }
 
-.post-qr-modal__error {
-  margin: 1rem 0 0;
+.post-qr-modal__state {
+  display: grid;
+  justify-items: center;
+  gap: 0.8rem;
+  min-height: 12rem;
+  align-content: center;
+}
+
+.post-qr-modal__state--error {
   color: #ffb4a8;
+}
+
+.post-qr-modal__state--error p {
+  margin: 0;
 }
 
 .post-qr-button[aria-busy='true'] {
@@ -78,9 +93,25 @@
   opacity: 0.72;
 }
 
+.post-qr-button__spinner {
+  animation: post-qr-spin 0.8s linear infinite;
+}
+
+@keyframes post-qr-spin {
+  to { transform: rotate(360deg); }
+}
+
 @media (max-width: 560px) {
+  .post-qr-modal {
+    padding: 0.75rem;
+  }
+
   .post-qr-modal__panel {
     padding: 1.5rem 1rem 1.2rem;
     border-radius: 1.2rem;
+  }
+
+  .post-qr-modal__image {
+    width: min(100%, 20rem);
   }
 }
