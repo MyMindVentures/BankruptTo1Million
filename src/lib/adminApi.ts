@@ -95,6 +95,11 @@ export async function getAdminAccess(): Promise<AdminAccess> {
   return access;
 }
 
+export async function canCreateJournalPost(): Promise<boolean> {
+  if (!getAdminSession()) return false;
+  return request<boolean>('/rest/v1/rpc/can_create_journal_post', { method: 'POST', body: '{}' });
+}
+
 export async function restoreAdminAuth(): Promise<{ session: AdminSession; access: AdminAccess } | null> {
   const session = getAdminSession();
   if (!session) return null;
