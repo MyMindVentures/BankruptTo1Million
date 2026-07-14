@@ -1,83 +1,96 @@
-export type AdminModule = {
-  id: string;
-  key: string;
-  name: string;
-  route: string;
-  icon: string | null;
-  group_name: string | null;
-  sort_order: number | null;
-  required_roles: string[] | null;
-  badge_source: string | null;
-  is_active: boolean | null;
-};
-
-export type AdminTask = {
-  id: string;
-  title: string;
-  status: string | null;
-  priority: string | null;
-  due_at: string | null;
-};
-
-export type AdminNotification = {
-  id: string;
-  title: string;
-  body: string | null;
-  severity: string | null;
-  created_at: string;
-  read_at: string | null;
-};
-
-export type AuditEntry = {
-  id: string;
-  action: string;
-  entity_type: string | null;
-  created_at: string;
-  actor_email: string | null;
-};
-
+export type AdminModule = { id: string; key: string; name: string; route: string; icon: string | null; group_name: string | null; sort_order: number | null; required_roles: string[] | null; badge_source: string | null; is_active: boolean | null; };
+export type AdminTask = { id: string; title: string; status: string | null; priority: string | null; due_at: string | null; };
+export type AdminNotification = { id: string; title: string; body: string | null; severity: string | null; created_at: string; read_at: string | null; };
+export type AuditEntry = { id: string; action: string; entity_type: string | null; created_at: string; actor_email: string | null; };
 export type AdminOverview = Record<string, unknown>;
+export type AdminSession = { access_token: string; refresh_token: string; expires_at?: number; user: { id: string; email?: string }; };
+export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const sessionKey = 'bankrupt1m.admin.session';
 
-function accessToken(): string | null {
-  const direct = localStorage.getItem('supabase.auth.token');
-  if (direct) return direct;
+function requireConfig() {
+  if (!supabaseUrl || !anonKey) throw new Error('VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY ontbreken.');
+}
 
-  const storageKey = Object.keys(localStorage).find((key) => key.startsWith('sb-') && key.endsWith('-auth-token'));
-  if (!storageKey) return null;
-
+export function getAdminSession(): AdminSession | null {
   try {
-    const session = JSON.parse(localStorage.getItem(storageKey) || '{}') as { access_token?: string };
-    return session.access_token || null;
+    const stored = localStorage.getItem(sessionKey);
+    if (!stored) return null;
+    const session = JSON.parse(stored) as AdminSession;
+    if (!session.access_token || !session.user) return null;
+    if (session.expires_at && Date.now() / 1000 >= session.expires_at) {
+      localStorage.removeItem(sessionKey);
+      return null;
+    }
+    return session;
   } catch {
+    localStorage.removeItem(sessionKey);
     return null;
   }
 }
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  if (!supabaseUrl || !anonKey) {
-    throw new Error('VITE_SUPABASE_URL en VITE_SUPABASE_ANON_KEY ontbreken.');
-  }
+function accessToken(): string | null { return getAdminSession()?.access_token || null; }
 
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  requireConfig();
   const token = accessToken();
   const response = await fetch(`${supabaseUrl}${path}`, {
     ...init,
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${token || anonKey}`,
-      'Content-Type': 'application/json',
-      ...(init?.headers || {}),
-    },
+    headers: { apikey: anonKey!, Authorization: `Bearer ${token || anonKey}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
   });
-
   if (!response.ok) {
-    const message = await response.text();
-    throw new Error(message || `Supabase request failed (${response.status})`);
+    const payload = await response.json().catch(() => null) as { message?: string; error_description?: string } | null;
+    throw new Error(payload?.message || payload?.error_description || `Supabase request failed (${response.status})`);
   }
-
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+export async function signInAdmin(email: string, password: string): Promise<{ session: AdminSession; access: AdminAccess }> {
+  requireConfig();
+  const response = await fetch(`${supabaseUrl}/auth/v1/token?grant_type=password`, {
+    method: 'POST',
+    headers: { apikey: anonKey!, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const payload = await response.json() as AdminSession & { error_description?: string; msg?: string };
+  if (!response.ok || !payload.access_token) throw new Error(payload.error_description || payload.msg || 'Ongeldige login.');
+  payload.expires_at = payload.expires_at || Math.floor(Date.now() / 1000) + 3600;
+  localStorage.setItem(sessionKey, JSON.stringify(payload));
+  try {
+    const access = await getAdminAccess(payload.user.email || email);
+    if (!access.is_active || !['admin', 'editor', 'media_manager'].includes(access.role)) throw new Error('Dit account heeft geen actieve admin-toegang.');
+    return { session: payload, access };
+  } catch (error) {
+    localStorage.removeItem(sessionKey);
+    throw error;
+  }
+}
+
+export async function getAdminAccess(email?: string): Promise<AdminAccess> {
+  const session = getAdminSession();
+  const target = email || session?.user.email;
+  if (!session || !target) throw new Error('Geen geldige adminsessie.');
+  const rows = await request<AdminAccess[]>(`/rest/v1/admin_allowlist?select=email,full_name,role,is_active&email=eq.${encodeURIComponent(target)}&limit=1`);
+  if (!rows[0]) throw new Error('Dit account staat niet op de admin allowlist.');
+  return rows[0];
+}
+
+export async function restoreAdminAuth(): Promise<{ session: AdminSession; access: AdminAccess } | null> {
+  const session = getAdminSession();
+  if (!session) return null;
+  try { return { session, access: await getAdminAccess() }; }
+  catch { localStorage.removeItem(sessionKey); return null; }
+}
+
+export async function signOutAdmin() {
+  const token = accessToken();
+  if (token && supabaseUrl && anonKey) {
+    await fetch(`${supabaseUrl}/auth/v1/logout`, { method: 'POST', headers: { apikey: anonKey, Authorization: `Bearer ${token}` } }).catch(() => undefined);
+  }
+  localStorage.removeItem(sessionKey);
 }
 
 export async function getAdminDashboardData() {
@@ -88,6 +101,5 @@ export async function getAdminDashboardData() {
     request<AdminNotification[]>('/rest/v1/admin_notifications?select=id,title,body,severity,created_at,read_at&order=created_at.desc&limit=6'),
     request<AuditEntry[]>('/rest/v1/admin_audit_log?select=id,action,entity_type,created_at,actor_email&order=created_at.desc&limit=8'),
   ]);
-
   return { modules, overview, tasks, notifications, audit };
 }
