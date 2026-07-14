@@ -28,7 +28,7 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v5.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v6.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 const PUBLIC_SITE_ROOT_SELECTOR = '#root';
@@ -237,7 +237,12 @@ export function WebsiteI18nProvider({ children }: { children: ReactNode }) {
     setLanguageState(languageCode);
   }, [languages]);
 
-  const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => interpolate(bundle.byKey[key] || fallback, variables), [bundle]);
+  const t = useCallback((key: string, fallback: string, variables?: TranslationVariables) => {
+    const translated = language === DEFAULT_LANGUAGE
+      ? bundle.byKey[key] || fallback
+      : bundle.byKey[key] || bundle.bySource[normalizeText(fallback)] || fallback;
+    return interpolate(translated, variables);
+  }, [bundle, language]);
   const translateText = useCallback((fallback: string, variables?: TranslationVariables) => {
     const translated = language === DEFAULT_LANGUAGE ? fallback : bundle.bySource[normalizeText(fallback)] || fallback;
     return interpolate(translated, variables);
