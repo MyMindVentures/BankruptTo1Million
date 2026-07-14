@@ -135,10 +135,16 @@ function wait(milliseconds: number) {
 }
 
 export async function generateJournalAiPost(postId: string) {
-  await request<number>('/rest/v1/rpc/admin_start_journal_ai', {
+  if (!supabaseUrl) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post-browser`, {
     method: 'POST',
-    body: JSON.stringify({ post_id: postId }),
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify({ post_id: postId, access_token: token() }),
   });
+
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+  if (!response.ok) throw new Error(result?.error || `AI generation could not start (${response.status}).`);
 
   for (let attempt = 0; attempt < 120; attempt += 1) {
     const status = await getJournalAiStatus(postId);
