@@ -1,13 +1,16 @@
 function positionJournalTimelineOnLatestEvent() {
-  const track = document.querySelector<HTMLElement>('.journey-timeline-track');
+  const track = document.querySelector<HTMLElement>('.journal-priority-timeline');
   if (!track || track.dataset.initialLatestPositioned === 'true') return;
 
-  const activeCard = track.querySelector<HTMLElement>('button.is-active[data-journey-id]');
+  const activeCard = track.querySelector<HTMLElement>('.journal-priority-timeline__card.is-active');
   if (!activeCard) return;
 
   requestAnimationFrame(() => {
     requestAnimationFrame(() => {
-      track.scrollLeft = Math.max(0, track.scrollWidth - track.clientWidth);
+      track.scrollTo({
+        left: Math.max(0, track.scrollWidth - track.clientWidth),
+        behavior: 'auto',
+      });
       track.dataset.initialLatestPositioned = 'true';
     });
   });
