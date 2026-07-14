@@ -15,7 +15,7 @@ export type JournalPayload = Omit<JournalPost, 'id' | 'created_at' | 'updated_at
 export type JournalEventPayload = {
   subject_founder_ids: string[]; person_ids: string[]; event_type: string; occurred_at: string;
   timezone: string; journey_person: string; location_name: string; address_text: string;
-  latitude: string; longitude: string; plus_code: string; description: string;
+  latitude: string; longitude: string; plus_code: string; featured_business_name: string; description: string;
   show_on_map: boolean; show_on_timeline: boolean; is_public_location: boolean;
 };
 
@@ -67,7 +67,7 @@ export async function getJournalOptions() {
 }
 
 export async function getJournalEventContext(postId: string): Promise<Partial<JournalEventPayload>> {
-  const entries = await request<Array<Record<string, unknown>>>(`/rest/v1/journal_journey_entries?select=id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,show_on_map,show_on_timeline,is_public_location&journal_post_id=eq.${postId}&order=created_at.asc&limit=1`);
+  const entries = await request<Array<Record<string, unknown>>>(`/rest/v1/journal_journey_entries?select=id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,featured_business_name,show_on_map,show_on_timeline,is_public_location&journal_post_id=eq.${postId}&order=created_at.asc&limit=1`);
   const entry = entries[0];
   if (!entry) return {};
   const [subjects, people] = await Promise.all([
@@ -86,6 +86,7 @@ export async function getJournalEventContext(postId: string): Promise<Partial<Jo
     latitude: entry.latitude == null ? '' : String(entry.latitude),
     longitude: entry.longitude == null ? '' : String(entry.longitude),
     plus_code: String(entry.plus_code || ''),
+    featured_business_name: String(entry.featured_business_name || ''),
     description: '',
     show_on_map: Boolean(entry.show_on_map),
     show_on_timeline: Boolean(entry.show_on_timeline),
@@ -156,6 +157,7 @@ export async function uploadJournalFootage(postId: string, file: File, index: nu
         occurred_at: event.occurred_at,
         event_type: event.event_type,
         location_name: event.location_name,
+        featured_business_name: event.featured_business_name,
         plus_code: event.plus_code,
         latitude: event.latitude,
         longitude: event.longitude,
