@@ -40,8 +40,11 @@ async function parse<T>(response: Response): Promise<T> {
 }
 
 export async function listFounderSupportMessages(): Promise<FounderSupportMessage[]> {
-  const select = 'id,founder_profile_id,recipient_scope,sender_name,sender_email,sender_location,sender_relationship,message_type,title,body,status,is_featured,is_anonymous,consent_to_publish,consent_to_contact,moderation_notes,moderated_at,published_at,created_at,updated_at,original_language';
-  return parse(await fetch(`${supabaseUrl}/rest/v1/founder_support_messages?select=${encodeURIComponent(select)}&order=created_at.desc&limit=250`, { headers: headers() }));
+  return parse(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_list_founder_support_messages`, {
+    method: 'POST',
+    headers: headers(),
+    body: '{}',
+  }));
 }
 
 export async function moderateFounderSupportMessage(input: {
