@@ -5,8 +5,6 @@ import { Button } from './ui/button';
 import { Callout } from './ui/card';
 import { supabase } from '../lib/supabase';
 
-const JOURNEY_ACTIVE_STORAGE_KEY = 'bankrupt-to-1m:journal-active-point';
-
 const STARTER_POINTS: PremiumJourneyPoint[] = [
   {
     journey_entry_id: 'starter-santa-pola', slug: '', title: 'Where the rebuild becomes public',
@@ -45,51 +43,36 @@ function matchesFilter(point: PremiumJourneyPoint, value: 'all' | PremiumJourney
   return value === 'all' || point.journey_person === value || point.journey_person === 'together';
 }
 
-function newestPoint(points: PremiumJourneyPoint[], value: 'all' | PremiumJourneyPoint['journey_person']) {
-  const matching = points.filter((point) => matchesFilter(point, value));
-  const current = matching.filter((point) => point.is_current_location);
-  const candidates = current.length ? current : matching;
-
-  return [...candidates].sort(
-    (a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime(),
-  )[0];
+function eventTimestamp(point: PremiumJourneyPoint) {
+  const timestamp = new Date(point.occurred_at).getTime();
+  return Number.isFinite(timestamp) ? timestamp : Number.NEGATIVE_INFINITY;
 }
 
-function getStoredActiveId() {
-  if (typeof window === 'undefined') return undefined;
-  return window.sessionStorage.getItem(JOURNEY_ACTIVE_STORAGE_KEY) || undefined;
+function newestPoint(points: PremiumJourneyPoint[], value: 'all' | PremiumJourneyPoint['journey_person']) {
+  return points
+    .filter((point) => matchesFilter(point, value))
+    .sort((a, b) => eventTimestamp(b) - eventTimestamp(a) || b.journey_entry_id.localeCompare(a.journey_entry_id))[0];
 }
 
 export function JournalJourneyMapSection() {
   const [livePoints, setLivePoints] = useState<PremiumJourneyPoint[]>([]);
   const [mapFeedError, setMapFeedError] = useState('');
   const [filter, setFilter] = useState<'all' | PremiumJourneyPoint['journey_person']>('all');
-  const [activeId, setActiveId] = useState(() => getStoredActiveId() || STARTER_POINTS[0].journey_entry_id);
+  const [activeId, setActiveId] = useState(() => newestPoint(STARTER_POINTS, 'all')?.journey_entry_id);
 
   useEffect(() => {
-    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc' }))
+    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.desc,journey_entry_id.desc' }))
       .then((rows) => {
         setMapFeedError('');
         setLivePoints(rows);
-        const storedActiveId = getStoredActiveId();
-        const storedPointStillExists = storedActiveId && rows.some((point) => point.journey_entry_id === storedActiveId);
-        if (storedPointStillExists) {
-          setActiveId(storedActiveId);
-          return;
-        }
-        const newest = newestPoint(rows, 'all');
-        if (newest) setActiveId(newest.journey_entry_id);
+        setActiveId(newestPoint(rows, 'all')?.journey_entry_id);
       })
       .catch((error: unknown) => {
         setLivePoints([]);
         setMapFeedError(error instanceof Error ? error.message : 'The live map feed could not be loaded.');
+        setActiveId(newestPoint(STARTER_POINTS, 'all')?.journey_entry_id);
       });
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || !activeId) return;
-    window.sessionStorage.setItem(JOURNEY_ACTIVE_STORAGE_KEY, activeId);
-  }, [activeId]);
 
   const source = livePoints.length ? livePoints : STARTER_POINTS;
   const points = useMemo(() => source.filter((point) => matchesFilter(point, filter)), [source, filter]);
@@ -105,11 +88,8 @@ export function JournalJourneyMapSection() {
   const selectPoint = (journeyEntryId: string) => {
     const selectedPoint = source.find((point) => point.journey_entry_id === journeyEntryId);
     setActiveId(journeyEntryId);
-    if (typeof window !== 'undefined') {
-      window.sessionStorage.setItem(JOURNEY_ACTIVE_STORAGE_KEY, journeyEntryId);
-      if (selectedPoint?.slug) {
-        window.location.assign(`/journal/${encodeURIComponent(selectedPoint.slug)}`);
-      }
+    if (typeof window !== 'undefined' && selectedPoint?.slug) {
+      window.location.assign(`/journal/${encodeURIComponent(selectedPoint.slug)}`);
     }
   };
 
