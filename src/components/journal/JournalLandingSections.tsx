@@ -2,6 +2,7 @@ import { Archive, ArrowRight, ChevronDown, Filter, Gift, HandHeart, MapPin, Sear
 import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
+import { JourneyFootageCarousel, type JourneyFootageItem } from './JourneyFootageCarousel';
 import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
 import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
 
@@ -24,6 +25,7 @@ export type JourneyPoint = PremiumJourneyPoint & {
   marker_variant?: string;
   effective_journey_order?: number;
   involved_people: JourneyInvolvedPerson[];
+  footage?: JourneyFootageItem[];
 };
 
 export type TimelineExchangeItem = {
@@ -204,6 +206,7 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
 
         return <article key={point.journey_entry_id} className={`journal-priority-timeline__card is-${pointPeriod} ${isActive ? 'is-active' : ''}`}>
           <span className="journal-priority-timeline__dot" />
+          <JourneyFootageCarousel items={point.footage} title={point.title} />
           <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}>
             <div className="journal-timeline-card__topline">
               <time>{formatJournalDate(point.occurred_at)}</time>
