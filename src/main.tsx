@@ -50,6 +50,7 @@ import './styles/footer-layout-fix.css';
 import './styles/journalArticle.css';
 import './styles/adminDashboard.css';
 import './styles/adminAuth.css';
+import './styles/adminSections.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
