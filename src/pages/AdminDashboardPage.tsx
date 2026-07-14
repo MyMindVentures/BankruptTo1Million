@@ -14,7 +14,7 @@ import {
   LayoutDashboard,
   ListChecks,
   LoaderCircle,
-  Map,
+  Map as MapIcon,
   Menu,
   MessageSquare,
   Search,
@@ -44,7 +44,7 @@ const iconMap: Record<string, LucideIcon> = {
   globe: Globe2,
   image: Image,
   layout: LayoutDashboard,
-  map: Map,
+  map: MapIcon,
   message: MessageSquare,
   settings: Settings,
   shield: ShieldCheck,
@@ -55,7 +55,7 @@ const iconMap: Record<string, LucideIcon> = {
 const fallbackGroups = [
   { name: 'Overview', icon: LayoutDashboard },
   { name: 'Content', icon: FileText },
-  { name: 'Journey', icon: Map },
+  { name: 'Journey', icon: MapIcon },
   { name: 'Proof of Mind', icon: Sparkles },
   { name: 'Media', icon: Image },
   { name: 'Community', icon: Users },
@@ -235,7 +235,7 @@ export function AdminDashboardPage() {
               <div className="admin-panel-header"><div><p>Shortcuts</p><h2>Quick actions</h2></div><Gauge size={20} /></div>
               <button><FileText size={18} /><span><strong>Create journal post</strong><small>Start a new story</small></span><ChevronRight /></button>
               <button><Image size={18} /><span><strong>Upload media</strong><small>Add to Media Vault</small></span><ChevronRight /></button>
-              <button><Map size={18} /><span><strong>Add journey point</strong><small>Update map and timeline</small></span><ChevronRight /></button>
+              <button><MapIcon size={18} /><span><strong>Add journey point</strong><small>Update map and timeline</small></span><ChevronRight /></button>
               <button><Users size={18} /><span><strong>Review community</strong><small>Messages and offers</small></span><ChevronRight /></button>
             </article>
           </section>
