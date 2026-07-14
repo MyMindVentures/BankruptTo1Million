@@ -50,6 +50,7 @@ import './styles/buildRequests.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 import './styles/journalArticle.css';
+import './styles/journalArticleFullContentFix.css';
 import './styles/adminDashboard.css';
 import './styles/adminAuth.css';
 import './styles/adminSections.css';

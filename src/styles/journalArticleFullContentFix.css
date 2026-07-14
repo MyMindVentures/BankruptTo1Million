@@ -1,0 +1,39 @@
+/* Ensure generated journal articles always render their complete Markdown output.
+   These rules intentionally override generic card/clamp/overflow utilities that may
+   be loaded elsewhere in the application. */
+.journal-article .journal-body {
+  display: block;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.journal-article .journal-body > *,
+.journal-article .journal-body h1,
+.journal-article .journal-body h2,
+.journal-article .journal-body h3,
+.journal-article .journal-body p,
+.journal-article .journal-body blockquote {
+  display: block;
+  width: auto;
+  height: auto;
+  max-height: none;
+  overflow: visible;
+  white-space: normal;
+  text-overflow: clip;
+  overflow-wrap: break-word;
+  word-break: normal;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+}
+
+.journal-article .journal-body h1,
+.journal-article .journal-body h2,
+.journal-article .journal-body h3 {
+  max-width: 100%;
+}
