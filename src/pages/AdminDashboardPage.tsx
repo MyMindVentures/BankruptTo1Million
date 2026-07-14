@@ -35,19 +35,32 @@ import {
 
 const iconMap: Record<string, LucideIcon> = {
   activity: Activity,
+  award: Sparkles,
+  bookopentext: FileText,
   bot: Bot,
+  circledotdashed: Sparkles,
   database: Database,
   file: FileText,
   'file-text': FileText,
   folder: FolderKanban,
+  folderkanban: FolderKanban,
+  funnel: Gauge,
   gauge: Gauge,
+  github: Database,
   globe: Globe2,
   image: Image,
+  inbox: Bell,
   layout: LayoutDashboard,
+  layoutdashboard: LayoutDashboard,
+  lightbulb: Sparkles,
   map: MapIcon,
+  mappinned: MapIcon,
   message: MessageSquare,
+  messagesquaretext: MessageSquare,
+  scrolltext: Activity,
   settings: Settings,
   shield: ShieldCheck,
+  shieldcheck: ShieldCheck,
   sparkles: Sparkles,
   users: Users,
 };
@@ -62,25 +75,12 @@ const fallbackGroups = [
   { name: 'System', icon: Settings },
 ];
 
-const fallbackKpis = [
-  ['Journal posts', 45],
-  ['Proof of Mind', 34],
-  ['Media assets', 6],
-  ['Translation jobs', 869],
-];
-
-function toNumber(value: unknown): number | null {
-  if (typeof value === 'number') return value;
-  if (typeof value === 'string' && value.trim() && !Number.isNaN(Number(value))) return Number(value);
-  return null;
-}
-
 function humanize(value: string) {
   return value.replace(/_/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
 function ModuleIcon({ module }: { module: AdminModule }) {
-  const key = (module.icon || '').toLowerCase();
+  const key = (module.icon || '').toLowerCase().replace(/[^a-z-]/g, '');
   const Icon = iconMap[key] || iconMap[key.replace(/^lucide-/, '')] || FolderKanban;
   return <Icon size={18} strokeWidth={1.8} />;
 }
@@ -89,7 +89,7 @@ function Sidebar({ modules, open, close }: { modules: AdminModule[]; open: boole
   const groups = useMemo(() => {
     const grouped = new Map<string, AdminModule[]>();
     modules.forEach((module) => {
-      const group = module.group_name || 'Other';
+      const group = module.group_key || 'other';
       grouped.set(group, [...(grouped.get(group) || []), module]);
     });
     return [...grouped.entries()];
@@ -106,11 +106,11 @@ function Sidebar({ modules, open, close }: { modules: AdminModule[]; open: boole
       <nav className="admin-nav" aria-label="Admin navigation">
         {groups.length > 0 ? groups.map(([group, items]) => (
           <section key={group} className="admin-nav-group">
-            <p>{group}</p>
-            {items.map((module, index) => (
-              <a key={module.id} href={module.route || '#'} className={index === 0 && group.toLowerCase() === 'overview' ? 'active' : ''}>
+            <p>{humanize(group)}</p>
+            {items.map((module) => (
+              <a key={module.key} href={module.route || '#'} className={window.location.pathname === module.route ? 'active' : ''}>
                 <ModuleIcon module={module} />
-                <span>{module.name}</span>
+                <span>{module.label}</span>
                 <ChevronRight size={14} className="admin-nav-arrow" />
               </a>
             ))}
@@ -144,7 +144,7 @@ function Notifications({ notifications }: { notifications: AdminNotification[] }
   return <div className="admin-list">{notifications.map((item) => (
     <div className="admin-list-row" key={item.id}>
       <div className={`admin-notification-icon ${item.severity || 'info'}`}><Bell size={16} /></div>
-      <div><strong>{item.title}</strong><span>{item.body || new Date(item.created_at).toLocaleString()}</span></div>
+      <div><strong>{item.title}</strong><span>{item.message || new Date(item.created_at).toLocaleString()}</span></div>
     </div>
   ))}</div>;
 }
@@ -154,8 +154,8 @@ function AuditLog({ entries }: { entries: AuditEntry[] }) {
   return <div className="admin-audit">{entries.map((entry) => (
     <div key={entry.id}>
       <Activity size={15} />
-      <p><strong>{humanize(entry.action)}</strong><span>{entry.entity_type ? humanize(entry.entity_type) : 'System'} · {entry.actor_email || 'System'}</span></p>
-      <time>{new Date(entry.created_at).toLocaleString()}</time>
+      <p><strong>{humanize(entry.action)}</strong><span>{entry.table_name ? humanize(entry.table_name) : 'System'} · {entry.actor_email || 'System'}</span></p>
+      <time>{new Date(entry.occurred_at).toLocaleString()}</time>
     </div>
   ))}</div>;
 }
@@ -173,14 +173,12 @@ export function AdminDashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const kpis = useMemo(() => {
-    if (!data?.overview) return fallbackKpis;
-    const entries = Object.entries(data.overview)
-      .map(([key, value]) => [humanize(key), toNumber(value)] as const)
-      .filter((entry): entry is readonly [string, number] => entry[1] !== null)
-      .slice(0, 4);
-    return entries.length ? entries : fallbackKpis;
-  }, [data]);
+  const kpis = useMemo(() => [
+    ['Journal posts', data?.overview.content?.journal_total ?? 0],
+    ['Proof of Mind', data?.overview.ventures?.concepts ?? 0],
+    ['Media assets', data?.overview.media?.assets ?? 0],
+    ['Open GitHub issues', data?.overview.delivery?.open_issues ?? 0],
+  ] as const, [data]);
 
   return (
     <div className="admin-root">
@@ -200,7 +198,7 @@ export function AdminDashboardPage() {
         <div className="admin-content">
           <section className="admin-heading">
             <div><p>MISSION CONTROL</p><h1>Admin overview</h1><span>Live operational view of the Bankrupt to 1 Million platform.</span></div>
-            <div className="admin-health"><span /><strong>Platform connected</strong></div>
+            <div className="admin-health"><span /><strong>{error ? 'Connection issue' : 'Platform connected'}</strong></div>
           </section>
 
           {loading && <div className="admin-loading"><LoaderCircle className="spin" /> Loading dashboard data…</div>}
@@ -209,8 +207,8 @@ export function AdminDashboardPage() {
           <section className="admin-kpis">
             {kpis.map(([label, value], index) => (
               <article key={label}>
-                <div className="admin-kpi-icon">{index === 0 ? <FileText /> : index === 1 ? <Sparkles /> : index === 2 ? <Image /> : <Globe2 />}</div>
-                <p>{label}</p><strong>{value.toLocaleString()}</strong><span>Live from Supabase</span>
+                <div className="admin-kpi-icon">{index === 0 ? <FileText /> : index === 1 ? <Sparkles /> : index === 2 ? <Image /> : <Database />}</div>
+                <p>{label}</p><strong>{loading ? '—' : value.toLocaleString()}</strong><span>Live from Supabase</span>
               </article>
             ))}
           </section>
