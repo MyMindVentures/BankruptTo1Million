@@ -49,7 +49,14 @@ export function JournalAdminPage() {
     } finally { setLoading(false); }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    void load();
+    if (new URLSearchParams(window.location.search).get('create') === '1') {
+      setEditingId(null);
+      setForm(emptyForm);
+      setEditorOpen(true);
+    }
+  }, []);
 
   const filtered = useMemo(() => posts.filter((post) => {
     const matchesQuery = `${post.title} ${post.slug} ${post.excerpt || ''}`.toLowerCase().includes(query.toLowerCase());
@@ -82,6 +89,7 @@ export function JournalAdminPage() {
       if (editingId) await updateJournalPost(editingId, payload);
       else await createJournalPost(payload);
       setEditorOpen(false);
+      window.history.replaceState({}, '', '/admin/journal');
       await load();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Opslaan mislukt.');
