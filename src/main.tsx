@@ -53,6 +53,7 @@ import './styles/journalArticle.css';
 import './styles/adminDashboard.css';
 import './styles/adminAuth.css';
 import './styles/adminSections.css';
+import './styles/journalAdmin.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
