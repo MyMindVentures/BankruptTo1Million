@@ -24,6 +24,7 @@ import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import { MediaVaultPage } from './pages/MediaVaultPage';
 import { OfferDetailPage } from './pages/OfferDetailPage';
 import { OffersPage } from './pages/OffersPage';
+import { PublicBuildRequestsPage } from './pages/PublicBuildRequestsPage';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/discovery-responsive.css';
@@ -45,6 +46,7 @@ import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/mediaVaultFrontendFixes.css';
 import './styles/offers.css';
+import './styles/buildRequests.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 import './styles/journalArticle.css';
@@ -76,19 +78,21 @@ const rootPage = adminPage
       ? <LegalTransparencyPage />
       : path === '/impact'
         ? <ImpactResultsPage />
-        : mediaPage
-          ? withSiteShell(<MediaVaultPage />)
-          : path === '/offers'
-            ? withSiteShell(<OffersPage />)
-            : offerSlug
-              ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
-              : path === '/journal'
-                ? <JournalLandingPage />
-                : path === '/founders'
-                  ? <FoundersOverviewPage />
-                  : founderSlug
-                    ? <FounderProfilePage slug={founderSlug} />
-                    : <App />;
+        : path === '/issues'
+          ? withSiteShell(<PublicBuildRequestsPage />)
+          : mediaPage
+            ? withSiteShell(<MediaVaultPage />)
+            : path === '/offers'
+              ? withSiteShell(<OffersPage />)
+              : offerSlug
+                ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
+                : path === '/journal'
+                  ? <JournalLandingPage />
+                  : path === '/founders'
+                    ? <FoundersOverviewPage />
+                    : founderSlug
+                      ? <FounderProfilePage slug={founderSlug} />
+                      : <App />;
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
