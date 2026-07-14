@@ -30,7 +30,7 @@ export function FounderVideoCard({ founder }: { founder: FounderOverview }) {
   const poster = founder.cover_image_url || founder.avatar_url || undefined;
 
   return (
-    <article className="founder-video-card">
+    <article className="founder-video-card" data-i18n-ignore="true">
       <div className="founder-video-card__media">
         {embedUrl ? (
           <iframe
@@ -69,13 +69,18 @@ export function FounderOverviewCard({ founder, index }: { founder: FounderOvervi
   const highlights = founder.expertise?.slice(0, 3) || [];
 
   return (
-    <a className="founder-overview-card" href={profileHref} aria-label={t('founders.card.open_aria', 'View the detailed profile of {name}', { name: founder.full_name })}>
+    <a
+      className="founder-overview-card"
+      href={profileHref}
+      aria-label={t('founders.card.open_aria', 'View the detailed profile of {name}', { name: founder.full_name })}
+      data-i18n-ignore="true"
+    >
       <div className="founder-overview-card__visual">
-        {founder.cover_image_url ? <img className="founder-overview-card__cover" src={founder.cover_image_url} alt="" /> : null}
+        {founder.cover_image_url ? <img className="founder-overview-card__cover" src={founder.cover_image_url} alt="" loading="lazy" decoding="async" /> : null}
         <div className="founder-overview-card__shade" />
-        <span className="founder-overview-card__number">{String(index + 1).padStart(2, '0')}</span>
+        <span className="founder-overview-card__number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
         <div className="founder-overview-card__portrait">
-          {founder.avatar_url ? <img src={founder.avatar_url} alt={t('founders.card.portrait_alt', '{name} portrait', { name: founder.full_name })} /> : <UserRound size={54} aria-hidden="true" />}
+          {founder.avatar_url ? <img src={founder.avatar_url} alt={t('founders.card.portrait_alt', '{name} portrait', { name: founder.full_name })} loading="lazy" decoding="async" /> : <UserRound size={54} aria-hidden="true" />}
         </div>
         <div className="founder-overview-card__badges">
           <span>{t('founders.card.badge_cofounder', 'Co-founder')}</span>
