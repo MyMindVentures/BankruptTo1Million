@@ -1,0 +1,20 @@
+export type FounderOverview = {
+  id: string;
+  slug: string;
+  full_name: string;
+  display_name: string;
+  headline: string | null;
+  role_title: string;
+  short_bio: string | null;
+  personal_mission: string | null;
+  core_strengths: string[];
+  expertise: string[];
+  location: string | null;
+  avatar_url: string | null;
+  cover_image_url: string | null;
+  intro_video_url: string | null;
+  published_post_count: number;
+  founder_post_count: number;
+  concept_count: number;
+  founder_message_count: number;
+};
