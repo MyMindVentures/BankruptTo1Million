@@ -18,6 +18,14 @@ export type JournalEventPayload = {
   latitude: string; longitude: string; plus_code: string; featured_business_name?: string; description: string;
   show_on_map: boolean; show_on_timeline: boolean; is_public_location: boolean;
 };
+export type JournalAiStatus = {
+  status: string;
+  generation_status: string;
+  last_error: string | null;
+  published_at: string | null;
+  ai_generated_at: string | null;
+  translation_count: number;
+};
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -114,11 +122,44 @@ export async function saveJournalEventContext(postId: string, payload: JournalEv
 export async function saveJournalAiSource(postId: string, rawDescription: string, metadata: Record<string, unknown>) {
   return request('/rest/v1/rpc/admin_save_journal_ai_source', { method: 'POST', body: JSON.stringify({ post_id: postId, raw_description: rawDescription, metadata }) });
 }
-export async function generateJournalAiPost(postId: string) {
-  const result = await request<{ ok: boolean; status: string; languages: string[]; public: { title: string; excerpt: string; body: string } }>('/functions/v1/generate-journal-ai-post-browser', { method: 'POST', body: JSON.stringify({ post_id: postId }) });
-  if (result.ok) window.alert(`Journal post published successfully in ${result.languages.length} languages.`);
-  return result;
+export async function getJournalAiStatus(postId: string) {
+  const rows = await request<JournalAiStatus[]>('/rest/v1/rpc/admin_get_journal_ai_status', {
+    method: 'POST',
+    body: JSON.stringify({ post_id: postId }),
+  });
+  return rows[0];
 }
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
+}
+
+export async function generateJournalAiPost(postId: string) {
+  if (!supabaseUrl) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post-browser`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+    body: JSON.stringify({ post_id: postId, access_token: token() }),
+  });
+
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string; languages?: string[] } | null;
+  if (!response.ok) throw new Error(result?.error || `AI generation could not start (${response.status}).`);
+
+  for (let attempt = 0; attempt < 90; attempt += 1) {
+    const status = await getJournalAiStatus(postId);
+    if (!status) throw new Error('The saved journal post could not be found.');
+    if (status.generation_status === 'failed') throw new Error(status.last_error || 'AI generation failed.');
+    if (status.generation_status === 'completed' && status.status === 'published' && status.translation_count >= 15) {
+      window.alert('Journal post published successfully in 15 languages.');
+      return status;
+    }
+    await wait(1000);
+  }
+
+  throw new Error('AI generation is taking too long. The event is saved; refresh the journal overview to check its status.');
+}
+
 export async function createJourneyPerson(payload: Record<string, unknown>) {
   return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
 }
