@@ -25,30 +25,36 @@ export type AdminSession = { access_token: string; refresh_token: string; expire
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 export type AdminRow = Record<string, unknown>;
 
+export type AiRetryPolicy = { max_attempts?: number; base_delay_ms?: number; retry_on?: number[] };
 export type AiEdgeFunctionConfig = AdminRow & {
-  id?: string;
-  edge_function_slug: string;
-  name?: string | null;
-  provider_id?: string | null;
-  model_id?: string | null;
-  temperature?: number | null;
-  max_tokens?: number | null;
-  timeout_ms?: number | null;
-  max_retries?: number | null;
-  max_cost_usd?: number | null;
-  latency_warning_ms?: number | null;
-  is_enabled?: boolean | null;
-  log_requests?: boolean | null;
-  log_responses?: boolean | null;
-  updated_at?: string | null;
-};
-export type AiProvider = AdminRow & { id: string; name: string; provider_key?: string | null; is_enabled?: boolean | null; };
-export type AiModel = AdminRow & { id: string; model_key: string; display_name?: string | null; provider_id?: string | null; is_enabled?: boolean | null; };
-export type AiPromptVersion = AdminRow & {
   id: string;
   edge_function_slug: string;
+  display_name?: string | null;
+  description?: string | null;
+  provider?: string | null;
+  model?: string | null;
+  primary_model_id?: string | null;
+  active_prompt_version_id?: string | null;
+  temperature?: number | string | null;
+  max_output_tokens?: number | null;
+  timeout_ms?: number | null;
+  retry_policy?: AiRetryPolicy | null;
+  cost_limit_usd?: number | string | null;
+  latency_warning_ms?: number | null;
+  enable_run_logging?: boolean | null;
+  verify_jwt?: boolean | null;
+  is_active?: boolean | null;
+  is_deprecated?: boolean | null;
+  config_version?: number | null;
+  updated_at?: string | null;
+};
+export type AiProvider = AdminRow & { id: string; slug: string; display_name: string; is_active?: boolean | null; };
+export type AiModel = AdminRow & { id: string; model_key: string; display_name?: string | null; provider_id?: string | null; is_active?: boolean | null; max_output_tokens?: number | null; };
+export type AiPromptVersion = AdminRow & {
+  id: string;
+  edge_function_config_id: string;
   name: string;
-  version?: number | string | null;
+  version?: number | null;
   system_prompt?: string | null;
   user_prompt_template?: string | null;
   change_summary?: string | null;
@@ -59,10 +65,10 @@ export type AiFunctionRun = AdminRow & {
   id: string;
   edge_function_slug?: string | null;
   status?: string | null;
-  model_id?: string | null;
-  model_key?: string | null;
+  provider?: string | null;
+  model?: string | null;
   latency_ms?: number | null;
-  cost_usd?: number | null;
+  estimated_cost_usd?: number | string | null;
   started_at?: string | null;
 };
 export type AiControlCenterData = {
@@ -208,11 +214,11 @@ export async function deleteAdminRow(table: string, key: string, value: string):
 
 export async function getAiControlCenterData(): Promise<AiControlCenterData> {
   const [configs, providers, models, prompts, runs] = await Promise.all([
-    request<AiEdgeFunctionConfig[]>('/rest/v1/ai_edge_function_configs?select=*&order=edge_function_slug.asc'),
-    request<AiProvider[]>('/rest/v1/ai_providers?select=*&order=name.asc'),
-    request<AiModel[]>('/rest/v1/ai_models?select=*&order=display_name.asc.nullslast,model_key.asc'),
-    request<AiPromptVersion[]>('/rest/v1/ai_prompt_versions?select=*&order=created_at.desc'),
-    request<AiFunctionRun[]>('/rest/v1/ai_edge_function_runs?select=*&order=started_at.desc&limit=100'),
+    request<AiEdgeFunctionConfig[]>('/rest/v1/ai_edge_function_configs?select=id,edge_function_slug,display_name,description,provider,model,primary_model_id,active_prompt_version_id,temperature,max_output_tokens,timeout_ms,retry_policy,cost_limit_usd,latency_warning_ms,enable_run_logging,verify_jwt,is_active,is_deprecated,config_version,updated_at&order=edge_function_slug.asc'),
+    request<AiProvider[]>('/rest/v1/ai_providers?select=id,slug,display_name,is_active&order=display_name.asc'),
+    request<AiModel[]>('/rest/v1/ai_models?select=id,provider_id,model_key,display_name,max_output_tokens,is_active&order=display_name.asc.nullslast,model_key.asc'),
+    request<AiPromptVersion[]>('/rest/v1/ai_prompt_versions?select=id,edge_function_config_id,version,name,system_prompt,user_prompt_template,change_summary,is_active,created_at&order=created_at.desc'),
+    request<AiFunctionRun[]>('/rest/v1/ai_edge_function_runs?select=id,edge_function_slug,status,provider,model,latency_ms,estimated_cost_usd,started_at&order=started_at.desc&limit=100'),
   ]);
   return { configs, providers, models, prompts, runs };
 }

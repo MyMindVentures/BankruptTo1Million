@@ -6,7 +6,6 @@ import {
   getAiControlCenterData,
   updateAiEdgeFunctionConfig,
   type AiControlCenterData,
-  type AiEdgeFunctionConfig,
   type AiPromptVersion,
 } from '../lib/adminApi';
 
@@ -36,8 +35,7 @@ export function AdminAiControlCenterPage() {
     try {
       const next = await getAiControlCenterData();
       setData(next);
-      const slug = selectedSlug || text(next.configs[0]?.edge_function_slug, '');
-      setSelectedSlug(slug);
+      setSelectedSlug((current) => current || next.configs[0]?.edge_function_slug || '');
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'AI Control Center kon niet worden geladen.');
     } finally {
@@ -52,31 +50,42 @@ export function AdminAiControlCenterPage() {
     [data, selectedSlug],
   );
 
+  const selectedProvider = useMemo(
+    () => data?.providers.find((provider) => provider.slug === text(draft.provider, '')) || null,
+    [data, draft.provider],
+  );
+
+  const availableModels = useMemo(
+    () => (data?.models || []).filter((model) => !selectedProvider || model.provider_id === selectedProvider.id),
+    [data, selectedProvider],
+  );
+
   const promptVersions = useMemo(
-    () => (data?.prompts || []).filter((item) => item.edge_function_slug === selectedSlug),
-    [data, selectedSlug],
+    () => selected ? (data?.prompts || []).filter((item) => item.edge_function_config_id === selected.id) : [],
+    [data, selected],
   );
 
   useEffect(() => {
     if (!selected) return;
+    const active = promptVersions.find((item) => item.id === selected.active_prompt_version_id)
+      || promptVersions.find((item) => item.is_active)
+      || promptVersions[0];
     setDraft({
-      provider_id: selected.provider_id ?? '',
-      model_id: selected.model_id ?? '',
+      provider: selected.provider ?? '',
+      model: selected.model ?? '',
       temperature: selected.temperature ?? 0.4,
-      max_tokens: selected.max_tokens ?? 2000,
-      timeout_ms: selected.timeout_ms ?? 60000,
-      max_retries: selected.max_retries ?? 2,
-      max_cost_usd: selected.max_cost_usd ?? '',
+      max_output_tokens: selected.max_output_tokens ?? '',
+      timeout_ms: selected.timeout_ms ?? '',
+      max_attempts: selected.retry_policy?.max_attempts ?? 2,
+      cost_limit_usd: selected.cost_limit_usd ?? '',
       latency_warning_ms: selected.latency_warning_ms ?? '',
-      is_enabled: selected.is_enabled ?? true,
-      log_requests: selected.log_requests ?? true,
-      log_responses: selected.log_responses ?? false,
+      is_active: selected.is_active ?? true,
+      enable_run_logging: selected.enable_run_logging ?? true,
     });
-    const active = promptVersions.find((item) => item.is_active) || promptVersions[0];
     setPromptDraft({
       name: active?.name ? `${active.name} update` : `${selected.edge_function_slug} prompt`,
-      system_prompt: text(active?.system_prompt, ''),
-      user_prompt_template: text(active?.user_prompt_template, ''),
+      system_prompt: text(active?.system_prompt ?? selected.system_prompt, ''),
+      user_prompt_template: text(active?.user_prompt_template ?? selected.user_prompt_template, ''),
       change_summary: '',
     });
   }, [selectedSlug, selected?.updated_at, promptVersions.length]);
@@ -86,15 +95,19 @@ export function AdminAiControlCenterPage() {
     setSaving(true); setError(null); setNotice(null);
     try {
       const patch = {
-        ...draft,
+        provider: text(draft.provider, selected.provider || ''),
+        model: text(draft.model, selected.model || ''),
         temperature: numberValue(draft.temperature, 0.4),
-        max_tokens: numberValue(draft.max_tokens, 2000),
-        timeout_ms: numberValue(draft.timeout_ms, 60000),
-        max_retries: numberValue(draft.max_retries, 2),
-        max_cost_usd: draft.max_cost_usd === '' ? null : numberValue(draft.max_cost_usd),
-        latency_warning_ms: draft.latency_warning_ms === '' ? null : numberValue(draft.latency_warning_ms),
-        provider_id: draft.provider_id || null,
-        model_id: draft.model_id || null,
+        max_output_tokens: draft.max_output_tokens === '' ? '' : numberValue(draft.max_output_tokens),
+        timeout_ms: draft.timeout_ms === '' ? '' : numberValue(draft.timeout_ms),
+        retry_policy: {
+          ...(selected.retry_policy || {}),
+          max_attempts: numberValue(draft.max_attempts, 2),
+        },
+        cost_limit_usd: draft.cost_limit_usd === '' ? '' : numberValue(draft.cost_limit_usd),
+        latency_warning_ms: draft.latency_warning_ms === '' ? '' : numberValue(draft.latency_warning_ms),
+        is_active: Boolean(draft.is_active),
+        enable_run_logging: Boolean(draft.enable_run_logging),
       };
       await updateAiEdgeFunctionConfig(selected.edge_function_slug, patch);
       setNotice('AI function configuration saved.');
@@ -158,26 +171,27 @@ export function AdminAiControlCenterPage() {
         <aside className="admin-ai-functions">
           <header><p>FUNCTIONS</p><h2>Edge Functions</h2></header>
           {data.configs.map((config) => <button key={config.edge_function_slug} className={selectedSlug === config.edge_function_slug ? 'active' : ''} onClick={() => setSelectedSlug(config.edge_function_slug)}>
-            <span className={config.is_enabled ? 'online' : 'offline'} />
-            <div><strong>{config.name || config.edge_function_slug}</strong><small>{config.edge_function_slug}</small></div>
+            <span className={config.is_active ? 'online' : 'offline'} />
+            <div><strong>{config.display_name || config.edge_function_slug}</strong><small>{config.edge_function_slug}</small></div>
           </button>)}
         </aside>
 
         {selected && <main className="admin-ai-editor">
           <section className="admin-ai-card">
-            <header><div><p>RUNTIME CONFIG</p><h2>{selected.name || selected.edge_function_slug}</h2></div><span className={selected.is_enabled ? 'enabled' : 'disabled'}>{selected.is_enabled ? 'Enabled' : 'Disabled'}</span></header>
+            <header><div><p>RUNTIME CONFIG</p><h2>{selected.display_name || selected.edge_function_slug}</h2></div><span className={selected.is_active ? 'enabled' : 'disabled'}>{selected.is_active ? 'Enabled' : 'Disabled'}</span></header>
             <div className="admin-ai-form-grid">
-              <label><span>Provider</span><select value={text(draft.provider_id, '')} onChange={(e) => setDraft({ ...draft, provider_id: e.target.value })}><option value="">Automatic</option>{data.providers.map((provider) => <option key={provider.id} value={provider.id}>{provider.name}</option>)}</select></label>
-              <label><span>Model</span><select value={text(draft.model_id, '')} onChange={(e) => setDraft({ ...draft, model_id: e.target.value })}><option value="">Provider default</option>{data.models.map((model) => <option key={model.id} value={model.id}>{model.display_name || model.model_key}</option>)}</select></label>
+              <label><span>Provider</span><select value={text(draft.provider, '')} onChange={(e) => setDraft({ ...draft, provider: e.target.value, model: '' })}><option value="">Select provider</option>{data.providers.filter((provider) => provider.is_active !== false).map((provider) => <option key={provider.id} value={provider.slug}>{provider.display_name}</option>)}</select></label>
+              <label><span>Model</span><select value={text(draft.model, '')} onChange={(e) => setDraft({ ...draft, model: e.target.value })}><option value="">Select model</option>{availableModels.filter((model) => model.is_active !== false).map((model) => <option key={model.id} value={model.model_key}>{model.display_name || model.model_key}</option>)}</select></label>
               <label><span>Temperature</span><input type="number" min="0" max="2" step="0.1" value={text(draft.temperature, '')} onChange={(e) => setDraft({ ...draft, temperature: e.target.value })} /></label>
-              <label><span>Max tokens</span><input type="number" min="1" value={text(draft.max_tokens, '')} onChange={(e) => setDraft({ ...draft, max_tokens: e.target.value })} /></label>
+              <label><span>Max output tokens</span><input type="number" min="1" value={text(draft.max_output_tokens, '')} onChange={(e) => setDraft({ ...draft, max_output_tokens: e.target.value })} /></label>
               <label><span>Timeout (ms)</span><input type="number" min="1000" value={text(draft.timeout_ms, '')} onChange={(e) => setDraft({ ...draft, timeout_ms: e.target.value })} /></label>
-              <label><span>Max retries</span><input type="number" min="0" max="10" value={text(draft.max_retries, '')} onChange={(e) => setDraft({ ...draft, max_retries: e.target.value })} /></label>
-              <label><span>Max cost USD</span><input type="number" min="0" step="0.001" value={text(draft.max_cost_usd, '')} onChange={(e) => setDraft({ ...draft, max_cost_usd: e.target.value })} /></label>
+              <label><span>Retry attempts</span><input type="number" min="0" max="10" value={text(draft.max_attempts, '')} onChange={(e) => setDraft({ ...draft, max_attempts: e.target.value })} /></label>
+              <label><span>Cost limit USD</span><input type="number" min="0" step="0.001" value={text(draft.cost_limit_usd, '')} onChange={(e) => setDraft({ ...draft, cost_limit_usd: e.target.value })} /></label>
               <label><span>Latency warning (ms)</span><input type="number" min="0" value={text(draft.latency_warning_ms, '')} onChange={(e) => setDraft({ ...draft, latency_warning_ms: e.target.value })} /></label>
             </div>
             <div className="admin-ai-switches">
-              {(['is_enabled','log_requests','log_responses'] as const).map((key) => <button key={key} className={draft[key] ? 'on' : ''} onClick={() => setDraft({ ...draft, [key]: !draft[key] })}><i /><span>{key.replace(/_/g, ' ')}</span></button>)}
+              {(['is_active','enable_run_logging'] as const).map((key) => <button key={key} className={draft[key] ? 'on' : ''} onClick={() => setDraft({ ...draft, [key]: !draft[key] })}><i /><span>{key.replace(/_/g, ' ')}</span></button>)}
+              <button type="button" className={selected.verify_jwt ? 'on' : ''} disabled><i /><span>verify jwt</span></button>
             </div>
             <footer><button className="primary" disabled={saving} onClick={() => void saveConfig()}>{saving ? <LoaderCircle className="spin" /> : <Save />} Save runtime configuration</button></footer>
           </section>
@@ -195,12 +209,12 @@ export function AdminAiControlCenterPage() {
 
           <section className="admin-ai-card">
             <header><div><p>VERSION HISTORY</p><h2>Prompt versions</h2></div><Sparkles /></header>
-            <div className="admin-ai-versions">{promptVersions.length ? promptVersions.map((prompt) => <article key={prompt.id}><div><strong>{prompt.name}</strong><span>Version {prompt.version ?? '—'} · {prompt.created_at ? new Date(prompt.created_at).toLocaleString() : 'Unknown date'}</span></div><small className={prompt.is_active ? 'active' : ''}>{prompt.is_active ? 'Active' : 'Inactive'}</small>{!prompt.is_active && <button disabled={saving} onClick={() => void activatePrompt(prompt)}><Play size={14} /> Activate</button>}</article>) : <div className="admin-empty">No prompt versions found for this function.</div>}</div>
+            <div className="admin-ai-versions">{promptVersions.length ? promptVersions.map((prompt) => <article key={prompt.id}><div><strong>{prompt.name}</strong><span>Version {prompt.version ?? '—'} · {prompt.created_at ? new Date(prompt.created_at).toLocaleString() : 'Unknown date'}</span></div><small className={prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'active' : ''}>{prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'Active' : 'Inactive'}</small>{prompt.id !== selected.active_prompt_version_id && !prompt.is_active && <button disabled={saving} onClick={() => void activatePrompt(prompt)}><Play size={14} /> Activate</button>}</article>) : <div className="admin-empty">No prompt versions found for this function.</div>}</div>
           </section>
 
           <section className="admin-ai-card">
             <header><div><p>OBSERVABILITY</p><h2>Recent runs</h2></div><Activity /></header>
-            <div className="admin-ai-runs">{recentRuns.length ? recentRuns.map((run) => <article key={run.id}><span className={run.status === 'success' ? 'success' : run.status === 'running' ? 'running' : 'failed'} /><div><strong>{run.status || 'unknown'}</strong><small>{run.started_at ? new Date(run.started_at).toLocaleString() : 'Unknown time'}</small></div><p>{run.model_key || run.model_id || 'Default model'}</p><b>{run.latency_ms ? `${run.latency_ms} ms` : '—'}</b></article>) : <div className="admin-empty">No recent runs found.</div>}</div>
+            <div className="admin-ai-runs">{recentRuns.length ? recentRuns.map((run) => <article key={run.id}><span className={run.status === 'success' ? 'success' : run.status === 'running' ? 'running' : 'failed'} /><div><strong>{run.status || 'unknown'}</strong><small>{run.started_at ? new Date(run.started_at).toLocaleString() : 'Unknown time'}</small></div><p>{run.model || 'Default model'}</p><b>{run.latency_ms ? `${run.latency_ms} ms` : '—'}</b></article>) : <div className="admin-empty">No recent runs found.</div>}</div>
           </section>
         </main>}
       </div>
