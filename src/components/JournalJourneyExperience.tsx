@@ -1,5 +1,5 @@
 import { Bath, CalendarDays, ChevronRight, Compass, Droplets, HandHeart, Home, MapPin, PlugZap, Route, ShowerHead, Sparkles, Users, Waves, Wrench, Zap } from 'lucide-react';
-import { useEffect, useMemo, useState, type CSSProperties, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type FormEvent } from 'react';
 import { supabase } from '../lib/supabase';
 import './JournalJourneyExperience.css';
 
@@ -77,6 +77,11 @@ async function readJson<T>(responseOrPromise: Response | Promise<Response>): Pro
   return response.json() as Promise<T>;
 }
 
+function chronologicalCompare(a: JourneyPoint, b: JourneyPoint) {
+  return new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()
+    || a.journey_entry_id.localeCompare(b.journey_entry_id);
+}
+
 function formatDate(value?: string) {
   if (!value) return '';
   return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
@@ -127,7 +132,7 @@ function JourneyMap({ points, activeId, onSelect }: { points: JourneyPoint[]; ac
   const positioned = useMemo(
     () => points
       .filter((point) => point.latitude != null && point.longitude != null && Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)))
-      .sort((a, b) => a.effective_journey_order - b.effective_journey_order || new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()),
+      .sort(chronologicalCompare),
     [points],
   );
   const routeGroups = useMemo(() => {
@@ -211,30 +216,54 @@ export function JournalJourneyExperience() {
   const [points, setPoints] = useState<JourneyPoint[]>([]); const [calendar, setCalendar] = useState<CalendarEntry[]>([]); const [exchange, setExchange] = useState<ExchangeItem[]>([]);
   const [status, setStatus] = useState<JourneyStatus>({ locations_count: 0, stories_count: 0, total_distance_km: 0, milestones_count: 0 });
   const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [person, setPerson] = useState<'all' | JourneyPerson>('all'); const [activeId, setActiveId] = useState<string>(); const [hostEntry, setHostEntry] = useState<CalendarEntry>();
+  const timelineTrackRef = useRef<HTMLDivElement>(null);
+  const hasPositionedTimelineRef = useRef(false);
+
   useEffect(() => {
     Promise.all([
-      readJson<JourneyPoint[]>(supabase.from('journal_timeline_cards').request({ query: 'select=*&order=effective_journey_order.asc,occurred_at.asc' })),
+      readJson<JourneyPoint[]>(supabase.from('journal_timeline_cards').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' })),
       readJson<CalendarEntry[]>(supabase.from('public_journey_calendar').request({ query: 'select=*&order=starts_on.asc' })),
       readJson<ExchangeItem[]>(supabase.from('public_journey_exchange').request({ query: 'select=*&order=item_type.asc,display_order.asc' })),
       readJson<JourneyStatus>(supabase.rpc('get_public_journey_status', {})),
     ]).then(([journeyRows, calendarRows, exchangeRows, journeyStatus]) => {
-      const validJourneyRows = journeyRows.filter((point) => point.journey_entry_id && point.slug && point.occurred_at);
+      const validJourneyRows = journeyRows
+        .filter((point) => point.journey_entry_id && point.slug && point.occurred_at)
+        .sort(chronologicalCompare);
       setPoints(validJourneyRows); setCalendar(calendarRows); setExchange(exchangeRows); setStatus(journeyStatus || status);
-      setActiveId(validJourneyRows.find((point) => point.is_current_location)?.journey_entry_id || validJourneyRows[0]?.journey_entry_id); setLoading(false);
+      setActiveId(validJourneyRows[validJourneyRows.length - 1]?.journey_entry_id); setLoading(false);
     }).catch(() => { setError('The live journey experience is temporarily unavailable.'); setLoading(false); });
   }, []);
-  const filteredPoints = points.filter((point) => person === 'all' || point.journey_person === person || point.journey_person === 'together');
+
+  const filteredPoints = useMemo(
+    () => points.filter((point) => person === 'all' || point.journey_person === person || point.journey_person === 'together'),
+    [points, person],
+  );
   const filteredCalendar = calendar.filter((entry) => person === 'all' || entry.journey_person === person || entry.journey_person === 'together');
-  const activePoint = filteredPoints.find((point) => point.journey_entry_id === activeId) || filteredPoints.find((point) => point.is_current_location) || filteredPoints[0];
+  const latestFilteredPoint = filteredPoints[filteredPoints.length - 1];
+  const activePoint = filteredPoints.find((point) => point.journey_entry_id === activeId) || latestFilteredPoint;
   const needs = exchange.filter((item) => item.item_type === 'need'); const offers = exchange.filter((item) => item.item_type === 'offer');
-  useEffect(() => { if (activePoint && activePoint.journey_entry_id !== activeId) setActiveId(activePoint.journey_entry_id); }, [person]);
+
+  useEffect(() => {
+    if (latestFilteredPoint && !filteredPoints.some((point) => point.journey_entry_id === activeId)) {
+      setActiveId(latestFilteredPoint.journey_entry_id);
+    }
+  }, [activeId, filteredPoints, latestFilteredPoint]);
+
+  useEffect(() => {
+    if (!activePoint || !timelineTrackRef.current) return;
+    const activeCard = timelineTrackRef.current.querySelector<HTMLElement>(`[data-journey-id="${activePoint.journey_entry_id}"]`);
+    activeCard?.scrollIntoView({ behavior: hasPositionedTimelineRef.current ? 'smooth' : 'auto', block: 'nearest', inline: 'center' });
+    hasPositionedTimelineRef.current = true;
+  }, [activePoint?.journey_entry_id]);
+
   if (loading) return <div className="journey-loading">Loading the live route, plans and hosting opportunities…</div>;
   if (error) return <div className="impact-state impact-state--error">{error}</div>;
+
   return <div className="journey-experience">
     <div className="journey-overview"><div><p className="eyebrow">Follow Kevin & Micha</p><h3>The journey, where it happened and where it goes next.</h3><p>Every pin is generated from a published database journey record. Select a pin to open its real chapter, current status and location context.</p></div><div className="journey-stats"><span><strong>{status.locations_count}</strong> locations</span><span><strong>{status.stories_count}</strong> stories</span><span><strong>{Math.round(Number(status.total_distance_km || 0))}</strong> km</span><span><strong>{status.milestones_count}</strong> milestones</span></div></div>
     <div className="journey-filters" role="group" aria-label="Filter journey by founder">{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <button type="button" key={value} className={person === value ? 'is-active' : ''} onClick={() => setPerson(value)}>{value === 'all' ? 'Everyone' : personLabel(value)}</button>)}</div>
     <div className="journey-map-layout"><JourneyMap points={filteredPoints} activeId={activePoint?.journey_entry_id} onSelect={setActiveId} /><aside className="journey-map-card">{activePoint ? <><div className="journey-map-card__header"><div className="journey-featured-person">{featuredPerson(activePoint).avatarUrl ? <img src={featuredPerson(activePoint).avatarUrl} alt={featuredPerson(activePoint).name} /> : <span>{featuredPerson(activePoint).name.charAt(0)}</span>}<div><small>Featured person</small><strong>{featuredPerson(activePoint).name}</strong></div></div>{activePoint.is_current_location ? <span className="journey-live-badge">Current location</span> : null}</div>{activePoint.cover_image_url ? <img className="journey-map-card__image" src={activePoint.cover_image_url} alt="" /> : null}<p className="journey-map-card__date">{formatDate(activePoint.occurred_at)}</p><h4>{activePoint.title}</h4><p className="journey-map-card__location"><MapPin size={16} />{activePoint.map_label || activePoint.location_name || activePoint.city_name}{activePoint.country_name ? `, ${activePoint.country_name}` : ''}</p><p>{activePoint.what_happened || activePoint.excerpt}</p>{activePoint.why_it_mattered ? <div className="journey-map-card__insight"><strong>Why this mattered</strong><span>{activePoint.why_it_mattered}</span></div> : null}<div className="journey-map-card__meta">{activePoint.travel_mode ? <span>{activePoint.travel_mode}</span> : null}{activePoint.mood ? <span>{activePoint.mood}</span> : null}{activePoint.is_milestone ? <span>Milestone</span> : null}</div><a href={`/journal/${activePoint.slug}`}>Read this chapter <ChevronRight size={16} /></a></> : <><MapPin /><h4>The first route pin is coming.</h4><p>Publish a journey record with valid coordinates to activate this map.</p></>}</aside></div>
-    <section className="journey-timeline-premium" aria-labelledby="real-journey-timeline"><div className="journey-subheading"><div><p className="eyebrow">Interactive timeline</p><h3 id="real-journey-timeline">From rock bottom, one real chapter at a time.</h3></div><Route /></div>{filteredPoints.length ? <div className="journey-timeline-track">{filteredPoints.map((point) => { const featured = featuredPerson(point); return <button type="button" key={point.journey_entry_id} className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => setActiveId(point.journey_entry_id)}><span className="journey-timeline-dot" /><div className="journey-timeline-person">{featured.avatarUrl ? <img src={featured.avatarUrl} alt={featured.name} /> : <span>{featured.name.charAt(0)}</span>}<b>{featured.name}</b></div><time>{formatDate(point.occurred_at)}</time><strong>{point.map_label || point.location_name || point.city_name || point.country_name || 'Journey update'}</strong><small>{point.title}</small></button>; })}</div> : <div className="journey-empty-state">Published journey stories will automatically build this timeline.</div>}</section>
+    <section className="journey-timeline-premium" aria-labelledby="real-journey-timeline"><div className="journey-subheading"><div><p className="eyebrow">Interactive timeline</p><h3 id="real-journey-timeline">From rock bottom, one real chapter at a time.</h3></div><Route /></div>{filteredPoints.length ? <div className="journey-timeline-track" ref={timelineTrackRef}>{filteredPoints.map((point) => { const featured = featuredPerson(point); return <button type="button" key={point.journey_entry_id} data-journey-id={point.journey_entry_id} className={activePoint?.journey_entry_id === point.journey_entry_id ? 'is-active' : ''} onClick={() => setActiveId(point.journey_entry_id)}><span className="journey-timeline-dot" /><div className="journey-timeline-person">{featured.avatarUrl ? <img src={featured.avatarUrl} alt={featured.name} /> : <span>{featured.name.charAt(0)}</span>}<b>{featured.name}</b></div><time>{formatDate(point.occurred_at)}</time><strong>{point.map_label || point.location_name || point.city_name || point.country_name || 'Journey update'}</strong><small>{point.title}</small></button>; })}</div> : <div className="journey-empty-state">Published journey stories will automatically build this timeline.</div>}</section>
     <section className="journey-calendar" aria-labelledby="journey-calendar-title"><div className="journey-subheading"><div><p className="eyebrow">Where we go next</p><h3 id="journey-calendar-title">The public journey calendar.</h3><p>See upcoming locations early enough to meet, collaborate or offer practical support.</p></div><CalendarDays /></div>{filteredCalendar.length ? <div className="journey-calendar-grid">{filteredCalendar.map((entry) => <article className={`journey-stop ${entry.can_offer_hosting ? 'journey-stop--hosting' : ''}`} key={entry.id}><div className="journey-stop__date"><strong>{new Date(entry.starts_on).getDate()}</strong><span>{new Intl.DateTimeFormat('en', { month: 'short' }).format(new Date(entry.starts_on))}</span></div><div className="journey-stop__content"><span className="journey-person">{personLabel(entry.journey_person)}</span><h4>{entry.title}</h4><p className="journey-stop__location"><MapPin size={15} />{entry.location_name || entry.city_name || 'Location to be confirmed'}{entry.country_name ? `, ${entry.country_name}` : ''}</p><p>{entry.public_summary}</p><div className="journey-stop__meta"><span>{formatDate(entry.starts_on)}{entry.ends_on && entry.ends_on !== entry.starts_on ? ` — ${formatDate(entry.ends_on)}` : ''}</span>{entry.accommodation_needed ? <span><Home size={14} /> {entry.nights_needed || 'Some'} night(s) needed</span> : null}</div>{entry.can_offer_hosting ? <button type="button" className="button" onClick={() => setHostEntry(entry)}><HandHeart size={17} /> Offer a place to stay</button> : <span className="journey-stop__confirmed">Plan visible · hosting not currently open</span>}</div></article>)}</div> : <div className="journey-empty-state">Future locations will appear here as soon as Kevin and Micha publish their next plans.</div>}</section>
     <section className="journey-exchange" aria-labelledby="journey-exchange-title"><div className="journey-subheading"><div><p className="eyebrow">Mutual exchange</p><h3 id="journey-exchange-title">What we need. What we offer.</h3><p>This is not a one-way request for help. Kevin and Micha bring experience, practical skills and energy wherever the route takes them.</p></div><Users /></div><div className="journey-exchange-grid"><div className="journey-exchange-column journey-exchange-column--need"><div className="journey-exchange-title"><Bath /><div><span>Practical support</span><h4>What we need</h4></div></div>{needs.length ? needs.map((item) => { const Icon = itemIcon(item.category); return <article key={item.id}><Icon /><div><strong>{item.title}</strong><p>{item.description}</p><small>{personLabel(item.journey_person)} · {item.priority}</small></div></article>; }) : <p className="journey-empty-copy">No active public needs right now.</p>}</div><div className="journey-exchange-column journey-exchange-column--offer"><div className="journey-exchange-title"><Zap /><div><span>Skills and contribution</span><h4>What we offer</h4></div></div>{offers.length ? offers.map((item) => { const Icon = itemIcon(item.category); return <article key={item.id}><Icon /><div><strong>{item.title}</strong><p>{item.description}</p><small>{personLabel(item.journey_person)}</small></div></article>; }) : <p className="journey-empty-copy">Skills and offers will appear here when published.</p>}</div></div></section>
     {hostEntry ? <HostOfferForm entry={hostEntry} onClose={() => setHostEntry(undefined)} /> : null}
