@@ -17,12 +17,13 @@ type GenerateContentQrCodeInput = {
 
 export async function generateContentQrCode(input: GenerateContentQrCodeInput): Promise<ContentQrCodeResult> {
   const session = supabase.auth.getSession();
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
   const response = await fetch(`${supabase.url}/functions/v1/generate-content-qr`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      apikey: import.meta.env.VITE_SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+      apikey: anonKey,
+      Authorization: `Bearer ${session?.access_token || anonKey}`,
     },
     body: JSON.stringify(input),
   });
