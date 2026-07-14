@@ -15,7 +15,7 @@ export type JournalPayload = Omit<JournalPost, 'id' | 'created_at' | 'updated_at
 export type JournalEventPayload = {
   subject_founder_ids: string[]; person_ids: string[]; event_type: string; occurred_at: string;
   timezone: string; journey_person: string; location_name: string; address_text: string;
-  latitude: string; longitude: string; plus_code: string; featured_business_name: string; description: string;
+  latitude: string; longitude: string; plus_code: string; featured_business_name?: string; description: string;
   show_on_map: boolean; show_on_timeline: boolean; is_public_location: boolean;
 };
 
@@ -157,7 +157,7 @@ export async function uploadJournalFootage(postId: string, file: File, index: nu
         occurred_at: event.occurred_at,
         event_type: event.event_type,
         location_name: event.location_name,
-        featured_business_name: event.featured_business_name,
+        featured_business_name: event.featured_business_name || '',
         plus_code: event.plus_code,
         latitude: event.latitude,
         longitude: event.longitude,
