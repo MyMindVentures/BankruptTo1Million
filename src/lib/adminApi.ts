@@ -10,73 +10,20 @@ export type AdminModule = {
   is_enabled: boolean;
 };
 
-export type AdminTask = {
-  id: string;
-  title: string;
-  status: string | null;
-  priority: string | null;
-  due_at: string | null;
-};
-
-export type AdminNotification = {
-  id: string;
-  title: string;
-  message: string | null;
-  severity: string | null;
-  created_at: string;
-  is_read: boolean;
-};
-
-export type AuditEntry = {
-  id: number;
-  action: string;
-  table_name: string | null;
-  occurred_at: string;
-  actor_email: string | null;
-};
-
+export type AdminTask = { id: string; title: string; status: string | null; priority: string | null; due_at: string | null; };
+export type AdminNotification = { id: string; title: string; message: string | null; severity: string | null; created_at: string; is_read: boolean; };
+export type AuditEntry = { id: number; action: string; table_name: string | null; occurred_at: string; actor_email: string | null; };
 export type AdminOverview = {
-  content?: {
-    journal_total?: number;
-    journal_drafts?: number;
-    scheduled?: number;
-    published?: number;
-    journey_entries?: number;
-    pending_comments?: number;
-  };
-  media?: {
-    assets?: number;
-    processing?: number;
-    failed?: number;
-    private?: number;
-  };
-  people?: {
-    journey_people?: number;
-    hosts?: number;
-    interviews?: number;
-    jobs?: number;
-    founding_heroes?: number;
-  };
-  ventures?: {
-    concepts?: number;
-    concept_drafts?: number;
-    leads?: number;
-    applications?: number;
-  };
-  delivery?: {
-    github_issues?: number;
-    open_issues?: number;
-    contributors?: number;
-  };
-  alerts?: {
-    unread_notifications?: number;
-    overdue_tasks?: number;
-    failed_media?: number;
-  };
+  content?: { journal_total?: number; journal_drafts?: number; scheduled?: number; published?: number; journey_entries?: number; pending_comments?: number; };
+  media?: { assets?: number; processing?: number; failed?: number; private?: number; };
+  people?: { journey_people?: number; hosts?: number; interviews?: number; jobs?: number; founding_heroes?: number; };
+  ventures?: { concepts?: number; concept_drafts?: number; leads?: number; applications?: number; };
+  delivery?: { github_issues?: number; open_issues?: number; contributors?: number; };
+  alerts?: { unread_notifications?: number; overdue_tasks?: number; failed_media?: number; };
 };
-
 export type AdminSession = { access_token: string; refresh_token: string; expires_at?: number; user: { id: string; email?: string }; };
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
+export type AdminRow = Record<string, unknown>;
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -172,4 +119,24 @@ export async function getAdminDashboardData() {
     request<AuditEntry[]>('/rest/v1/admin_audit_log?select=id,action,table_name,occurred_at,actor_email&order=occurred_at.desc&limit=8'),
   ]);
   return { modules, overview, tasks, notifications, audit };
+}
+
+export async function getAdminSectionRows(table: string, select: string, order: string, limit = 100): Promise<AdminRow[]> {
+  return request<AdminRow[]>(`/rest/v1/${table}?select=${encodeURIComponent(select)}&order=${encodeURIComponent(order)}&limit=${limit}`);
+}
+
+export async function updateAdminRow(table: string, key: string, value: string, changes: AdminRow): Promise<AdminRow[]> {
+  return request<AdminRow[]>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(changes),
+  });
+}
+
+export async function createAdminRow(table: string, values: AdminRow): Promise<AdminRow[]> {
+  return request<AdminRow[]>(`/rest/v1/${table}`, {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(values),
+  });
 }
