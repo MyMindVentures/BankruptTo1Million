@@ -4,7 +4,8 @@ export type JournalPost = {
   cover_image_url: string | null; cover_image_alt: string | null; original_language: string; category_id: string | null;
   primary_creator_id: string | null; is_featured: boolean; is_vision_feature: boolean; published_at: string | null;
   scheduled_for: string | null; reading_time_minutes: number | null; seo_title: string | null; seo_description: string | null;
-  publication_timezone: string; created_at: string; updated_at: string;
+  publication_timezone: string; ai_generation_status?: string; ai_generated_at?: string | null; ai_model?: string | null;
+  created_at: string; updated_at: string;
 };
 export type JournalOption = { id: string; label: string };
 export type JourneyPerson = { id: string; display_name: string; full_name: string | null; person_type: string; email: string | null };
@@ -21,46 +22,147 @@ export type JournalEventPayload = {
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const sessionKey = 'bankrupt1m.admin.session';
-function token() { const raw=localStorage.getItem(sessionKey); if(!raw) throw new Error('Geen geldige adminsessie.'); const parsed=JSON.parse(raw) as {access_token?:string}; if(!parsed.access_token) throw new Error('Geen geldige adminsessie.'); return parsed.access_token; }
-async function request<T>(path:string,init?:RequestInit):Promise<T>{
-  if(!supabaseUrl||!anonKey) throw new Error('Supabase configuratie ontbreekt.');
-  const response=await fetch(`${supabaseUrl}${path}`,{...init,headers:{apikey:anonKey,Authorization:`Bearer ${token()}`,'Content-Type':'application/json',...(init?.headers||{})}});
-  if(!response.ok){const payload=await response.json().catch(()=>null) as {message?:string;details?:string}|null;throw new Error(payload?.message||payload?.details||`Supabase request failed (${response.status})`);}
-  if(response.status===204)return undefined as T;return response.json() as Promise<T>;
+
+function token() {
+  const raw = localStorage.getItem(sessionKey);
+  if (!raw) throw new Error('No valid admin session.');
+  const parsed = JSON.parse(raw) as { access_token?: string };
+  if (!parsed.access_token) throw new Error('No valid admin session.');
+  return parsed.access_token;
 }
-export async function listJournalPosts(){return request<JournalPost[]>('/rest/v1/journal_posts?select=*&order=updated_at.desc&limit=200');}
-export async function getJournalOptions(){
-  const [categories,authors,founders,people,eventTypes]=await Promise.all([
-    request<Array<{id:string;name:string}>>('/rest/v1/journal_categories?select=id,name&order=name.asc'),
-    request<Array<{id:string;display_name:string}>>('/rest/v1/journal_authors?select=id,display_name&order=display_name.asc'),
-    request<Array<{id:string;display_name:string;slug:string}>>('/rest/v1/founder_profiles?select=id,display_name,slug&order=display_order.asc'),
+
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+  const response = await fetch(`${supabaseUrl}${path}`, {
+    ...init,
+    headers: { apikey: anonKey, Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
+  });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => null) as { message?: string; details?: string; error?: string } | null;
+    throw new Error(payload?.message || payload?.details || payload?.error || `Supabase request failed (${response.status})`);
+  }
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
+}
+
+export async function listJournalPosts() {
+  return request<JournalPost[]>('/rest/v1/journal_posts?select=*&order=updated_at.desc&limit=200');
+}
+
+export async function getJournalOptions() {
+  const [categories, authors, founders, people, eventTypes] = await Promise.all([
+    request<Array<{ id: string; name: string }>>('/rest/v1/journal_categories?select=id,name&order=name.asc'),
+    request<Array<{ id: string; display_name: string }>>('/rest/v1/journal_authors?select=id,display_name&order=display_name.asc'),
+    request<Array<{ id: string; display_name: string; slug: string }>>('/rest/v1/founder_profiles?select=id,display_name,slug&order=display_order.asc'),
     request<JourneyPerson[]>('/rest/v1/journey_people?select=id,display_name,full_name,person_type,email&order=display_name.asc&limit=500'),
     request<EventTypeOption[]>('/rest/v1/journey_entry_types?select=key,label,description&is_active=eq.true&order=display_order.asc'),
   ]);
-  return {categories:categories.map(i=>({id:i.id,label:i.name})),authors:authors.map(i=>({id:i.id,label:i.display_name})),founders:founders.map(i=>({id:i.id,label:i.display_name,slug:i.slug})),people,eventTypes};
+  return {
+    categories: categories.map((item) => ({ id: item.id, label: item.name })),
+    authors: authors.map((item) => ({ id: item.id, label: item.display_name })),
+    founders: founders.map((item) => ({ id: item.id, label: item.display_name, slug: item.slug })),
+    people,
+    eventTypes,
+  };
 }
-export async function getJournalEventContext(postId:string):Promise<Partial<JournalEventPayload>>{
-  const entries=await request<Array<Record<string,unknown>>>(`/rest/v1/journal_journey_entries?select=id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,what_happened,show_on_map,show_on_timeline,is_public_location&journal_post_id=eq.${postId}&order=created_at.asc&limit=1`);
-  const entry=entries[0]; if(!entry)return {};
-  const [subjects,people]=await Promise.all([
-    request<Array<{founder_profile_id:string}>>(`/rest/v1/content_person_relations?select=founder_profile_id&journal_post_id=eq.${postId}&relationship_role=eq.subject&order=display_order.asc`),
-    request<Array<{person_id:string}>>(`/rest/v1/journal_journey_people?select=person_id&journey_entry_id=eq.${String(entry.id)}&order=display_order.asc`),
+
+export async function getJournalEventContext(postId: string): Promise<Partial<JournalEventPayload>> {
+  const entries = await request<Array<Record<string, unknown>>>(`/rest/v1/journal_journey_entries?select=id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,show_on_map,show_on_timeline,is_public_location&journal_post_id=eq.${postId}&order=created_at.asc&limit=1`);
+  const entry = entries[0];
+  if (!entry) return {};
+  const [subjects, people] = await Promise.all([
+    request<Array<{ founder_profile_id: string }>>(`/rest/v1/content_person_relations?select=founder_profile_id&journal_post_id=eq.${postId}&relationship_role=eq.subject&order=display_order.asc`),
+    request<Array<{ person_id: string }>>(`/rest/v1/journal_journey_people?select=person_id&journey_entry_id=eq.${String(entry.id)}&order=display_order.asc`),
   ]);
-  return {subject_founder_ids:subjects.map(i=>i.founder_profile_id),person_ids:people.map(i=>i.person_id),event_type:String(entry.entry_type||'daily_update'),occurred_at:String(entry.occurred_at||''),timezone:String(entry.timezone||'Europe/Madrid'),journey_person:String(entry.journey_person||'together'),location_name:String(entry.location_name||''),address_text:String(entry.address_text||''),latitude:entry.latitude==null?'':String(entry.latitude),longitude:entry.longitude==null?'':String(entry.longitude),plus_code:String(entry.plus_code||''),description:String(entry.what_happened||''),show_on_map:Boolean(entry.show_on_map),show_on_timeline:Boolean(entry.show_on_timeline),is_public_location:Boolean(entry.is_public_location)};
+  return {
+    subject_founder_ids: subjects.map((item) => item.founder_profile_id),
+    person_ids: people.map((item) => item.person_id),
+    event_type: String(entry.entry_type || 'daily_update'),
+    occurred_at: String(entry.occurred_at || ''),
+    timezone: String(entry.timezone || 'Europe/Madrid'),
+    journey_person: String(entry.journey_person || 'together'),
+    location_name: String(entry.location_name || ''),
+    address_text: String(entry.address_text || ''),
+    latitude: entry.latitude == null ? '' : String(entry.latitude),
+    longitude: entry.longitude == null ? '' : String(entry.longitude),
+    plus_code: String(entry.plus_code || ''),
+    description: '',
+    show_on_map: Boolean(entry.show_on_map),
+    show_on_timeline: Boolean(entry.show_on_timeline),
+    is_public_location: Boolean(entry.is_public_location),
+  };
 }
-export async function createJournalPost(payload:Partial<JournalPayload>){return request<JournalPost>('/rest/v1/rpc/admin_create_journal_post',{method:'POST',body:JSON.stringify({payload})});}
-export async function updateJournalPost(id:string,payload:Partial<JournalPayload>){return request<JournalPost>('/rest/v1/rpc/admin_update_journal_post',{method:'POST',body:JSON.stringify({post_id:id,payload})});}
-export async function deleteJournalPost(id:string){return request<boolean>('/rest/v1/rpc/admin_delete_journal_post',{method:'POST',body:JSON.stringify({post_id:id})});}
-export async function saveJournalEventContext(postId:string,payload:JournalEventPayload){return request<string>('/rest/v1/rpc/admin_save_journal_event_context',{method:'POST',body:JSON.stringify({post_id:postId,payload})});}
-export async function createJourneyPerson(payload:Record<string,unknown>){return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person',{method:'POST',body:JSON.stringify({payload})});}
-export async function uploadJournalFootage(postId:string,file:File,index:number){
-  if(!supabaseUrl||!anonKey)throw new Error('Supabase configuratie ontbreekt.');
-  const safe=file.name.replace(/[^a-zA-Z0-9._-]/g,'-'); const bucket=file.type.startsWith('video/')?'media-videos':'media-images'; const path=`journal/${postId}/${Date.now()}-${index}-${safe}`;
-  const upload=await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${path}`,{method:'POST',headers:{apikey:anonKey,Authorization:`Bearer ${token()}`,'Content-Type':file.type,'x-upsert':'false'},body:file});
-  if(!upload.ok)throw new Error((await upload.json().catch(()=>null) as {message?:string}|null)?.message||'Footage upload mislukt.');
-  const publicUrl=`${supabaseUrl}/storage/v1/object/public/${bucket}/${path}`;
-  const assets=await request<Array<{id:string}>>('/rest/v1/media_assets',{method:'POST',headers:{Prefer:'return=representation'},body:JSON.stringify({asset_type:file.type.startsWith('video/')?'video':'image',title:file.name,original_filename:file.name,storage_bucket:bucket,storage_path:path,mime_type:file.type,file_size_bytes:file.size,visibility:'public',status:'published',published_at:new Date().toISOString(),show_in_media_vault:true,external_url:publicUrl})});
-  const asset=assets[0]; if(!asset)throw new Error('Media asset kon niet worden geregistreerd.');
-  await request('/rest/v1/journal_post_media',{method:'POST',body:JSON.stringify({journal_post_id:postId,media_asset_id:asset.id,placement:index===0?'hero':'gallery',display_order:index,is_featured:index===0})});
+
+export async function getJournalAiSource(postId: string): Promise<string> {
+  const rows = await request<Array<{ raw_description: string }>>(`/rest/v1/journal_ai_sources?select=raw_description&journal_post_id=eq.${postId}&limit=1`);
+  return rows[0]?.raw_description || '';
+}
+
+export async function createJournalPost(payload: Partial<JournalPayload>) {
+  return request<JournalPost>('/rest/v1/rpc/admin_create_journal_post', { method: 'POST', body: JSON.stringify({ payload }) });
+}
+export async function updateJournalPost(id: string, payload: Partial<JournalPayload>) {
+  return request<JournalPost>('/rest/v1/rpc/admin_update_journal_post', { method: 'POST', body: JSON.stringify({ post_id: id, payload }) });
+}
+export async function deleteJournalPost(id: string) {
+  return request<boolean>('/rest/v1/rpc/admin_delete_journal_post', { method: 'POST', body: JSON.stringify({ post_id: id }) });
+}
+export async function saveJournalEventContext(postId: string, payload: JournalEventPayload) {
+  return request<string>('/rest/v1/rpc/admin_save_journal_event_context', { method: 'POST', body: JSON.stringify({ post_id: postId, payload }) });
+}
+export async function saveJournalAiSource(postId: string, rawDescription: string, metadata: Record<string, unknown>) {
+  return request('/rest/v1/rpc/admin_save_journal_ai_source', { method: 'POST', body: JSON.stringify({ post_id: postId, raw_description: rawDescription, metadata }) });
+}
+export async function generateJournalAiPost(postId: string) {
+  return request<{ ok: boolean; languages: string[]; public: { title: string; excerpt: string; body: string } }>('/functions/v1/generate-journal-ai-post', { method: 'POST', body: JSON.stringify({ post_id: postId }) });
+}
+export async function createJourneyPerson(payload: Record<string, unknown>) {
+  return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
+}
+
+export async function uploadJournalFootage(postId: string, file: File, index: number, event: JournalEventPayload) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+  const isVideo = file.type.startsWith('video/');
+  const bucket = isVideo ? 'media-videos' : 'media-images';
+  const typeFolder = isVideo ? 'videos' : 'images';
+  const date = new Date(event.occurred_at || Date.now());
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
+  const objectPath = `journal/${year}/${month}/${postId}/${typeFolder}/${Date.now()}-${index}-${safeName}`;
+
+  const upload = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${objectPath}`, {
+    method: 'POST',
+    headers: { apikey: anonKey, Authorization: `Bearer ${token()}`, 'Content-Type': file.type, 'x-upsert': 'false' },
+    body: file,
+  });
+  if (!upload.ok) {
+    const payload = await upload.json().catch(() => null) as { message?: string } | null;
+    throw new Error(payload?.message || 'Footage upload failed.');
+  }
+
+  const asset = await request<{ id: string }>('/rest/v1/rpc/admin_register_journal_footage', {
+    method: 'POST',
+    body: JSON.stringify({
+      post_id: postId,
+      bucket_name: bucket,
+      object_path: objectPath,
+      file_name: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+      placement_name: index === 0 ? 'hero' : 'gallery',
+      display_index: index,
+      asset_metadata: {
+        occurred_at: event.occurred_at,
+        event_type: event.event_type,
+        location_name: event.location_name,
+        plus_code: event.plus_code,
+        latitude: event.latitude,
+        longitude: event.longitude,
+        subject_founder_ids: event.subject_founder_ids,
+        person_ids: event.person_ids,
+      },
+    }),
+  });
   return asset.id;
 }
