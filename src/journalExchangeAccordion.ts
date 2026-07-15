@@ -44,7 +44,7 @@ function enhanceExchangeSection(section: HTMLElement) {
   const totalItems = columns.querySelectorAll('.journal-exchange__item').length;
   const parentLabel = heading.querySelector('h2')?.textContent?.trim() || 'What we need — and what we give back.';
 
-  section.insertBefore(makeToggle(columns, parentLabel, totalItems, 'parent'), columns);
+  section.insertBefore(makeToggle(section, parentLabel, totalItems, 'parent'), columns);
   columns.classList.add('journal-exchange-accordion__content');
 
   panels.forEach((panel) => {
