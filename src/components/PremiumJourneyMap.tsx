@@ -4,6 +4,7 @@ import type { JournalDisplayPerson } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
 import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
+import { mountJourneyMapPin } from './JourneyMapPin';
 import './PremiumJourneyMap.css';
 
 export type JourneyInvolvedPerson = JournalDisplayPerson & {
@@ -46,6 +47,13 @@ type MapLibreGlobal = {
   FullscreenControl: new () => any;
   AttributionControl: new (options?: Record<string, unknown>) => any;
   ScaleControl: new (options?: Record<string, unknown>) => any;
+};
+
+type MountedMapPin = ReturnType<typeof mountJourneyMapPin>;
+type MarkerRecord = {
+  marker: any;
+  pin: MountedMapPin;
+  pointId: string;
 };
 
 declare global { interface Window { maplibregl?: MapLibreGlobal; } }
@@ -97,14 +105,6 @@ function peopleLabel(point: PremiumJourneyPoint) {
   return sortedPeople(point).map((person) => person.display_name).join(' & ');
 }
 
-function markerVariant(point: PremiumJourneyPoint) {
-  const slugs = sortedPeople(point).map((person) => person.slug);
-  if (slugs.includes('kevin-de-vlieger') && slugs.includes('micha')) return 'together';
-  if (slugs.includes('kevin-de-vlieger')) return 'kevin';
-  if (slugs.includes('micha')) return 'micha';
-  return point.journey_person || 'person';
-}
-
 function pointBelongsTo(point: PremiumJourneyPoint, founder: FounderRouteKey) {
   const slugs = sortedPeople(point).map((person) => person.slug);
   if (founder === 'kevin' && slugs.includes('kevin-de-vlieger')) return true;
@@ -125,67 +125,10 @@ function newestPoint(points: PremiumJourneyPoint[]) {
   return [...points].sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())[0];
 }
 
-function addAvatar(container: HTMLElement, person: JourneyInvolvedPerson) {
-  if (person.avatar_url) {
-    const image = document.createElement('img');
-    image.src = person.avatar_url;
-    image.alt = '';
-    image.loading = 'eager';
-    image.decoding = 'async';
-    container.appendChild(image);
-    return;
-  }
-  const fallback = document.createElement('span');
-  fallback.textContent = person.display_name.slice(0, 1).toUpperCase();
-  container.appendChild(fallback);
-}
-
-function createMarkerElement(point: PremiumJourneyPoint) {
-  const element = document.createElement('button');
-  const people = sortedPeople(point);
-  element.type = 'button';
-  element.className = `premium-map-dom-marker premium-map-dom-marker--${markerVariant(point)}${point.is_current_location ? ' is-current' : ''}`;
-  element.setAttribute('aria-label', people.length ? `Open ${point.title} — ${peopleLabel(point)}` : `Open ${point.title}`);
-
-  if (people.length > 1) {
-    const split = document.createElement('span'); split.className = 'premium-map-dom-marker__split';
-    people.slice(0, 2).forEach((person) => { const holder = document.createElement('span'); addAvatar(holder, person); split.appendChild(holder); });
-    element.appendChild(split);
-  } else if (people[0]) {
-    addAvatar(element, people[0]);
-  } else {
-    const fallback = document.createElement('span'); fallback.textContent = '•'; element.appendChild(fallback);
-  }
-
-  if (point.is_milestone) {
-    const badge = document.createElement('i'); badge.className = 'premium-map-dom-marker__badge'; badge.textContent = '★'; element.appendChild(badge);
-  }
-  return element;
-}
-
-function popupContent(point: PremiumJourneyPoint) {
-  const people = sortedPeople(point);
-  const root = document.createElement('div'); root.className = 'premium-map-popup';
-  const head = document.createElement('div'); head.className = 'premium-map-popup__head';
-  if (people.length) {
-    const avatars = document.createElement('div'); avatars.className = 'premium-map-popup__avatars';
-    people.slice(0, 3).forEach((person) => { const holder = document.createElement('span'); addAvatar(holder, person); avatars.appendChild(holder); });
-    head.appendChild(avatars);
-  }
-  const meta = document.createElement('div');
-  const eyebrow = document.createElement('span'); eyebrow.textContent = point.is_current_location ? 'Current location' : peopleLabel(point);
-  const date = document.createElement('small'); date.textContent = formatDate(point.occurred_at);
-  meta.append(eyebrow, date); head.appendChild(meta);
-  const title = document.createElement('strong'); title.textContent = point.title;
-  const location = document.createElement('small'); location.textContent = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
-  root.append(head, title, location);
-  return root;
-}
-
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
-  const markersRef = useRef<any[]>([]);
+  const markersRef = useRef<MarkerRecord[]>([]);
   const [mapError, setMapError] = useState('');
   const [routes, setRoutes] = useState<Record<FounderRouteKey, FounderRoute>>({
     kevin: { key: 'kevin', coordinates: [], distanceKm: 0, durationMinutes: 0, status: 'idle' },
@@ -267,14 +210,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         });
 
         mapped.forEach((point) => {
-          const element = createMarkerElement(point);
-          element.classList.toggle('is-active', point.journey_entry_id === active.journey_entry_id);
-          element.addEventListener('click', () => onSelect(point.journey_entry_id));
-          const marker = new maplibregl.Marker({ element, anchor: 'center' })
+          const pin = mountJourneyMapPin(point, point.journey_entry_id === active.journey_entry_id, onSelect);
+          const popup = new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(pin.popupElement);
+          const marker = new maplibregl.Marker({ element: pin.element, anchor: 'center' })
             .setLngLat(coordinates(point))
-            .setPopup(new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(popupContent(point)))
+            .setPopup(popup)
             .addTo(map);
-          markersRef.current.push(marker);
+          markersRef.current.push({ marker, pin, pointId: point.journey_entry_id });
         });
         map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
       });
@@ -282,8 +224,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
 
     return () => {
       cancelled = true;
-      markersRef.current.forEach((marker) => marker.remove()); markersRef.current = [];
-      if (map) map.remove(); mapRef.current = null;
+      markersRef.current.forEach(({ marker, pin }) => {
+        marker.remove();
+        pin.unmount();
+      });
+      markersRef.current = [];
+      if (map) map.remove();
+      mapRef.current = null;
     };
   }, [mapped, onSelect]);
 
@@ -298,13 +245,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
 
   useEffect(() => {
     if (!active || !mapRef.current) return;
-    markersRef.current.forEach((marker) => {
-      const element = marker.getElement();
-      const markerPoint = mapped.find((point) => coordinates(point).join(',') === marker.getLngLat().toArray().join(','));
-      element.classList.toggle('is-active', markerPoint?.journey_entry_id === active.journey_entry_id);
+    markersRef.current.forEach(({ pin, pointId }) => {
+      pin.update(pointId === active.journey_entry_id);
     });
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
-  }, [active, mapped]);
+  }, [active]);
 
   if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
   const activePeople = sortedPeople(active);
