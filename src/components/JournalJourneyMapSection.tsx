@@ -81,6 +81,10 @@ export function JournalJourneyMapSection() {
       .sort((a, b) => eventTimestamp(a) - eventTimestamp(b) || a.journey_entry_id.localeCompare(b.journey_entry_id)),
     [source, filter],
   );
+  const activePoint = useMemo(
+    () => points.find((point) => point.journey_entry_id === activeId) || newestPoint(points, filter) || points[0],
+    [activeId, filter, points],
+  );
 
   useEffect(() => {
     if (!points.length) return;
@@ -107,7 +111,14 @@ export function JournalJourneyMapSection() {
       <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => selectFilter(value)}>{label(value)}</Button>)}</div>
     </Callout>
     {mapFeedError ? <Callout><strong>Live map feed unavailable</strong><span>{mapFeedError}</span></Callout> : null}
-    <PremiumJourneyMap points={points} activeId={activeId} onSelect={selectPoint}/>
+    {activePoint ? (
+      <PremiumJourneyMap
+        key={activePoint.journey_entry_id}
+        points={points}
+        activeId={activePoint.journey_entry_id}
+        onSelect={selectPoint}
+      />
+    ) : null}
     <JourneyCalendarPlanner />
   </div>;
 }
