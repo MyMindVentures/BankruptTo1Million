@@ -191,6 +191,13 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     if (!containerRef.current || !mapped.length || !active) return;
     let cancelled = false;
     let map: any = null;
+    let resizeObserver: ResizeObserver | null = null;
+    let resizeTimer: number | undefined;
+
+    const resizeMap = () => {
+      window.cancelAnimationFrame(resizeTimer || 0);
+      resizeTimer = window.requestAnimationFrame(() => map?.resize?.());
+    };
 
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
@@ -201,6 +208,12 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
       map.addControl(new maplibregl.AttributionControl({ compact: true }), 'bottom-right');
       map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+      resizeObserver = new ResizeObserver(resizeMap);
+      resizeObserver.observe(containerRef.current);
+      window.addEventListener('resize', resizeMap);
+      window.addEventListener('orientationchange', resizeMap);
+      document.addEventListener('fullscreenchange', resizeMap);
 
       map.on('load', () => {
         (['kevin', 'micha'] as FounderRouteKey[]).forEach((key) => {
@@ -218,12 +231,20 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
             .addTo(map);
           markersRef.current.push({ marker, pin, pointId: point.journey_entry_id });
         });
+        resizeMap();
+        window.setTimeout(resizeMap, 120);
+        window.setTimeout(resizeMap, 450);
         map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
       });
     }).catch(() => { if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.'); });
 
     return () => {
       cancelled = true;
+      resizeObserver?.disconnect();
+      window.removeEventListener('resize', resizeMap);
+      window.removeEventListener('orientationchange', resizeMap);
+      document.removeEventListener('fullscreenchange', resizeMap);
+      window.cancelAnimationFrame(resizeTimer || 0);
       markersRef.current.forEach(({ marker, pin }) => {
         marker.remove();
         pin.unmount();
@@ -248,6 +269,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     markersRef.current.forEach(({ pin, pointId }) => {
       pin.update(pointId === active.journey_entry_id);
     });
+    mapRef.current.resize?.();
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
   }, [active]);
 
@@ -258,7 +280,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{routedDistance ? `${Math.round(routedDistance)} km` : `${activeIndex + 1}/${mapped.length}`}</strong> {routedDistance ? 'road distance' : 'route position'}</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
     <div className="premium-map-layout">
       <Card className="premium-map-card">
-        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Separate road routes for Kevin and Micha · database-linked profile pins</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 })}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
+        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Separate road routes for Kevin and Micha · database-linked profile pins</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => { mapRef.current?.resize?.(); mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 }); }}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
         <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}{routingFallback ? <div className="premium-map-load-error">Road routing is temporarily unavailable; simplified lines are shown.</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin route</span><span><i className="is-micha"/> Micha route</span><span><i className="is-together"/> Shared stop</span></div></div>
       </Card>
       <Card className="premium-map-detail-card">
