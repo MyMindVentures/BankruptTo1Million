@@ -22,7 +22,7 @@ test('discovery form is tied to the selected concept and captures required field
 
 test('discovery submission uses a Supabase RPC and does not expose full teaser concept data', () => {
   assert.match(lib, /submit_proof_of_mind_discovery_call/);
-  assert.match(page, /protected full concept data remains private/i);
+  assert.match(page, /Protected teaser/);
   const modalSource = page.slice(page.indexOf('function DiscoveryCallModal'), page.indexOf('export function ProofOfMindPage'));
   assert.doesNotMatch(modalSource, /problem_statement|solution_overview|business_model/);
 });

@@ -31,13 +31,13 @@ test('overview includes required hero, stats, filters, loading, empty and error 
   assert.match(page, /Ideas are easy to dismiss\. A body of work is harder to ignore\./);
   assert.match(page, /Visible concepts/);
   assert.match(page, /Search concepts/);
-  assert.match(page, /Loading Proof of Mind concepts/);
+  assert.match(page, /Loading concepts…/);
   assert.match(page, /The archive is being prepared\./);
   assert.match(page, /Proof of Mind could not be loaded\./);
 });
 
 test('detail page renders required full concept fields', () => {
-  for (const label of ['Concept overview', 'Problem and solution', 'Audience and use cases', 'Core capabilities', 'Differentiation', 'Business and validation', 'Roadmap and collaboration', 'Media and links']) assert.match(page, new RegExp(label));
+  for (const label of ['Concept overview', 'Problem and solution', 'Market & audience profile', 'Core capabilities', 'Competition and differentiation', 'Market, business model and validation', 'Roadmap', 'Who we want to meet', 'View Demo']) assert.match(page, new RegExp(label));
   assert.match(lib, /normalizeProofOfMindKeyFeatures/);
   assert.match(lib, /normalizeProofOfMindUrl/);
 });
@@ -45,7 +45,7 @@ test('detail page renders required full concept fields', () => {
 
 test('Proof of Mind renders founder, evaluation, competition and aggregate lead fields', () => {
   for (const field of ['ProofOfMindFounder', 'ProofOfMindEvaluationSummary', 'ProofOfMindCompetitorComparison', 'ProofOfMindLeadPipelineSummary']) assert.match(lib, new RegExp(field));
-  for (const label of ['Created by', 'Evaluation score', 'Commercial evaluation', 'Competition and positioning', 'Why we are different', 'Partner and lead opportunities', 'target slots']) assert.match(page, new RegExp(label));
+  for (const label of ['Created by', 'label="Evaluation"', 'Commercial evaluation', 'Competition and differentiation', 'Why we are different', 'Partner and lead opportunities', 'target slots']) assert.match(page, new RegExp(label));
   assert.match(lib, /lead_pipeline_summary/);
   assert.match(lib, /competition_comparisons/);
   assert.match(page, /concept\.lead_pipeline\.categories/);

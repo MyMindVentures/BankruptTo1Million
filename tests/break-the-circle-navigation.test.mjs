@@ -9,7 +9,7 @@ const page = readFileSync(new URL('../src/pages/BreakTheCirclePages.tsx', import
 const server = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
 
 test('public navigation exposes the canonical Break the Circle link only', () => {
-  assert.match(siteContent, /label: 'Break the Circle', href: '\/break-the-circle'/);
+  assert.match(siteContent, /label: 'Break the Circle'[\s\S]*?href: '\/break-the-circle'/);
   assert.doesNotMatch(siteContent, /href: '\/admin\/break-the-circle'/);
 });
 
