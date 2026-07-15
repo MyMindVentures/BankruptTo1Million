@@ -61,7 +61,7 @@ export function JournalJourneyMapSection() {
   const [activeId, setActiveId] = useState(() => newestPoint(STARTER_POINTS, 'all')?.journey_entry_id);
 
   useEffect(() => {
-    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.desc,journey_entry_id.desc' }))
+    readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' }))
       .then((rows) => {
         setMapFeedError('');
         setLivePoints(rows);
@@ -75,7 +75,12 @@ export function JournalJourneyMapSection() {
   }, []);
 
   const source = livePoints.length ? livePoints : STARTER_POINTS;
-  const points = useMemo(() => source.filter((point) => matchesFilter(point, filter)), [source, filter]);
+  const points = useMemo(
+    () => source
+      .filter((point) => matchesFilter(point, filter))
+      .sort((a, b) => eventTimestamp(a) - eventTimestamp(b) || a.journey_entry_id.localeCompare(b.journey_entry_id)),
+    [source, filter],
+  );
 
   useEffect(() => {
     if (!points.length) return;
@@ -86,11 +91,8 @@ export function JournalJourneyMapSection() {
   }, [activeId, filter, points]);
 
   const selectPoint = (journeyEntryId: string) => {
-    const selectedPoint = source.find((point) => point.journey_entry_id === journeyEntryId);
+    if (!points.some((point) => point.journey_entry_id === journeyEntryId)) return;
     setActiveId(journeyEntryId);
-    if (typeof window !== 'undefined' && selectedPoint?.slug) {
-      window.location.assign(`/journal/${encodeURIComponent(selectedPoint.slug)}`);
-    }
   };
 
   const selectFilter = (value: 'all' | PremiumJourneyPoint['journey_person']) => {
