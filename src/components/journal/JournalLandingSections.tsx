@@ -181,9 +181,9 @@ export function JournalStatusState({ status }: { status: 'loading' | 'ready' | '
   return null;
 }
 
-export function JournalMapSection({ points, activePoint, founder, onFounderChange, onSelect }: {
+export function JournalMapSection({ points, activeId, founder, onFounderChange, onSelect }: {
   points: JourneyPoint[];
-  activePoint?: JourneyPoint;
+  activeId?: string;
   founder: FounderFilter;
   onFounderChange: (value: FounderFilter) => void;
   onSelect: (id: string) => void;
@@ -193,7 +193,7 @@ export function JournalMapSection({ points, activePoint, founder, onFounderChang
       <div><p className="eyebrow">Live map & current chapter</p><h2 id="journal-map-title">Follow the route as it unfolds.</h2></div>
       <FounderSwitch value={founder} onChange={onFounderChange} />
     </div>
-    <PremiumJourneyMap points={points} activeId={activePoint?.journey_entry_id} onSelect={onSelect} />
+    <PremiumJourneyMap points={points} activeId={activeId} onSelect={onSelect} />
   </section>;
 }
 

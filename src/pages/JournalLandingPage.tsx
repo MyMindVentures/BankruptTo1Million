@@ -145,12 +145,11 @@ export function JournalLandingPage() {
     Promise.all([
       getJournalIndex(),
       readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' })),
-      readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.desc,journey_entry_id.desc&limit=5' })),
       readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
         query: `select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured,journey_exchange_item_translations(language_code,title,tagline,description,translation_status),calendar_entry:journey_calendar_entries(city_name,location_name,region_name,starts_on,ends_on)&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc`,
       })),
       readJson<CategoryTranslation[]>(supabase.from('journal_category_translations').request({ query: `select=category_id,language_code,name,description,translation_status&language_code=eq.${encodeURIComponent(language)}` })),
-    ]).then(([rawJournal, journeyRows, mapRows, exchangeRows, categoryTranslations]) => {
+    ]).then(([rawJournal, journeyRows, exchangeRows, categoryTranslations]) => {
       if (cancelled) return;
       const categoryById = new Map(categoryTranslations.filter((row) => !row.translation_status || row.translation_status === 'published').map((row) => [row.category_id, row]));
       const categories: JournalCategory[] = rawJournal.categories.map((category) => ({ ...category, name: categoryById.get(category.id)?.name || category.name, description: categoryById.get(category.id)?.description || category.description }));
@@ -169,12 +168,11 @@ export function JournalLandingPage() {
       };
       const postsBySlug = new Map(posts.map((post) => [post.slug, post]));
       const hydratedJourney = journeyRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
-      const hydratedMapJourney = mapRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
       setJournal(journalData);
       setJourney(hydratedJourney);
-      setMapJourney(hydratedMapJourney);
+      setMapJourney(hydratedJourney);
       setExchangeItems(exchangeRows.map((item) => localizeExchangeItem(item, language)));
-      setActiveId(newestPoint(hydratedMapJourney)?.journey_entry_id || newestPoint(hydratedJourney)?.journey_entry_id);
+      setActiveId(newestPoint(hydratedJourney)?.journey_entry_id);
       setStatus('ready');
     }).catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
@@ -182,17 +180,22 @@ export function JournalLandingPage() {
 
   const filteredJourney = useMemo(() => journey.filter((point) => matchesFounder(point, founder)), [journey, founder]);
   const filteredMapJourney = useMemo(() => mapJourney.filter((point) => matchesFounder(point, founder)), [mapJourney, founder]);
-  const activePoint = filteredJourney.find((point) => point.journey_entry_id === activeId) || newestPoint(filteredJourney);
-  const activeMapPoint = filteredMapJourney.find((point) => point.journey_entry_id === activeId) || newestPoint(filteredMapJourney);
+  const activePoint = useMemo(
+    () => filteredJourney.find((point) => point.journey_entry_id === activeId) || newestPoint(filteredJourney),
+    [activeId, filteredJourney],
+  );
   const latestPosts = useMemo(() => (journal?.posts || []).slice(0, 3), [journal]);
   const archivePosts = useMemo(() => filterPosts(journal?.posts || [], { category, search, sort }).filter((post) => !latestPosts.some((latest) => latest.id === post.id)), [journal, category, search, sort, latestPosts]);
 
   useEffect(() => {
-    const nextActive = activeMapPoint || activePoint;
-    if (nextActive && nextActive.journey_entry_id !== activeId) setActiveId(nextActive.journey_entry_id);
-  }, [activeId, activeMapPoint, activePoint]);
+    if (!filteredMapJourney.length && !filteredJourney.length) return;
+    if (activeId && filteredMapJourney.some((point) => point.journey_entry_id === activeId)) return;
+    if (activeId && filteredJourney.some((point) => point.journey_entry_id === activeId)) return;
+    const fallback = newestPoint(filteredMapJourney) || newestPoint(filteredJourney);
+    if (fallback) setActiveId(fallback.journey_entry_id);
+  }, [activeId, filteredMapJourney, filteredJourney, founder]);
 
   const resetArchiveFilters = () => { setCategory('all'); setSearch(''); setSort('newest'); };
 
-  return <><Header /><main className="journal-priority-page"><JournalIntroSection /><JournalStatusState status={status} />{status === 'ready' && journal ? <><JournalExchangeSection items={exchangeItems} /><JournalMapSection points={filteredMapJourney} activePoint={activeMapPoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalTimelineSection points={filteredJourney} exchangeItems={exchangeItems} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalLatestSection posts={latestPosts} /><JournalArchiveSection journal={journal} posts={archivePosts} open={archiveOpen} category={category} search={search} sort={sort} onToggle={() => setArchiveOpen((value) => !value)} onCategoryChange={setCategory} onSearchChange={setSearch} onSortChange={setSort} onReset={resetArchiveFilters} /></> : null}</main><Footer /></>;
+  return <><Header /><main className="journal-priority-page"><JournalIntroSection /><JournalStatusState status={status} />{status === 'ready' && journal ? <><JournalExchangeSection items={exchangeItems} /><JournalMapSection points={filteredMapJourney} activeId={activeId} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalTimelineSection points={filteredJourney} exchangeItems={exchangeItems} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalLatestSection posts={latestPosts} /><JournalArchiveSection journal={journal} posts={archivePosts} open={archiveOpen} category={category} search={search} sort={sort} onToggle={() => setArchiveOpen((value) => !value)} onCategoryChange={setCategory} onSearchChange={setSearch} onSortChange={setSort} onReset={resetArchiveFilters} /></> : null}</main><Footer /></>;
 }
