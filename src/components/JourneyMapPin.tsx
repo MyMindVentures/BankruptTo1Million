@@ -1,4 +1,7 @@
+import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
+import { ArrowRight, CalendarDays, MapPin, X } from 'lucide-react';
 import type { PremiumJourneyPoint } from './PremiumJourneyMap';
 
 function sortedPeople(point: PremiumJourneyPoint) {
@@ -18,7 +21,7 @@ function markerVariant(point: PremiumJourneyPoint) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
+  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(value));
 }
 
 function Avatar({ name, url }: { name: string; url?: string }) {
@@ -26,85 +29,114 @@ function Avatar({ name, url }: { name: string; url?: string }) {
   return <span>{name.slice(0, 1).toUpperCase()}</span>;
 }
 
+function JourneyMapPinModal({ point, onClose }: { point: PremiumJourneyPoint; onClose: () => void }) {
+  const people = sortedPeople(point);
+  const location = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  return createPortal(
+    <div className="journey-map-pin-modal" role="dialog" aria-modal="true" aria-labelledby={`journey-pin-title-${point.journey_entry_id}`}>
+      <button className="journey-map-pin-modal__backdrop" type="button" aria-label="Close journey chapter" onClick={onClose} />
+      <article className="journey-map-pin-modal__card">
+        <button className="journey-map-pin-modal__close" type="button" aria-label="Close" onClick={onClose}><X size={20} /></button>
+
+        <div className="journey-map-pin-modal__people">
+          {people.slice(0, 3).map((person) => (
+            <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
+          ))}
+        </div>
+
+        <div className="journey-map-pin-modal__eyebrow">
+          {point.is_current_location ? 'Current location' : peopleLabel(point) || 'Journey chapter'}
+        </div>
+        <h2 id={`journey-pin-title-${point.journey_entry_id}`}>{point.title}</h2>
+
+        <div className="journey-map-pin-modal__meta">
+          <span><CalendarDays size={16} />{formatDate(point.occurred_at)}</span>
+          {location ? <span><MapPin size={16} />{location}</span> : null}
+        </div>
+
+        {point.excerpt ? <p>{point.excerpt}</p> : null}
+
+        {point.slug ? (
+          <a className="journey-map-pin-modal__link" href={`/journal/${point.slug}`}>
+            Read this chapter <ArrowRight size={17} />
+          </a>
+        ) : null}
+      </article>
+    </div>,
+    document.body,
+  );
+}
+
 export function JourneyMapPin({ point, active, onSelect }: {
   point: PremiumJourneyPoint;
   active: boolean;
   onSelect: (id: string) => void;
 }) {
+  const [open, setOpen] = useState(false);
   const people = sortedPeople(point);
   const className = [
-    'premium-map-dom-marker',
-    `premium-map-dom-marker--${markerVariant(point)}`,
+    'journey-map-pin',
+    `journey-map-pin--${markerVariant(point)}`,
     point.is_current_location ? 'is-current' : '',
     active ? 'is-active' : '',
   ].filter(Boolean).join(' ');
 
+  const handleClick = () => {
+    onSelect(point.journey_entry_id);
+    setOpen(true);
+  };
+
   return (
-    <button
-      type="button"
-      className={className}
-      aria-label={people.length ? `Open ${point.title} — ${peopleLabel(point)}` : `Open ${point.title}`}
-      onClick={() => onSelect(point.journey_entry_id)}
-    >
-      {people.length > 1 ? (
-        <span className="premium-map-dom-marker__split">
-          {people.slice(0, 2).map((person) => (
-            <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
-          ))}
+    <>
+      <button
+        type="button"
+        className={className}
+        aria-label={people.length ? `Open ${point.title} — ${peopleLabel(point)}` : `Open ${point.title}`}
+        onClick={handleClick}
+      >
+        <span className="journey-map-pin__portrait">
+          {people.length > 1 ? (
+            <span className="journey-map-pin__split">
+              {people.slice(0, 2).map((person) => (
+                <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
+              ))}
+            </span>
+          ) : people[0] ? (
+            <Avatar name={people[0].display_name} url={people[0].avatar_url} />
+          ) : <MapPin size={18} />}
         </span>
-      ) : people[0] ? (
-        <Avatar name={people[0].display_name} url={people[0].avatar_url} />
-      ) : <span>•</span>}
-      {point.is_milestone ? <i className="premium-map-dom-marker__badge">★</i> : null}
-    </button>
-  );
-}
+        <span className="journey-map-pin__tail" />
+        {point.is_milestone ? <i className="journey-map-pin__badge">★</i> : null}
+      </button>
 
-export function JourneyMapPinPopup({ point }: { point: PremiumJourneyPoint }) {
-  const people = sortedPeople(point);
-  const location = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
-
-  return (
-    <div className="premium-map-popup">
-      <div className="premium-map-popup__head">
-        {people.length ? (
-          <div className="premium-map-popup__avatars">
-            {people.slice(0, 3).map((person) => (
-              <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
-            ))}
-          </div>
-        ) : null}
-        <div>
-          <span>{point.is_current_location ? 'Current location' : peopleLabel(point)}</span>
-          <small>{formatDate(point.occurred_at)}</small>
-        </div>
-      </div>
-      <strong>{point.title}</strong>
-      <small>{location}</small>
-    </div>
+      {open ? <JourneyMapPinModal point={point} onClose={() => setOpen(false)} /> : null}
+    </>
   );
 }
 
 export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, onSelect: (id: string) => void) {
   const markerContainer = document.createElement('div');
-  const popupContainer = document.createElement('div');
+  markerContainer.className = 'journey-map-pin-root';
   const markerRoot: Root = createRoot(markerContainer);
-  const popupRoot: Root = createRoot(popupContainer);
 
   const render = (isActive: boolean) => {
     markerRoot.render(<JourneyMapPin point={point} active={isActive} onSelect={onSelect} />);
-    popupRoot.render(<JourneyMapPinPopup point={point} />);
   };
 
   render(active);
 
   return {
     element: markerContainer,
-    popupElement: popupContainer,
     update(nextActive: boolean) { render(nextActive); },
-    unmount() {
-      markerRoot.unmount();
-      popupRoot.unmount();
-    },
+    unmount() { markerRoot.unmount(); },
   };
 }
