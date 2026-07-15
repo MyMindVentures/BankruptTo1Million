@@ -133,6 +133,21 @@ function ExchangeBullet({ item }: { item: TimelineExchangeItem }) {
   </li>;
 }
 
+function ExchangeGroup({ type, items }: { type: 'need' | 'offer'; items: TimelineExchangeItem[] }) {
+  const isNeed = type === 'need';
+  const label = isNeed ? 'What We Need' : 'What We Offer';
+  const Icon = isNeed ? HandHeart : Gift;
+
+  return <details className="journal-timeline-card__exchange-group">
+    <summary className="journal-timeline-card__exchange-title">
+      <span><Icon size={14} /> {label}</span>
+      <span className="journal-timeline-card__exchange-count">{items.length}</span>
+      <ChevronDown className="journal-timeline-card__accordion-chevron" size={16} aria-hidden="true" />
+    </summary>
+    <ul>{items.map((item) => <ExchangeBullet key={item.id} item={item} />)}</ul>
+  </details>;
+}
+
 export function JournalArticleCard({ post }: { post: PublicJournalPost }) {
   const people = getJournalDisplayPeople(post);
   return <AceternityContentCard
@@ -223,16 +238,17 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
             {point.excerpt ? <small>{point.excerpt}</small> : null}
           </button>
 
-          {linkedItems.length ? <div className="journal-timeline-card__exchange">
-            {needs.length ? <div className="journal-timeline-card__exchange-group">
-              <span className="journal-timeline-card__exchange-title"><HandHeart size={14} /> What We Need</span>
-              <ul>{needs.map((item) => <ExchangeBullet key={item.id} item={item} />)}</ul>
-            </div> : null}
-            {offers.length ? <div className="journal-timeline-card__exchange-group">
-              <span className="journal-timeline-card__exchange-title"><Gift size={14} /> What We Offer</span>
-              <ul>{offers.map((item) => <ExchangeBullet key={item.id} item={item} />)}</ul>
-            </div> : null}
-          </div> : null}
+          {linkedItems.length ? <details className="journal-timeline-card__exchange">
+            <summary className="journal-timeline-card__exchange-summary">
+              <span><HandHeart size={15} /> Needs & offers</span>
+              <span className="journal-timeline-card__exchange-total">{linkedItems.length}</span>
+              <ChevronDown className="journal-timeline-card__accordion-chevron" size={17} aria-hidden="true" />
+            </summary>
+            <div className="journal-timeline-card__exchange-content">
+              {needs.length ? <ExchangeGroup type="need" items={needs} /> : null}
+              {offers.length ? <ExchangeGroup type="offer" items={offers} /> : null}
+            </div>
+          </details> : null}
         </article>;
       })}
     </div>

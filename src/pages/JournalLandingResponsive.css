@@ -186,3 +186,31 @@
   .journal-priority-page *::before,
   .journal-priority-page *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* Nested accordions for timeline needs and offers */
+.journal-timeline-card__exchange,
+.journal-timeline-card__exchange-group{min-width:0}
+.journal-timeline-card__exchange summary{list-style:none;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.journal-timeline-card__exchange summary::-webkit-details-marker{display:none}
+.journal-timeline-card__exchange-summary,
+.journal-timeline-card__exchange-title{display:flex;align-items:center;gap:.55rem;width:100%;min-height:44px}
+.journal-timeline-card__exchange-summary{padding:.75rem .9rem}
+.journal-timeline-card__exchange-summary>span:first-child,
+.journal-timeline-card__exchange-title>span:first-child{display:flex;align-items:center;gap:.45rem;min-width:0;margin-right:auto}
+.journal-timeline-card__exchange-total,
+.journal-timeline-card__exchange-count{display:inline-flex;align-items:center;justify-content:center;min-width:1.7rem;height:1.7rem;padding:0 .4rem;border:1px solid rgba(255,255,255,.12);border-radius:999px;font-size:.72rem;line-height:1}
+.journal-timeline-card__exchange-content{display:grid;gap:.55rem;padding:0 .75rem .75rem}
+.journal-timeline-card__exchange-group{border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden}
+.journal-timeline-card__exchange-title{padding:.65rem .75rem}
+.journal-timeline-card__exchange-group>ul{margin:0;padding:.1rem .65rem .65rem}
+.journal-timeline-card__accordion-chevron{flex:0 0 auto;transition:transform .2s ease}
+.journal-timeline-card__exchange[open]>.journal-timeline-card__exchange-summary .journal-timeline-card__accordion-chevron,
+.journal-timeline-card__exchange-group[open]>.journal-timeline-card__exchange-title .journal-timeline-card__accordion-chevron{transform:rotate(180deg)}
+.journal-timeline-card__exchange-summary:focus-visible,
+.journal-timeline-card__exchange-title:focus-visible{outline:2px solid currentColor;outline-offset:-2px;border-radius:10px}
+
+@media (max-width:760px){
+  .journal-timeline-card__exchange-summary{padding:.7rem .75rem}
+  .journal-timeline-card__exchange-content{padding:0 .55rem .55rem}
+  .journal-timeline-card__exchange-title{padding:.65rem}
+}
