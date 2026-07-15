@@ -1,0 +1,298 @@
+.founding-financial-support {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.founding-financial-support__panel {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  gap: 1.35rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(215, 168, 79, 0.22);
+  border-radius: 1.5rem;
+  background:
+    radial-gradient(circle at top right, rgba(215, 168, 79, 0.14), transparent 42%),
+    linear-gradient(160deg, rgba(36, 31, 24, 0.96), rgba(16, 13, 10, 0.98));
+  box-shadow: 0 1.5rem 4rem rgba(0, 0, 0, 0.22);
+}
+
+.founding-financial-support__panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(120deg, transparent 0%, rgba(255, 247, 237, 0.03) 48%, transparent 100%);
+}
+
+.founding-financial-support__panel-header {
+  position: relative;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.founding-financial-support__icon-badge {
+  display: grid;
+  place-items: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 1px solid rgba(215, 168, 79, 0.45);
+  border-radius: 1rem;
+  background: rgba(215, 168, 79, 0.12);
+  color: var(--gold);
+  box-shadow: inset 0 1px 0 rgba(255, 247, 237, 0.08);
+}
+
+.founding-financial-support__summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.founding-financial-support__total,
+.founding-financial-support__count {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid rgba(215, 168, 79, 0.34);
+  border-radius: 999px;
+  background: rgba(215, 168, 79, 0.1);
+  color: var(--ivory);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.founding-financial-support__total svg,
+.founding-financial-support__count svg {
+  color: var(--gold);
+}
+
+.founding-financial-support__scroll-hint {
+  margin: 0;
+  color: var(--stone);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.founding-financial-support__carousel {
+  position: relative;
+  display: grid;
+  gap: 1rem;
+}
+
+.founding-financial-support__carousel:focus {
+  outline: none;
+}
+
+.founding-financial-support__carousel:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 4px;
+  border-radius: 1rem;
+}
+
+.founding-financial-support__track {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.15rem 0.75rem;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 0.15rem;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(215, 168, 79, 0.45) transparent;
+}
+
+.founding-financial-support__track::-webkit-scrollbar {
+  height: 6px;
+}
+
+.founding-financial-support__track::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(215, 168, 79, 0.45);
+}
+
+.founding-financial-support__card {
+  position: relative;
+  flex: 0 0 min(280px, 78vw);
+  scroll-snap-align: start;
+  display: grid;
+  gap: 0.85rem;
+  min-height: 11.5rem;
+  padding: 1.2rem 1.15rem 1.1rem;
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(36, 31, 24, 0.92), rgba(22, 18, 14, 0.88));
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.18);
+}
+
+.founding-financial-support__card--latest {
+  flex-basis: min(320px, 84vw);
+  border-color: rgba(200, 155, 91, 0.56);
+  background:
+    radial-gradient(circle at top left, rgba(215, 168, 79, 0.12), transparent 55%),
+    linear-gradient(180deg, rgba(40, 34, 26, 0.96), rgba(22, 18, 14, 0.9));
+}
+
+.founding-financial-support__card-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.65rem;
+  border: 1px solid rgba(215, 168, 79, 0.4);
+  border-radius: 999px;
+  background: rgba(215, 168, 79, 0.14);
+  color: var(--gold);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.founding-financial-support__card-amount {
+  margin: 0;
+  color: var(--ivory);
+  font-size: clamp(1.75rem, 4vw, 2.35rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.founding-financial-support__card-supporter {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  margin: 0;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.founding-financial-support__card-supporter svg {
+  color: var(--gold);
+  flex-shrink: 0;
+}
+
+.founding-financial-support__card time {
+  color: var(--stone);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.founding-financial-support__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.founding-financial-support__nav {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.founding-financial-support__nav-button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border: 1px solid rgba(215, 168, 79, 0.34);
+  border-radius: 999px;
+  background: rgba(16, 13, 10, 0.72);
+  color: var(--gold);
+  cursor: pointer;
+  transition:
+    border-color var(--duration-fast, 0.2s) ease,
+    background var(--duration-fast, 0.2s) ease,
+    transform var(--duration-fast, 0.2s) ease;
+}
+
+.founding-financial-support__nav-button:hover:not(:disabled) {
+  border-color: rgba(215, 168, 79, 0.6);
+  background: rgba(215, 168, 79, 0.12);
+}
+
+.founding-financial-support__nav-button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+.founding-financial-support__nav-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.founding-financial-support__position {
+  margin: 0;
+  color: var(--stone);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.founding-financial-support__dots {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.founding-financial-support__dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  transition: width 0.2s ease, background 0.2s ease, border-radius 0.2s ease;
+}
+
+.founding-financial-support__dot.is-active {
+  width: 20px;
+  border-radius: 999px;
+  background: var(--gold);
+}
+
+.founding-financial-support__dot:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+@media (max-width: 680px) {
+  .founding-financial-support__panel {
+    padding: 1.15rem;
+  }
+
+  .founding-financial-support__track {
+    margin-inline: -0.35rem;
+    padding-inline: 0.35rem;
+    scroll-padding-inline: 0.35rem;
+    scrollbar-width: none;
+  }
+
+  .founding-financial-support__track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .founding-financial-support__card {
+    flex-basis: min(280px, 86vw);
+  }
+
+  .founding-financial-support__card--latest {
+    flex-basis: min(300px, 90vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .founding-financial-support__nav-button,
+  .founding-financial-support__dot {
+    transition: none;
+  }
+}

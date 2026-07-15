@@ -7,6 +7,7 @@ import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pag
 import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
+import { FoundingHeroesFinancialSupport } from './components/FoundingHeroesFinancialSupport';
 import { supabase } from './lib/supabase';
 import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
 import type { PublicFoundingHero } from './lib/foundingHeroes';
@@ -165,6 +166,9 @@ function FoundingHeroesPage() {
             <a className="button button--ghost" href="#founding-hero-profiles">
               View profiles
             </a>
+            <a className="button button--ghost" href="#founding-hero-financial-support">
+              Financial support
+            </a>
           </div>
         </div>
         <aside className="hero-card founding-hero__note" aria-label="Recognition principle">
@@ -198,6 +202,10 @@ function FoundingHeroesPage() {
         {status === 'error' ? <div className="impact-state impact-state--error" role="alert">{error}</div> : null}
         {status === 'ready' && !heroes.length ? <div className="impact-state"><strong>No Founding Heroes are published yet.</strong><br />Approved contributor profiles will appear here as soon as they are ready.</div> : null}
         {heroes.length ? <div className="founding-profile-grid" role="list">{heroes.map((hero) => <div role="listitem" key={hero.id}><FoundingHeroCard hero={hero} /></div>)}</div> : null}
+      </section>
+
+      <section className="section" id="founding-hero-financial-support" aria-labelledby="financial-support-title">
+        <FoundingHeroesFinancialSupport />
       </section>
 
       <section className="section section-grid" id="founding-hero-roles" aria-labelledby="roles-title">
