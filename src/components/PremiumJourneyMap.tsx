@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import type { JournalDisplayPerson } from '../lib/journalPeople';
+import { getMapNavigation, newestMapPoint } from '../lib/journalMapNavigation';
 import { supabase } from '../lib/supabase';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
 import { mountJourneyMapPin } from './JourneyMapPin';
+import { JourneyFootageCarousel, type JourneyFootageItem } from './journal/JourneyFootageCarousel';
 import './PremiumJourneyMap.css';
 
 export type JourneyInvolvedPerson = JournalDisplayPerson & {
@@ -27,6 +30,9 @@ export type PremiumJourneyPoint = {
   is_milestone: boolean;
   is_current_location: boolean;
   involved_people: JourneyInvolvedPerson[];
+  cover_image_url?: string;
+  cover_image_alt?: string;
+  footage?: JourneyFootageItem[];
 };
 
 type Coordinate = [number, number];
@@ -89,10 +95,6 @@ function loadMapLibre(): Promise<MapLibreGlobal> {
   return mapLibrePromise;
 }
 
-function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
-}
-
 function coordinates(point: PremiumJourneyPoint): Coordinate {
   return [Number(point.longitude), Number(point.latitude)];
 }
@@ -122,10 +124,11 @@ function routeFeature(coordinatesValue: Coordinate[]) {
 }
 
 function newestPoint(points: PremiumJourneyPoint[]) {
-  return [...points].sort((a, b) => new Date(b.occurred_at).getTime() - new Date(a.occurred_at).getTime())[0];
+  return newestMapPoint(points);
 }
 
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
+  const { t, formatDate } = useWebsiteI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<MarkerRecord[]>([]);
@@ -134,22 +137,22 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     kevin: { key: 'kevin', coordinates: [], distanceKm: 0, durationMinutes: 0, status: 'idle' },
     micha: { key: 'micha', coordinates: [], distanceKm: 0, durationMinutes: 0, status: 'idle' },
   });
-  const mapped = useMemo(() => points
-    .filter((point) => Number.isFinite(Number(point.latitude)) && Number.isFinite(Number(point.longitude)))
-    .sort((a, b) => new Date(a.occurred_at).getTime() - new Date(b.occurred_at).getTime()), [points]);
+  const navigation = useMemo(() => getMapNavigation(points, activeId), [points, activeId]);
+  const { mapped, active, activeIndex, previous, next, isActiveIdValid } = navigation;
   const routeStops = useMemo(() => ({
     kevin: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'kevin')).map(coordinates)),
     micha: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'micha')).map(coordinates)),
   }), [mapped]);
-  const latestEvent = newestPoint(mapped) || mapped[0];
-  const current = newestPoint(mapped.filter((point) => point.is_current_location)) || latestEvent;
-  const active = mapped.find((point) => point.journey_entry_id === activeId) || latestEvent || mapped[0];
-  const activeIndex = Math.max(0, mapped.findIndex((point) => point.journey_entry_id === active?.journey_entry_id));
-  const previous = activeIndex > 0 ? mapped[activeIndex - 1] : undefined;
-  const next = activeIndex < mapped.length - 1 ? mapped[activeIndex + 1] : undefined;
+  const current = newestPoint(mapped.filter((point) => point.is_current_location)) || newestPoint(mapped) || mapped[0];
   const routeProgress = mapped.length > 1 ? ((activeIndex + 1) / mapped.length) * 100 : 100;
   const routedDistance = routes.kevin.distanceKm + routes.micha.distanceKm;
   const routingFallback = routes.kevin.status === 'fallback' || routes.micha.status === 'fallback';
+
+  useEffect(() => {
+    if (!mapped.length || isActiveIdValid) return;
+    const fallback = newestPoint(mapped);
+    if (fallback) onSelect(fallback.journey_entry_id);
+  }, [mapped, isActiveIdValid, onSelect]);
 
   useEffect(() => {
     if (!mapped.length) return;
@@ -236,7 +239,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         window.setTimeout(resizeMap, 450);
         map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
       });
-    }).catch(() => { if (!cancelled) setMapError('The interactive map could not load. Check the connection and refresh.'); });
+    }).catch(() => { if (!cancelled) setMapError(t('journal.map.error.load_failed', 'The interactive map could not load. Check the connection and refresh.')); });
 
     return () => {
       cancelled = true;
@@ -253,7 +256,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       if (map) map.remove();
       mapRef.current = null;
     };
-  }, [mapped, onSelect]);
+  }, [mapped, onSelect, t]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -267,31 +270,49 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   useEffect(() => {
     if (!active || !mapRef.current) return;
     markersRef.current.forEach(({ pin, pointId }) => {
-      pin.update(pointId === active.journey_entry_id);
+      const point = mapped.find((entry) => entry.journey_entry_id === pointId);
+      if (point) pin.update(point, pointId === active.journey_entry_id);
     });
     mapRef.current.resize?.();
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
-  }, [active]);
+  }, [active, mapped]);
 
-  if (!mapped.length) return <Card className="premium-map-empty"><Route/><h3>The first mapped chapter is coming.</h3><p>Publish a journey location with coordinates to activate the route.</p></Card>;
+  if (!mapped.length || !active) {
+    return <Card className="premium-map-empty">
+      <Route/>
+      <h3>{t('journal.map.empty.title', 'The first mapped chapter is coming.')}</h3>
+      <p>{t('journal.map.empty.body', 'Publish a journey location with coordinates to activate the route.')}</p>
+    </Card>;
+  }
+
   const activePeople = sortedPeople(active);
+  const currentStopLabel = current.location_name || current.city_name || t('journal.map.kpi.open_road', 'Open road');
 
   return <div className="premium-map-shell">
-    <div className="premium-map-kpis"><Callout><Route/><span><strong>{mapped.length}</strong> mapped chapters</span></Callout><Callout><Compass/><span><strong>{routedDistance ? `${Math.round(routedDistance)} km` : `${activeIndex + 1}/${mapped.length}`}</strong> {routedDistance ? 'road distance' : 'route position'}</span></Callout><Callout><Flag/><span><strong>{current.location_name || current.city_name || 'Open road'}</strong> current stop</span></Callout></div>
+    <div className="premium-map-kpis">
+      <Callout><Route/><span><strong>{mapped.length}</strong> {t('journal.map.kpi.mapped_chapters', 'mapped chapters')}</span></Callout>
+      <Callout><Compass/><span><strong>{routedDistance ? `${Math.round(routedDistance)} km` : `${activeIndex + 1}/${mapped.length}`}</strong> {routedDistance ? t('journal.map.kpi.road_distance', 'road distance') : t('journal.map.kpi.route_position', 'route position')}</span></Callout>
+      <Callout><Flag/><span><strong>{currentStopLabel}</strong> {t('journal.map.kpi.current_stop', 'current stop')}</span></Callout>
+    </div>
     <div className="premium-map-layout">
       <Card className="premium-map-card">
-        <div className="premium-map-card__topbar"><div><Badge>Live journey map</Badge><span>Separate road routes for Kevin and Micha · database-linked profile pins</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => { mapRef.current?.resize?.(); mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 }); }}><LocateFixed size={16}/> Current</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> Fullscreen</Button></div></div>
-        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}{routingFallback ? <div className="premium-map-load-error">Road routing is temporarily unavailable; simplified lines are shown.</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>Journey view</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> Kevin route</span><span><i className="is-micha"/> Micha route</span><span><i className="is-together"/> Shared stop</span></div></div>
+        <div className="premium-map-card__topbar"><div><Badge>{t('journal.map.badge.live_map', 'Live journey map')}</Badge><span>{t('journal.map.topbar.subtitle', 'Separate road routes for Kevin and Micha · database-linked profile pins')}</span></div><div className="premium-map-top-actions"><Button variant="ghost" size="sm" onClick={() => { mapRef.current?.resize?.(); mapRef.current?.flyTo({ center: coordinates(current), zoom: 10.5, duration: 900 }); }}><LocateFixed size={16}/> {t('journal.map.action.current', 'Current')}</Button><Button variant="ghost" size="sm" onClick={() => containerRef.current?.requestFullscreen()}><Fullscreen size={16}/> {t('journal.map.action.fullscreen', 'Fullscreen')}</Button></div></div>
+        <div className="premium-map-stage premium-map-stage--light"><div ref={containerRef} className="premium-map-canvas" />{mapError ? <div className="premium-map-load-error">{mapError}</div> : null}{routingFallback ? <div className="premium-map-load-error">{t('journal.map.error.routing_fallback', 'Road routing is temporarily unavailable; simplified lines are shown.')}</div> : null}<div className="premium-map-floating-card premium-map-floating-card--top"><Crosshair size={15}/><span>{t('journal.map.floating.journey_view', 'Journey view')}</span></div><div className="premium-map-legend"><span><i className="is-kevin"/> {t('journal.map.legend.kevin_route', 'Kevin route')}</span><span><i className="is-micha"/> {t('journal.map.legend.micha_route', 'Micha route')}</span><span><i className="is-together"/> {t('journal.map.legend.shared_stop', 'Shared stop')}</span></div></div>
       </Card>
-      <Card className="premium-map-detail-card">
-        <div className="premium-map-detail-card__meta">{activePeople.length ? <Badge>{peopleLabel(active)}</Badge> : null}{active.is_current_location ? <Badge className="premium-map-live"><span/> Live location</Badge> : null}</div>
+      <Card className="premium-map-detail-card" key={active.journey_entry_id}>
+        <div className="premium-map-detail-card__meta">{activePeople.length ? <Badge>{peopleLabel(active)}</Badge> : null}{active.is_current_location ? <Badge className="premium-map-live"><span/> {t('journal.map.detail.live_location', 'Live location')}</Badge> : null}</div>
         {activePeople.length ? <div className="premium-map-detail-founder">{activePeople.slice(0, 3).map((person) => person.avatar_url ? <img key={person.id} src={person.avatar_url} alt={person.display_name}/> : <span key={person.id} className="premium-map-detail-founder__fallback">{person.display_name.slice(0, 1)}</span>)}</div> : null}
+        <JourneyFootageCarousel items={active.footage} title={active.title} />
+        {!active.footage?.length && active.cover_image_url ? <img className="premium-map-detail-card__cover" src={active.cover_image_url} alt={active.cover_image_alt || active.title} loading="lazy" /> : null}
         <div className="premium-map-detail-card__icon">{active.is_current_location ? <Navigation/> : active.is_milestone ? <Sparkles/> : <MapPin/>}</div>
-        <time>{formatDate(active.occurred_at)}</time><h3>{active.title}</h3><p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p><p>{active.excerpt}</p>
-        <div className="premium-map-progress"><div><span>Journey progress</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
+        <time dateTime={active.occurred_at}>{formatDate(active.occurred_at)}</time>
+        <h3>{active.title}</h3>
+        <p className="premium-map-detail-card__location"><MapPin size={16}/>{active.location_name || active.city_name}{active.country_name ? `, ${active.country_name}` : ''}</p>
+        {active.excerpt ? <p>{active.excerpt}</p> : null}
+        <div className="premium-map-progress"><div><span>{t('journal.map.detail.journey_progress', 'Journey progress')}</span><strong>{Math.round(routeProgress)}%</strong></div><div className="premium-map-progress__track"><span style={{ width: `${routeProgress}%` }}/></div></div>
         <div className="premium-map-coordinates"><Crosshair size={15}/><span>{Number(active.latitude).toFixed(4)}, {Number(active.longitude).toFixed(4)}</span></div>
-        {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>Read this chapter <ChevronRight size={16}/></ButtonLink> : null}
-        <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" disabled={!previous} onClick={() => previous && onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> Previous</Button><Button variant="ghost" size="sm" disabled={!next} onClick={() => next && onSelect(next.journey_entry_id)}>Next <ChevronRight size={16}/></Button></div>
+        {active.slug ? <ButtonLink href={`/journal/${active.slug}`}>{t('journal.map.detail.read_chapter', 'Read this chapter')} <ChevronRight size={16}/></ButtonLink> : null}
+        <div className="premium-map-detail-card__nav"><Button variant="ghost" size="sm" disabled={!previous} onClick={() => previous && onSelect(previous.journey_entry_id)}><ChevronLeft size={16}/> {t('journal.map.nav.previous', 'Previous')}</Button><Button variant="ghost" size="sm" disabled={!next} onClick={() => next && onSelect(next.journey_entry_id)}>{t('journal.map.nav.next', 'Next')} <ChevronRight size={16}/></Button></div>
       </Card>
     </div>
   </div>;

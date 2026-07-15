@@ -101,18 +101,24 @@ export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, 
   markerContainer.className = 'journey-medallion-root';
   const markerRoot: Root = createRoot(markerContainer);
   const popupRoot: Root = createRoot(popupContainer);
+  let currentPoint = point;
+  let currentActive = active;
 
-  const render = (isActive: boolean) => {
-    markerRoot.render(<JourneyMapPin point={point} active={isActive} onSelect={onSelect} />);
-    popupRoot.render(<JourneyMapPinPopup point={point} />);
+  const render = () => {
+    markerRoot.render(<JourneyMapPin point={currentPoint} active={currentActive} onSelect={onSelect} />);
+    popupRoot.render(<JourneyMapPinPopup point={currentPoint} />);
   };
 
-  render(active);
+  render();
 
   return {
     element: markerContainer,
     popupElement: popupContainer,
-    update(nextActive: boolean) { render(nextActive); },
+    update(nextPoint: PremiumJourneyPoint, nextActive: boolean) {
+      currentPoint = nextPoint;
+      currentActive = nextActive;
+      render();
+    },
     unmount() {
       markerRoot.unmount();
       popupRoot.unmount();

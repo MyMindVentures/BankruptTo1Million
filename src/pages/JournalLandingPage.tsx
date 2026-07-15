@@ -1,5 +1,5 @@
 import { ArrowRight, Gift, HandHeart } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
 import {
@@ -13,6 +13,7 @@ import {
   type JourneyPoint,
 } from '../components/journal/JournalLandingSections';
 import { applyTranslation, filterPosts, getJournalIndex, type JournalCategory, type JournalIndexData, type PublicJournalPost } from '../lib/journal';
+import { newestMapPoint } from '../lib/journalMapNavigation';
 import { getJournalDisplayPeople } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -172,7 +173,7 @@ export function JournalLandingPage() {
       setJourney(hydratedJourney);
       setMapJourney(hydratedJourney);
       setExchangeItems(exchangeRows.map((item) => localizeExchangeItem(item, language)));
-      setActiveId(newestPoint(hydratedJourney)?.journey_entry_id);
+      setActiveId(newestMapPoint(hydratedJourney)?.journey_entry_id);
       setStatus('ready');
     }).catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
@@ -191,11 +192,24 @@ export function JournalLandingPage() {
     if (!filteredMapJourney.length && !filteredJourney.length) return;
     if (activeId && filteredMapJourney.some((point) => point.journey_entry_id === activeId)) return;
     if (activeId && filteredJourney.some((point) => point.journey_entry_id === activeId)) return;
-    const fallback = newestPoint(filteredMapJourney) || newestPoint(filteredJourney);
+    const fallback = newestMapPoint(filteredMapJourney) || newestPoint(filteredJourney);
     if (fallback) setActiveId(fallback.journey_entry_id);
   }, [activeId, filteredMapJourney, filteredJourney, founder]);
 
+  const selectMapChapter = useCallback((journeyEntryId: string) => {
+    if (!filteredMapJourney.some((point) => point.journey_entry_id === journeyEntryId)) return;
+    setActiveId(journeyEntryId);
+  }, [filteredMapJourney]);
+
+  const selectChapter = useCallback((journeyEntryId: string) => {
+    if (filteredJourney.some((point) => point.journey_entry_id === journeyEntryId)) {
+      setActiveId(journeyEntryId);
+      return;
+    }
+    selectMapChapter(journeyEntryId);
+  }, [filteredJourney, selectMapChapter]);
+
   const resetArchiveFilters = () => { setCategory('all'); setSearch(''); setSort('newest'); };
 
-  return <><Header /><main className="journal-priority-page"><JournalIntroSection /><JournalStatusState status={status} />{status === 'ready' && journal ? <><JournalExchangeSection items={exchangeItems} /><JournalMapSection points={filteredMapJourney} activeId={activeId} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalTimelineSection points={filteredJourney} exchangeItems={exchangeItems} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={setActiveId} /><JournalLatestSection posts={latestPosts} /><JournalArchiveSection journal={journal} posts={archivePosts} open={archiveOpen} category={category} search={search} sort={sort} onToggle={() => setArchiveOpen((value) => !value)} onCategoryChange={setCategory} onSearchChange={setSearch} onSortChange={setSort} onReset={resetArchiveFilters} /></> : null}</main><Footer /></>;
+  return <><Header /><main className="journal-priority-page"><JournalIntroSection /><JournalStatusState status={status} />{status === 'ready' && journal ? <><JournalExchangeSection items={exchangeItems} /><JournalMapSection points={filteredMapJourney} activeId={activeId} founder={founder} onFounderChange={setFounder} onSelect={selectMapChapter} /><JournalTimelineSection points={filteredJourney} exchangeItems={exchangeItems} activePoint={activePoint} founder={founder} onFounderChange={setFounder} onSelect={selectChapter} /><JournalLatestSection posts={latestPosts} /><JournalArchiveSection journal={journal} posts={archivePosts} open={archiveOpen} category={category} search={search} sort={sort} onToggle={() => setArchiveOpen((value) => !value)} onCategoryChange={setCategory} onSearchChange={setSearch} onSortChange={setSort} onReset={resetArchiveFilters} /></> : null}</main><Footer /></>;
 }
