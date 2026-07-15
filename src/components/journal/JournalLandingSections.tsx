@@ -5,6 +5,7 @@ import { SectionHeading } from '../SectionHeading';
 import { JourneyFootageCarousel, type JourneyFootageItem } from './JourneyFootageCarousel';
 import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
 import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
+import { useWebsiteI18n } from '../../lib/websiteI18n';
 
 export type FounderFilter = 'all' | 'kevin' | 'micha' | 'together';
 export type JourneyInvolvedPerson = JournalDisplayPerson & {
@@ -133,6 +134,29 @@ function ExchangeBullet({ item }: { item: TimelineExchangeItem }) {
   </li>;
 }
 
+function TimelineCardContent({ point, pointPeriod, people, location }: {
+  point: JourneyPoint;
+  pointPeriod: ExchangePeriod;
+  people: JourneyInvolvedPerson[];
+  location?: string;
+}) {
+  return <>
+    <div className="journal-timeline-card__topline">
+      <time>{formatJournalDate(point.occurred_at)}</time>
+      <em className={`journal-timeline-card__status is-${pointPeriod}`}>{exchangePeriodLabel(pointPeriod)}</em>
+    </div>
+    {people.length ? <div className="journal-timeline-card__people">
+      <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
+        ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
+        : <span key={person.id} aria-label={person.display_name}>{person.display_name.slice(0, 1)}</span>)}</span>
+      <span>{formatJournalPeople(people)}</span>
+    </div> : null}
+    <strong>{point.title}</strong>
+    {location ? <span className="journal-timeline-card__location"><MapPin size={14} />{location}{point.country_name ? `, ${point.country_name}` : ''}</span> : null}
+    {point.excerpt ? <small>{point.excerpt}</small> : null}
+  </>;
+}
+
 function ExchangeGroup({ type, items }: { type: 'need' | 'offer'; items: TimelineExchangeItem[] }) {
   const isNeed = type === 'need';
   const label = isNeed ? 'What We Need' : 'What We Offer';
@@ -205,6 +229,8 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
   onFounderChange: (value: FounderFilter) => void;
   onSelect: (id: string) => void;
 }) {
+  const { t } = useWebsiteI18n();
+
   return <section className="journal-timeline-section" aria-labelledby="journal-timeline-title">
     <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Past chapters, current needs and upcoming opportunities are separated clearly.</SectionHeading>
     <div className="journal-timeline-legend" aria-label="Timeline status legend"><span className="is-past">Passed</span><span className="is-current">Now</span><span className="is-upcoming">Upcoming</span></div>
@@ -219,24 +245,17 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
         const isActive = activePoint?.journey_entry_id === point.journey_entry_id;
         const pointPeriod: ExchangePeriod = point.is_current_location ? 'current' : new Date(point.occurred_at).getTime() > Date.now() ? 'upcoming' : 'past';
 
-        return <article key={point.journey_entry_id} className={`journal-priority-timeline__card is-${pointPeriod} ${isActive ? 'is-active' : ''}`}>
+        return <article key={point.journey_entry_id} className={`journal-priority-timeline__card is-${pointPeriod} ${isActive ? 'is-active' : ''} ${point.slug ? 'is-linkable' : ''}`}>
           <span className="journal-priority-timeline__dot" />
+          {point.slug ? <a
+            href={`/journal/${point.slug}`}
+            className="journal-priority-timeline__card-link"
+            aria-label={t('journal.timeline.open_chapter', 'Open chapter: {title}', { title: point.title })}
+          /> : null}
           <JourneyFootageCarousel items={point.footage} title={point.title} />
-          <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}>
-            <div className="journal-timeline-card__topline">
-              <time>{formatJournalDate(point.occurred_at)}</time>
-              <em className={`journal-timeline-card__status is-${pointPeriod}`}>{exchangePeriodLabel(pointPeriod)}</em>
-            </div>
-            {people.length ? <div className="journal-timeline-card__people">
-              <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
-                ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
-                : <span key={person.id} aria-label={person.display_name}>{person.display_name.slice(0, 1)}</span>)}</span>
-              <span>{formatJournalPeople(people)}</span>
-            </div> : null}
-            <strong>{point.title}</strong>
-            {location ? <span className="journal-timeline-card__location"><MapPin size={14} />{location}{point.country_name ? `, ${point.country_name}` : ''}</span> : null}
-            {point.excerpt ? <small>{point.excerpt}</small> : null}
-          </button>
+          {point.slug
+            ? <div className="journal-timeline-card__select journal-timeline-card__select--linked"><TimelineCardContent point={point} pointPeriod={pointPeriod} people={people} location={location} /></div>
+            : <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}><TimelineCardContent point={point} pointPeriod={pointPeriod} people={people} location={location} /></button>}
 
           {linkedItems.length ? <details className="journal-timeline-card__exchange">
             <summary className="journal-timeline-card__exchange-summary">

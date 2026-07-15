@@ -2,3 +2,12 @@
 
 /* Keep needs and offers out of the interactive timeline cards. They remain available in their dedicated sections/pages. */
 .journal-priority-timeline .journal-timeline-card__exchange{display:none!important}
+
+.journal-priority-timeline__card.is-linkable{cursor:pointer;transition:border-color .18s ease,opacity .18s ease}
+.journal-priority-timeline__card.is-linkable:hover,.journal-priority-timeline__card.is-linkable:focus-within{border-top-color:rgba(221,176,95,.55)}
+.journal-priority-timeline__card.is-linkable.is-past:hover,.journal-priority-timeline__card.is-linkable.is-past:focus-within{opacity:.88}
+.journal-priority-timeline__card-link{position:absolute;inset:0;z-index:1;border-radius:inherit;text-decoration:none;color:inherit}
+.journal-priority-timeline__card-link:focus-visible{outline:2px solid #ddb05f;outline-offset:2px}
+.journal-priority-timeline__card.is-linkable .journal-timeline-card__select--linked{pointer-events:none;cursor:pointer}
+.journal-priority-timeline__card.is-linkable .journey-footage{position:relative;z-index:0}
+.journal-priority-timeline__card.is-linkable .journey-footage__controls{position:relative;z-index:2}
