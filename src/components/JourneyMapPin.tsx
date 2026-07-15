@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { createRoot, type Root } from 'react-dom/client';
 import { ArrowRight, CalendarDays, MapPin, X } from 'lucide-react';
 import type { PremiumJourneyPoint } from './PremiumJourneyMap';
+import './JourneyMapPin.css';
 
 function sortedPeople(point: PremiumJourneyPoint) {
   return [...(point.involved_people || [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
