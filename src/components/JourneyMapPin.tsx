@@ -17,19 +17,16 @@ function markerVariant(point: PremiumJourneyPoint) {
   return point.journey_person || 'person';
 }
 
-function Avatar({ name, url }: { name: string; url?: string }) {
-  if (url) {
-    return <img src={url} alt="" loading="eager" decoding="async" />;
-  }
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(value));
+}
 
+function Avatar({ name, url }: { name: string; url?: string }) {
+  if (url) return <img src={url} alt="" loading="eager" decoding="async" />;
   return <span>{name.slice(0, 1).toUpperCase()}</span>;
 }
 
-export function JourneyMapPin({
-  point,
-  active,
-  onSelect,
-}: {
+export function JourneyMapPin({ point, active, onSelect }: {
   point: PremiumJourneyPoint;
   active: boolean;
   onSelect: (id: string) => void;
@@ -52,38 +49,62 @@ export function JourneyMapPin({
       {people.length > 1 ? (
         <span className="premium-map-dom-marker__split">
           {people.slice(0, 2).map((person) => (
-            <span key={person.id}>
-              <Avatar name={person.display_name} url={person.avatar_url} />
-            </span>
+            <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
           ))}
         </span>
       ) : people[0] ? (
         <Avatar name={people[0].display_name} url={people[0].avatar_url} />
-      ) : (
-        <span>•</span>
-      )}
-
+      ) : <span>•</span>}
       {point.is_milestone ? <i className="premium-map-dom-marker__badge">★</i> : null}
     </button>
   );
 }
 
-export function mountJourneyMapPin(
-  point: PremiumJourneyPoint,
-  active: boolean,
-  onSelect: (id: string) => void,
-) {
-  const container = document.createElement('div');
-  const root: Root = createRoot(container);
-  root.render(<JourneyMapPin point={point} active={active} onSelect={onSelect} />);
+export function JourneyMapPinPopup({ point }: { point: PremiumJourneyPoint }) {
+  const people = sortedPeople(point);
+  const location = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
+
+  return (
+    <div className="premium-map-popup">
+      <div className="premium-map-popup__head">
+        {people.length ? (
+          <div className="premium-map-popup__avatars">
+            {people.slice(0, 3).map((person) => (
+              <span key={person.id}><Avatar name={person.display_name} url={person.avatar_url} /></span>
+            ))}
+          </div>
+        ) : null}
+        <div>
+          <span>{point.is_current_location ? 'Current location' : peopleLabel(point)}</span>
+          <small>{formatDate(point.occurred_at)}</small>
+        </div>
+      </div>
+      <strong>{point.title}</strong>
+      <small>{location}</small>
+    </div>
+  );
+}
+
+export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, onSelect: (id: string) => void) {
+  const markerContainer = document.createElement('div');
+  const popupContainer = document.createElement('div');
+  const markerRoot: Root = createRoot(markerContainer);
+  const popupRoot: Root = createRoot(popupContainer);
+
+  const render = (isActive: boolean) => {
+    markerRoot.render(<JourneyMapPin point={point} active={isActive} onSelect={onSelect} />);
+    popupRoot.render(<JourneyMapPinPopup point={point} />);
+  };
+
+  render(active);
 
   return {
-    element: container,
-    update(nextActive: boolean) {
-      root.render(<JourneyMapPin point={point} active={nextActive} onSelect={onSelect} />);
-    },
+    element: markerContainer,
+    popupElement: popupContainer,
+    update(nextActive: boolean) { render(nextActive); },
     unmount() {
-      root.unmount();
+      markerRoot.unmount();
+      popupRoot.unmount();
     },
   };
 }
