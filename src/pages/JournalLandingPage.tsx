@@ -19,8 +19,8 @@ import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import './JournalLandingPage.css';
 import './JournalLandingResponsive.css';
+import './journal-map-responsive.css';
 import './JournalTimelineExchange.css';
-import './JournalViewportFix.css';
 
 type LocalizedText = { language_code: string; title?: string | null; tagline?: string | null; description?: string | null; translation_status?: string | null };
 type CategoryTranslation = { category_id: string; language_code: string; name?: string | null; description?: string | null; translation_status?: string | null };

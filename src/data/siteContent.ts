@@ -21,6 +21,53 @@ export type RoadmapItem = {
   description: string;
 };
 
+export type NavGroup = {
+  id: string;
+  labelKey: string;
+  items: NavItem[];
+};
+
+export const primaryNavItems: NavItem[] = [
+  { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
+  { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
+];
+
+export const navGroups: NavGroup[] = [
+  {
+    id: 'explore',
+    labelKey: 'navigation.group.explore',
+    items: [
+      { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
+      { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
+      { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
+      { label: 'Media', translationKey: 'navigation.media', href: '/media' },
+      { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
+      { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
+    ],
+  },
+  {
+    id: 'community',
+    labelKey: 'navigation.group.community',
+    items: [
+      { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
+      { label: 'What We Offer', translationKey: 'navigation.what_we_offer', href: '/offers' },
+      { label: 'Impact', translationKey: 'navigation.impact', href: '/impact' },
+      { label: 'Founding Heroes', translationKey: 'navigation.founding_heroes', href: '/founding-heroes' },
+    ],
+  },
+  {
+    id: 'participate',
+    labelKey: 'navigation.group.participate',
+    items: [
+      { label: 'Apply', translationKey: 'navigation.apply', href: '/become-a-founding-hero' },
+      { label: 'Support', translationKey: 'navigation.support', href: '/support' },
+      { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
+      { label: 'Profile', translationKey: 'navigation.profile', href: '/profile/issues' },
+      { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support.html' },
+    ],
+  },
+];
+
 export const navItems: NavItem[] = [
   { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
   { label: 'Story', translationKey: 'navigation.story', href: '/#story' },

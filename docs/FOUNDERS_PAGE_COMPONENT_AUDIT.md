@@ -454,7 +454,7 @@ The type duplicates part of `FounderProfile`. Consider defining a shared `Founde
 The Founders page is frontend-complete when:
 
 - Every rendered component has intentional styling.
-- All 15 languages fit without broken or excessive wrapping.
+- All 30 languages fit without broken or excessive wrapping.
 - Changing language does not refetch Founder records.
 - Images and videos are responsive and performance-aware.
 - Loading, empty and error states are actionable and accessible.

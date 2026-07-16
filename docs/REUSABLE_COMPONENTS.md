@@ -49,7 +49,7 @@ Responsibilities:
 
 ### `LanguageSelector`
 Responsibilities:
-- Display all 15 active languages
+- Display all 30 active languages
 - Persist selected language
 - Show localized label and ARIA text
 - Handle loading and disabled states

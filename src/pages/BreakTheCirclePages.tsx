@@ -6,6 +6,7 @@ import { deleteBreakTheCirclePost, emptyBreakTheCircleForm, filterAdminBreakTheC
 import { formatAuthorByline, getPostAuthors, sanitizeMarkdown, type JournalAuthor } from '../lib/journal';
 import { CommentsBlock, ShareBlock } from './JournalPages';
 import { supabase } from '../lib/supabase';
+import '../styles/breakTheCircle.css';
 
 function fmt(value?: string) { return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value)) : 'Not set'; }
 function setMeta(title: string, description: string, image?: string) { document.title=title; const set=(n:string,c:string,p=false)=>{let el=document.head.querySelector(p?`meta[property="${n}"]`:`meta[name="${n}"]`) as HTMLMetaElement|null; if(!el){el=document.createElement('meta'); el.setAttribute(p?'property':'name',n); document.head.appendChild(el);} el.content=c;}; set('description',description); set('og:title',title,true); set('og:description',description,true); if(image)set('og:image',image,true); }

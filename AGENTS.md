@@ -30,7 +30,7 @@ If the required database/backend foundation does not yet exist, the agent must b
 ## 1. Non-negotiable product rules
 
 1. The public website is multilingual and must switch immediately through the existing language selector.
-2. All 15 active languages come from Supabase `public.site_languages`. Never maintain a second hardcoded language list in the frontend.
+2. All 30 active languages come from Supabase `public.site_languages`. Never maintain a second hardcoded language list in the frontend.
 3. Public business/content data comes from Supabase. Do not introduce mock arrays, duplicated content objects, hardcoded cards, hardcoded founder data, hardcoded timeline entries, hardcoded offers/needs, hardcoded concepts, or hardcoded media metadata in React components.
 4. Visible UI copy must never be added as an untracked literal. Use the existing website i18n system and Supabase translation tables.
 5. English is the canonical fallback/source language unless the relevant record declares another `original_language`.
@@ -163,7 +163,7 @@ For every feature or bug, the implementation sequence is mandatory.
 
 1. Identify the canonical table or tables.
 2. Inspect columns, types, defaults, constraints, indexes, foreign keys and existing records.
-3. Inspect translation tables and all 15 active languages.
+3. Inspect translation tables and all 30 active languages.
 4. Confirm whether the required data already exists.
 5. Query the exact expected result directly in Supabase.
 
@@ -344,7 +344,7 @@ A public or admin frontend change is complete only when:
 
 - it uses real Supabase data for every dynamic value;
 - every new visible interface string has a canonical translation key;
-- all 15 active languages are supported through the established database translation system;
+- all 30 active languages are supported through the established database translation system;
 - switching language updates the complete affected experience immediately;
 - English fallback is safe but not used as a substitute for missing translation work;
 - dates, numbers, accessibility copy, empty states, errors and SEO are localized;

@@ -86,14 +86,24 @@ function conceptTitle(card: HTMLElement) {
   return card.querySelector('.concept-card__title-row h3')?.textContent?.trim() || null;
 }
 
+const STORAGE_KEY = 'b1m.website.language';
+
+function currentLanguage() {
+  const queryLanguage = new URLSearchParams(window.location.search).get('lang');
+  const storedLanguage = window.localStorage.getItem(STORAGE_KEY);
+  return (queryLanguage || storedLanguage || document.documentElement.lang || 'en').toLowerCase().split('-')[0];
+}
+
 export function initializeConceptMessageUi() {
   let messagesBySlug = new Map<string, ProofOfMindConceptMessage>();
   let messagesByTitle = new Map<string, ProofOfMindConceptMessage>();
   let loading: Promise<void> | null = null;
+  let loadedLanguage = currentLanguage();
 
-  const load = () => {
-    if (!loading) {
-      loading = getPublishedConceptMessages()
+  const load = (language = currentLanguage()) => {
+    if (!loading || loadedLanguage !== language) {
+      loadedLanguage = language;
+      loading = getPublishedConceptMessages(language)
         .then((messages) => {
           messagesBySlug = new Map(messages.filter((message) => message.concept_slug).map((message) => [message.concept_slug, message]));
           messagesByTitle = new Map(messages.filter((message) => message.concept_title).map((message) => [normalizedKey(message.concept_title), message]));
@@ -118,5 +128,9 @@ export function initializeConceptMessageUi() {
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('popstate', () => void enhance());
   window.addEventListener('hashchange', () => void enhance());
+  window.addEventListener('b1m:languagechange', () => {
+    loading = null;
+    void enhance();
+  });
   void enhance();
 }

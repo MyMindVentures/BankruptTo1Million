@@ -1,0 +1,48 @@
+.stack-grid {
+  grid-template-columns: 1fr !important;
+}
+
+.table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-scroll table {
+  min-width: 42rem;
+}
+
+@media (max-width: 760px) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1rem);
+  }
+}
+
+@media (pointer: coarse) {
+  .admin-icon-button,
+  .menu-toggle {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .concept-filters button {
+    min-height: 2.75rem;
+  }
+
+  .media-carousel__dots button {
+    width: 12px;
+    height: 12px;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0.875rem;
+    background-clip: content-box;
+  }
+
+  .founding-financial-support__dot {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+  }
+}

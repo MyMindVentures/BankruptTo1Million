@@ -13,10 +13,13 @@ test('public navigation exposes the canonical Break the Circle link only', () =>
   assert.doesNotMatch(siteContent, /href: '\/admin\/break-the-circle'/);
 });
 
-test('desktop and mobile navigation render navItems hrefs', () => {
-  assert.match(header, /navItems\.map/);
-  assert.match(header, /<a key=\{item\.href\} href=\{item\.href\}>/);
-  assert.match(header, /<a key=\{item\.href\} href=\{item\.href\} onClick=\{closeMobileMenu\}>/);
+test('desktop and mobile navigation render grouped navigation links', () => {
+  assert.match(header, /primaryNavItems\.map/);
+  assert.match(header, /navGroups\.map/);
+  assert.match(header, /site-nav__group/);
+  assert.match(header, /site-nav__mobile-group/);
+  assert.match(siteContent, /export const navItems/);
+  assert.equal((siteContent.match(/translationKey: 'navigation\./g) || []).length >= 17, true);
 });
 
 test('canonical /break-the-circle routes render the public page and articles', () => {

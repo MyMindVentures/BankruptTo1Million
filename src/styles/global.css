@@ -234,10 +234,27 @@ p { color: var(--muted); line-height: 1.7; }
 
 :focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; }
 
+@media (max-width: 1280px) {
+  .feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 1024px) {
+  .section-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 860px) {
   .site-header { align-items: stretch; }
   .site-header__bar { gap: 1rem; }
-  .section-grid, .feature-grid { grid-template-columns: 1fr; }
   .contribute { align-items: flex-start; flex-direction: column; }
 }
 

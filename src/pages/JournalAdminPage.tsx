@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Edit3, ExternalLink, FilePlus2, LoaderCircle, RefreshCw, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { JournalEventCapture } from '../components/JournalEventCapture';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import {
   createJournalPost,
   deleteJournalPost,
@@ -50,6 +51,8 @@ function toLocalInput(value: string | null | undefined) {
 }
 
 export function JournalAdminPage() {
+  const { languages, t } = useWebsiteI18n();
+  const languageCount = languages.length || 30;
   const [posts, setPosts] = useState<JournalPost[]>([]);
   const [categories, setCategories] = useState<JournalOption[]>([]);
   const [authors, setAuthors] = useState<JournalOption[]>([]);
@@ -205,8 +208,12 @@ export function JournalAdminPage() {
 
       setSaveStage('Generating story…');
       await generateJournalAiPost(saved.id, (stage, aiStatus) => {
+        const expected = Number(aiStatus.expected_translation_count) || languageCount;
         if (stage === 'translating') {
-          setSaveStage(`Translating 15 languages… (${Math.min(Number(aiStatus.translation_count), 15)}/15)`);
+          setSaveStage(t('journal.admin.translating_progress', 'Translating {count} languages… ({current}/{count})', {
+            count: expected,
+            current: Math.min(Number(aiStatus.translation_count), expected),
+          }));
         } else if (stage === 'publishing') {
           setSaveStage('Publishing…');
         } else {
@@ -214,7 +221,7 @@ export function JournalAdminPage() {
         }
       });
 
-      setSaveStage('Published successfully in 15 languages.');
+      setSaveStage(t('journal.admin.publish_success', 'Published successfully in {count} languages.', { count: languageCount }));
       setEditorOpen(false);
       window.history.replaceState({}, '', '/admin/journal');
       await load();
@@ -247,7 +254,7 @@ export function JournalAdminPage() {
 
   return <div className="journal-admin-page">
     <div className="journal-admin-heading">
-      <div><p>CONTENT MANAGEMENT</p><h1>Journal posts</h1><span>Capture an event on location and publish an AI-polished story in 15 languages.</span></div>
+      <div><p>CONTENT MANAGEMENT</p><h1>Journal posts</h1><span>{t('journal.admin.page_subtitle', 'Capture an event on location and publish an AI-polished story in {count} languages.', { count: languageCount })}</span></div>
       <div><button onClick={() => void load()}><RefreshCw size={16} />Refresh</button><button className="primary" onClick={openCreate}><FilePlus2 size={17} />New event</button></div>
     </div>
 
@@ -271,7 +278,7 @@ export function JournalAdminPage() {
           <section className="event-panel ai-source-panel">
             <div className="event-panel-heading"><span>06</span><div><h3>Private field notes</h3><p>Write quickly in your own words. These notes are admin-only and are never shown publicly.</p></div><Sparkles size={20} /></div>
             <label>What happened?<textarea rows={8} required value={eventForm.description} onChange={(e) => setEventForm({ ...eventForm, description: e.target.value })} placeholder="Write naturally and quickly: what happened, why it mattered, what you felt, and any detail AI should understand…" /></label>
-            <div className="ai-output-notice"><Sparkles size={17} /><div><strong>AI public output</strong><span>OpenRouter generates the public title, subtitle, excerpt, full story and SEO copy in English plus 14 translations.</span></div></div>
+            <div className="ai-output-notice"><Sparkles size={17} /><div><strong>AI public output</strong><span>{t('journal.admin.ai_output_notice', 'OpenRouter generates the public title, subtitle, excerpt, full story and SEO copy in English plus {count} translations.', { count: Math.max(languageCount - 1, 0) })}</span></div></div>
 
             {editingId && form.ai_generation_status === 'completed' && <div className="ai-public-preview"><p>PUBLIC AI VERSION</p><h3>{form.title}</h3><span>{form.excerpt}</span><div>{form.body}</div></div>}
           </section>
@@ -279,12 +286,12 @@ export function JournalAdminPage() {
 
         <aside className="journal-publish-sidebar">
           <section><p>PUBLICATION</p><div className="instant-public-badge"><span />AI publishes when ready</div><label>Category<select value={form.category_id || ''} onChange={(e) => setForm({ ...form, category_id: e.target.value })}><option value="">No category</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label>Author<select value={form.primary_creator_id || ''} onChange={(e) => setForm({ ...form, primary_creator_id: e.target.value })}><option value="">No author</option>{authors.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label><label className="check"><input type="checkbox" checked={Boolean(form.is_featured)} onChange={(e) => setForm({ ...form, is_featured: e.target.checked })} />Featured story</label></section>
-          <section><p>LANGUAGES</p><div className="language-chip-grid">{['EN','NL','FR','DE','ES','PT','IT','PL','CS','TR','AR','HI','ZH','JA','KO'].map((code) => <span key={code}>{code}</span>)}</div></section>
+          <section><p>LANGUAGES</p><div className="language-chip-grid">{languages.map((item) => <span key={item.code}>{item.code.toUpperCase()}</span>)}</div></section>
           <section><p>FOOTAGE STORAGE</p><small>Images → media-images<br />Videos → media-videos<br />Linked to Media Vault and this journal post.</small></section>
         </aside>
       </div>
 
-      <footer><button type="button" disabled={saving} onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>{saving && <span className="journal-save-stage" role="status" aria-live="polite">{saveStage}</span>}<button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? 'Regenerate and update public story' : 'Generate and publish in 15 languages'}</button></footer>
+      <footer><button type="button" disabled={saving} onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>{saving && <span className="journal-save-stage" role="status" aria-live="polite">{saveStage}</span>}<button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? t('journal.admin.publish_button_update', 'Regenerate and update public story') : t('journal.admin.publish_button_create', 'Generate and publish in {count} languages', { count: languageCount })}</button></footer>
     </form></div>}
   </div>;
 }

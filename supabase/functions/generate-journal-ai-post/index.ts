@@ -1,360 +1,209 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const OPENROUTER_KEY = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
-const MODEL = Deno.env.get("JOURNAL_AI_MODEL") ?? "google/gemini-2.5-flash";
-const LANGUAGES = ["en", "nl", "fr", "de", "es", "pt", "it", "pl", "cs", "tr", "ar", "hi", "zh", "ja", "ko"];
-const MIN_BODY_CHARACTERS = 1800;
-const MAX_BODY_CHARACTERS = 4500;
-
-const CORS = {
+const U = Deno.env.get("SUPABASE_URL")!;
+const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const A = Deno.env.get("SUPABASE_ANON_KEY")!;
+const K = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
+const db = createClient(U, S, { auth: { persistSession: false } });
+const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-
-const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-  auth: { persistSession: false },
+const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
+  status,
+  headers: { ...cors, "Content-Type": "application/json" },
 });
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const parse = (text: string) => {
+  const t = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+  const a = t.indexOf("{");
+  const b = t.lastIndexOf("}");
+  if (a < 0 || b < a) throw new Error("Invalid AI JSON");
+  return JSON.parse(t.slice(a, b + 1));
+};
 
-function json(body: unknown, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...CORS, "Content-Type": "application/json" },
-  });
-}
+async function fetchActiveLanguages() {
+  const { data, error } = await db
+    .from("site_languages")
+    .select("code")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true })
+    .order("code", { ascending: true });
 
-function parseJsonObject(text: string) {
-  const cleaned = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
-  const start = cleaned.indexOf("{");
-  const end = cleaned.lastIndexOf("}");
-  if (start < 0 || end < start) throw new Error("AI returned invalid JSON.");
-  return JSON.parse(cleaned.slice(start, end + 1));
-}
-
-function normalizeBody(input: string, language: string) {
-  const body = String(input ?? "")
-    .replace(/\r\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-
-  if (body.length < MIN_BODY_CHARACTERS) {
-    throw new Error(`Body for ${language} is too short: ${body.length} characters.`);
+  if (error) {
+    throw new Error(`Active languages could not be loaded: ${error.message}`);
   }
 
-  if (body.length > MAX_BODY_CHARACTERS) {
-    throw new Error(`Body for ${language} is too long: ${body.length} characters.`);
+  const languages = (data ?? [])
+    .map((row) => String(row.code || "").trim())
+    .filter(Boolean);
+
+  if (languages.length === 0) {
+    throw new Error("No active languages are configured.");
   }
 
-  if (!/^### /m.test(body)) {
-    throw new Error(`Body for ${language} is missing Markdown section headings.`);
-  }
-
-  return body;
+  return languages;
 }
 
-async function markFailed(postId: string, message: string) {
-  await Promise.all([
-    db
-      .from("journal_ai_sources")
-      .update({
-        generation_status: "failed",
-        last_error: message,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("journal_post_id", postId),
-    db
-      .from("journal_posts")
-      .update({
-        ai_generation_status: "failed",
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", postId),
-  ]);
+async function loadContext(postId: string) {
+  let lastError = "unknown error";
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const result = await db.rpc("get_journal_ai_generation_context", { p_post_id: postId });
+    if (!result.error && result.data) return result.data;
+    lastError = result.error?.message || `empty response on attempt ${attempt}`;
+    if (attempt < 3) await sleep(350 * attempt);
+  }
+  throw new Error(`Journal AI context unavailable: ${lastError}`);
 }
 
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { status: 200, headers: CORS });
-  }
-
-  if (req.method !== "POST") {
-    return json({ error: "Method not allowed" }, 405);
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
 
   let postId = "";
-
+  let runId: string | null = null;
   try {
-    if (!OPENROUTER_KEY) throw new Error("Missing OpenRouter API key.");
+    if (!K) throw new Error("Missing AI provider key");
+    const auth = req.headers.get("Authorization");
+    if (!auth) return out({ error: "Unauthorized" }, 401);
 
-    const authorization = req.headers.get("Authorization");
-    if (!authorization) return json({ error: "Unauthorized" }, 401);
-
-    const userClient = createClient(SUPABASE_URL, ANON_KEY, {
-      global: { headers: { Authorization: authorization } },
+    const user = createClient(U, A, {
+      global: { headers: { Authorization: auth } },
       auth: { persistSession: false },
     });
+    const access = await user.rpc("get_my_admin_access");
+    if (access.error) throw new Error(`Admin verification failed: ${access.error.message}`);
+    if (!access.data?.[0]?.is_active) return out({ error: "Admin access required" }, 403);
 
-    const { data: access, error: accessError } = await userClient.rpc("get_my_admin_access");
-    if (accessError) throw new Error(`Admin verification failed: ${accessError.message}`);
-    if (!access?.[0]?.is_active) return json({ error: "Admin access required" }, 403);
+    postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
+    if (!postId) return out({ error: "post_id required" }, 400);
 
-    const payload = await req.json().catch(() => ({}));
-    postId = String(payload?.post_id ?? "");
-    if (!postId) return json({ error: "post_id required" }, 400);
+    const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
+      p_edge_function_slug: "generate-journal-ai-post",
+    });
+    if (cfgResult.error) throw new Error(`AI runtime config unavailable: ${cfgResult.error.message}`);
+    const cfg = cfgResult.data;
+    if (!cfg) throw new Error("AI runtime config unavailable: empty response");
 
-    const { data: source, error: sourceError } = await db
-      .from("journal_ai_sources")
-      .select("raw_description,metadata")
-      .eq("journal_post_id", postId)
-      .single();
-
-    if (sourceError || !source) {
-      throw new Error(sourceError?.message || "AI source not found.");
+    if (cfg.enable_run_logging) {
+      const r = await db.rpc("start_ai_edge_function_run", {
+        p_edge_function_slug: "generate-journal-ai-post",
+        p_entity_type: "journal_post",
+        p_entity_id: postId,
+        p_metadata: { source: "edge_function", config_version: cfg.config_version, prompt_version: cfg.prompt_version },
+      });
+      if (r.error) throw new Error(`Could not start AI run: ${r.error.message}`);
+      runId = r.data;
     }
 
-    const { data: event, error: eventError } = await db
-      .from("journal_journey_entries")
-      .select("id,entry_type,occurred_at,timezone,journey_person,location_name,address_text,latitude,longitude,plus_code,featured_business_name")
-      .eq("journal_post_id", postId)
-      .maybeSingle();
-
-    if (eventError) {
-      throw new Error(`Event context could not be loaded: ${eventError.message}`);
-    }
-
-    const { data: subjects, error: subjectsError } = await db
-      .from("content_person_relations")
-      .select("relationship_role,display_order,founder_profiles(display_name)")
-      .eq("journal_post_id", postId)
-      .in("relationship_role", ["primary_subject", "co_subject"])
-      .order("display_order");
-
-    if (subjectsError) {
-      throw new Error(`Founders could not be loaded: ${subjectsError.message}`);
-    }
-
-    let people: unknown[] = [];
-    if (event?.id) {
-      const { data, error } = await db
-        .from("journal_journey_people")
-        .select("display_order,journey_people(display_name,person_type)")
-        .eq("journey_entry_id", event.id)
-        .order("display_order");
-
-      if (error) throw new Error(`People could not be loaded: ${error.message}`);
-      people = data ?? [];
-    }
-
-    const { data: media, error: mediaError } = await db
-      .from("journal_post_media")
-      .select("placement,display_order,is_featured,media_assets(asset_type,title,mime_type,metadata)")
-      .eq("journal_post_id", postId)
-      .order("display_order");
-
-    if (mediaError) {
-      throw new Error(`Media metadata could not be loaded: ${mediaError.message}`);
-    }
-
+    const context = await loadContext(postId);
     const now = new Date().toISOString();
+    await db.from("journal_posts").update({ ai_generation_status: "processing", updated_at: now }).eq("id", postId);
+    await db.from("journal_ai_sources").update({ generation_status: "processing", last_error: null, updated_at: now }).eq("journal_post_id", postId);
 
-    const { error: processingError } = await db
-      .from("journal_posts")
-      .update({ ai_generation_status: "processing", updated_at: now })
-      .eq("id", postId);
+    const settings = cfg.generation_settings ?? {};
+    const langs = await fetchActiveLanguages();
+    const defaults = settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 };
+    const byLanguage = settings.body_characters_by_language ?? {};
+    const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
+    const rangeInstructions = langs.map((lang) => {
+      const r = ranges[lang];
+      return `${lang}: target ${r.preferred_min}-${r.preferred_max} characters; accepted ${r.min}-${r.max}`;
+    }).join("\n");
 
-    if (processingError) {
-      throw new Error(`Could not mark generation as processing: ${processingError.message}`);
-    }
+    const prompt = `${cfg.user_prompt_template}\n\nReturn exactly one valid JSON object with a translations object for ${langs.join(", ")}. Every language requires title, subtitle, excerpt, body, seo_title and seo_description. Preserve equivalent factual completeness in every language, but follow its own character range because languages have different character density.\n\nLanguage-specific body ranges:\n${rangeInstructions}\n\nExcerpt maximum ${settings.excerpt_max_characters ?? 220} characters. SEO title maximum ${settings.seo_title_max_characters ?? 60}. SEO description maximum ${settings.seo_description_max_characters ?? 155}.\n\nVerified context: ${JSON.stringify(context)}`;
 
-    await db
-      .from("journal_ai_sources")
-      .update({ generation_status: "processing", last_error: null, updated_at: now })
-      .eq("journal_post_id", postId);
-
-    const metadata = { ...source.metadata, event, subjects, people, media };
-    const businessInstruction = event?.featured_business_name
-      ? `Mention ${event.featured_business_name} naturally and positively, without inventing claims.`
-      : "Do not invent a business name.";
-
-    const prompt = `Write a factual, warm Bankrupt to 1 Million journal post from the private notes and metadata. Never invent facts, names, quotes or outcomes. ${businessInstruction}
-
-Return JSON only with a translations object for these language codes: ${LANGUAGES.join(", ")}.
-
-Every language must contain:
-- title
-- subtitle
-- excerpt
-- body
-- seo_title
-- seo_description
-
-Body requirements for every language:
-- approximately 2500 to 3500 characters
-- never fewer than ${MIN_BODY_CHARACTERS} characters
-- never more than ${MAX_BODY_CHARACTERS} characters
-- a complete article with a natural opening, development and conclusion
-- 3 to 5 Markdown headings beginning with ###
-- short readable paragraphs
-- selected **bold text**
-- no bullet lists
-- never cut off a heading, word, sentence or conclusion
-
-Other limits:
-- excerpt: maximum 220 characters
-- SEO title: maximum 60 characters
-- SEO description: maximum 155 characters
-
-Private notes: ${source.raw_description}
-Metadata: ${JSON.stringify(metadata)}`;
-
-    const aiResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_KEY}`,
+        Authorization: `Bearer ${K}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://www.bankruptto1million.com",
+        "HTTP-Referer": "https://bankruptto1million.com",
         "X-Title": "Bankrupt to 1 Million Journal AI",
       },
       body: JSON.stringify({
-        model: MODEL,
-        temperature: 0.35,
-        response_format: { type: "json_object" },
+        model: cfg.model,
+        temperature: Number(cfg.temperature),
+        top_p: cfg.top_p == null ? undefined : Number(cfg.top_p),
+        max_tokens: Number(cfg.max_output_tokens ?? 30000),
+        response_format: cfg.response_format,
         messages: [
-          { role: "system", content: "Return exactly one valid JSON object and no commentary." },
+          { role: "system", content: cfg.system_prompt },
           { role: "user", content: prompt },
         ],
       }),
     });
+    if (!ai.ok) throw new Error(`AI provider ${ai.status}: ${(await ai.text()).slice(0, 900)}`);
 
-    if (!aiResponse.ok) {
-      throw new Error(`OpenRouter ${aiResponse.status}: ${(await aiResponse.text()).slice(0, 800)}`);
-    }
+    const payload = await ai.json();
+    const finishReason = payload?.choices?.[0]?.finish_reason;
+    if (finishReason && finishReason !== "stop") throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
+    const translations = parse(payload?.choices?.[0]?.message?.content ?? "").translations;
 
-    const aiPayload = await aiResponse.json();
-    const translations = parseJsonObject(
-      aiPayload?.choices?.[0]?.message?.content ?? "",
-    ).translations;
-
-    for (const language of LANGUAGES) {
-      if (!translations?.[language]?.title || !translations?.[language]?.body) {
-        throw new Error(`AI response is missing ${language}.`);
+    for (const lang of langs) {
+      const item = translations?.[lang];
+      const body = String(item?.body ?? "")
+        .replace(/\r\n/g, "\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+      const range = ranges[lang];
+      if (!item?.title) throw new Error(`Missing title for ${lang}`);
+      if (body.length < Number(range.min) || body.length > Number(range.max)) {
+        throw new Error(`Invalid ${lang} body length: ${body.length}; expected ${range.min}-${range.max}`);
       }
-
-      translations[language].body = normalizeBody(
-        translations[language].body,
-        language,
-      );
-    }
-
-    const publishedAt = new Date().toISOString();
-    const rows = LANGUAGES.map((language) => ({
-      journal_post_id: postId,
-      language_code: language,
-      title: String(translations[language].title).trim(),
-      subtitle: translations[language].subtitle || null,
-      excerpt: translations[language].excerpt || null,
-      body: translations[language].body,
-      seo_title: translations[language].seo_title || null,
-      seo_description: translations[language].seo_description || null,
-      translation_status: "published",
-      translation_source: "ai",
-      translated_at: publishedAt,
-      published_at: publishedAt,
-      updated_at: publishedAt,
-    }));
-
-    const { error: translationError } = await db
-      .from("journal_translations")
-      .upsert(rows, { onConflict: "journal_post_id,language_code" });
-
-    if (translationError) {
-      throw new Error(`Translations could not be stored: ${translationError.message}`);
-    }
-
-    const { count, error: countError } = await db
-      .from("journal_translations")
-      .select("id", { count: "exact", head: true })
-      .eq("journal_post_id", postId)
-      .eq("translation_status", "published")
-      .gte("body", "");
-
-    if (countError) {
-      throw new Error(`Translation verification failed: ${countError.message}`);
-    }
-
-    if (count !== 15) {
-      throw new Error(`Translation verification failed: expected 15, found ${count ?? 0}.`);
-    }
-
-    const english = translations.en;
-
-    const { error: postError } = await db
-      .from("journal_posts")
-      .update({
-        title: english.title,
-        subtitle: english.subtitle || null,
-        excerpt: english.excerpt || null,
-        body: english.body,
-        seo_title: english.seo_title || null,
-        seo_description: english.seo_description || null,
-        status: "published",
-        published_at: publishedAt,
-        original_language: "en",
-        content_format: "markdown",
-        ai_generation_status: "completed",
-        ai_generated_at: publishedAt,
-        ai_model: MODEL,
-        updated_at: publishedAt,
-      })
-      .eq("id", postId);
-
-    if (postError) {
-      throw new Error(`Journal post could not be published: ${postError.message}`);
-    }
-
-    if (event?.id) {
-      const { error } = await db
-        .from("journal_journey_entries")
-        .update({
-          what_happened: english.excerpt || english.body.slice(0, 220),
-          updated_at: publishedAt,
-        })
-        .eq("id", event.id);
-
-      if (error) {
-        throw new Error(`Journey entry could not be finalized: ${error.message}`);
+      const headingCount = (body.match(/^### /gm) ?? []).length;
+      const minHeadings = Number(settings.markdown_headings?.min ?? 3);
+      const maxHeadings = Number(settings.markdown_headings?.max ?? 5);
+      if (headingCount < minHeadings || headingCount > maxHeadings) {
+        throw new Error(`Invalid ${lang} heading count: ${headingCount}; expected ${minHeadings}-${maxHeadings}`);
       }
+      translations[lang].body = body;
     }
 
-    const { error: sourceCompleteError } = await db
-      .from("journal_ai_sources")
-      .update({
-        generation_status: "completed",
-        generated_at: publishedAt,
-        last_error: null,
-        updated_at: publishedAt,
-      })
-      .eq("journal_post_id", postId);
+    const saved = await db.rpc("save_journal_ai_generation_result", {
+      p_post_id: postId,
+      p_translations: translations,
+      p_model: cfg.model,
+      p_config_version: cfg.config_version,
+      p_prompt_version: cfg.prompt_version,
+    });
+    if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
 
-    if (sourceCompleteError) {
-      throw new Error(`AI source could not be finalized: ${sourceCompleteError.message}`);
+    if (runId) {
+      await db.rpc("finish_ai_edge_function_run", {
+        p_run_id: runId,
+        p_status: "completed",
+        p_input_tokens: payload?.usage?.prompt_tokens ?? null,
+        p_output_tokens: payload?.usage?.completion_tokens ?? null,
+        p_response_status: 200,
+        p_metadata: { translation_count: langs.length, finish_reason: finishReason ?? null },
+      });
     }
-
-    return json({
-      ok: true,
-      post_id: postId,
-      languages: LANGUAGES,
-      translation_count: 15,
-      target_body_characters: "2500-3500",
+    return out({
+      ...saved.data,
+      languages: langs,
+      model: cfg.model,
+      config_version: cfg.config_version,
+      prompt_version: cfg.prompt_version,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (postId) await markFailed(postId, message);
+    if (postId) {
+      const now = new Date().toISOString();
+      await db.from("journal_posts").update({ ai_generation_status: "failed", updated_at: now }).eq("id", postId);
+      await db.from("journal_ai_sources").update({ generation_status: "failed", last_error: message.slice(0, 4000), updated_at: now }).eq("journal_post_id", postId);
+    }
+    if (runId) {
+      await db.rpc("finish_ai_edge_function_run", {
+        p_run_id: runId,
+        p_status: "failed",
+        p_response_status: 500,
+        p_error_message: message,
+      });
+    }
     console.error("generate-journal-ai-post failed", { postId, message });
-    return json({ error: message }, 500);
+    return out({ error: message }, 500);
   }
 });

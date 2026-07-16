@@ -30,6 +30,8 @@ import { PublicBuildRequestsPage } from './pages/PublicBuildRequestsPage';
 import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
+import './styles/header-nav.css';
+import './styles/responsive-utils.css';
 import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
 import './styles/conceptMessages.css';

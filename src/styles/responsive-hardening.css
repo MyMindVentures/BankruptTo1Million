@@ -145,16 +145,6 @@ textarea {
     font-size: 0.88rem;
   }
 
-  .section-grid,
-  .contribute,
-  .founder-support-form-section,
-  .founder-private-section,
-  .founder-reaction-section,
-  #founder-progress,
-  .founder-support-page [aria-labelledby="messages-title"] {
-    grid-template-columns: 1fr !important;
-  }
-
   .feature-grid,
   .placeholder-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -169,6 +159,21 @@ textarea {
   .concept-grid,
   .founding-profile-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .contribute,
+  .founder-support-form-section,
+  .founder-private-section,
+  .founder-reaction-section,
+  #founder-progress,
+  .founder-support-page [aria-labelledby="messages-title"] {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .section-grid {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -302,7 +307,7 @@ textarea {
     grid-template-columns: 1fr !important;
   }
 
-  table {
+  .table-scroll table {
     min-width: 42rem;
   }
 }

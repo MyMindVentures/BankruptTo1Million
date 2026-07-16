@@ -5,10 +5,14 @@ import { FounderSupportQrShare } from './components/FounderSupportQrShare';
 import { Header } from './components/Header';
 import { WebsiteI18nProvider } from './lib/websiteI18n';
 import { LocalizedFounderSupportPage } from './pages/LocalizedFounderSupportPage';
+import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
+import './styles/header-nav.css';
+import './styles/responsive-utils.css';
 import './styles/founder-support.css';
 import './styles/footer.css';
+import './styles/footer-layout-fix.css';
 import './styles/responsive-hardening.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

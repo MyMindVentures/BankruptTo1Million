@@ -1,9 +1,15 @@
 import { Menu, X } from 'lucide-react';
-import { useState } from 'react';
-import { navItems } from '../data/siteContent';
+import { useEffect, useState } from 'react';
+import { navGroups, primaryNavItems } from '../data/siteContent';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { LanguageSelector } from './LanguageSelector';
 import { MissionLogo } from './MissionLogo';
+
+const groupLabelFallbacks: Record<string, string> = {
+  'navigation.group.explore': 'Explore',
+  'navigation.group.community': 'Community',
+  'navigation.group.participate': 'Participate',
+};
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
@@ -11,6 +17,15 @@ export function Header() {
   const mobileMenuId = 'mobile-navigation';
   const closeMobileMenu = () => setIsMenuOpen(false);
   const toggleMobileMenu = () => setIsMenuOpen((isOpen) => !isOpen);
+
+  useEffect(() => {
+    if (!isMenuOpen) return undefined;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closeMobileMenu();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMenuOpen]);
 
   return (
     <header className="site-header">
@@ -20,7 +35,23 @@ export function Header() {
           <span className="brand__text">Bankrupt to 1 Million</span>
         </a>
         <nav className="site-nav site-nav--desktop" aria-label={t('header.primary_navigation_aria', 'Primary navigation')}>
-          {navItems.map((item) => <a key={item.href} href={item.href}>{t(item.translationKey, item.label)}</a>)}
+          <div className="site-nav--primary">
+            {primaryNavItems.map((item) => (
+              <a key={item.href} href={item.href}>{t(item.translationKey, item.label)}</a>
+            ))}
+            {navGroups.map((group) => (
+              <details key={group.id} className="site-nav__group">
+                <summary aria-label={t('header.nav_group_toggle_aria', 'Open {group} links', { group: t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id) })}>
+                  {t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id)}
+                </summary>
+                <div className="site-nav__dropdown" role="list">
+                  {group.items.map((item) => (
+                    <a key={item.href} href={item.href} role="listitem">{t(item.translationKey, item.label)}</a>
+                  ))}
+                </div>
+              </details>
+            ))}
+          </div>
         </nav>
         <div className="site-header__tools"><LanguageSelector /></div>
         <button className="menu-toggle" type="button" aria-controls={mobileMenuId} aria-expanded={isMenuOpen} aria-label={isMenuOpen ? t('header.close_menu_aria', 'Close navigation menu') : t('header.open_menu_aria', 'Open navigation menu')} onClick={toggleMobileMenu}>
@@ -28,8 +59,22 @@ export function Header() {
         </button>
       </div>
       <div className="mobile-nav-panel" id={mobileMenuId} data-open={isMenuOpen} hidden={!isMenuOpen}>
-        <nav className="site-nav site-nav--mobile" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
-          {navItems.map((item) => <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>)}
+        <nav className="site-nav site-nav--mobile-groups" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
+          <div className="site-nav__mobile-primary">
+            {primaryNavItems.map((item) => (
+              <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
+            ))}
+          </div>
+          {navGroups.map((group) => (
+            <details key={group.id} className="site-nav__mobile-group">
+              <summary>{t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id)}</summary>
+              <div className="site-nav__mobile-group__links">
+                {group.items.map((item) => (
+                  <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
+                ))}
+              </div>
+            </details>
+          ))}
         </nav>
         <div className="mobile-nav-panel__actions"><LanguageSelector /></div>
       </div>

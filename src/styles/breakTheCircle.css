@@ -1,0 +1,34 @@
+.btc-page .hero.section-grid {
+  align-items: center;
+}
+
+.btc-page .journal-grid {
+  gap: 1.25rem;
+}
+
+@media (max-width: 1024px) {
+  .btc-page .journal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .btc-page .hero.section-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .btc-page .hero__actions {
+    width: 100%;
+  }
+
+  .btc-page .hero__actions .button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 760px) {
+  .btc-page .journal-grid > * {
+    min-width: 0;
+  }
+}

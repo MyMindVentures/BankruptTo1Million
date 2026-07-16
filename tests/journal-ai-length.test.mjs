@@ -18,10 +18,10 @@ test('journal AI no longer truncates bodies to 500 characters', () => {
 });
 
 test('journal AI targets complete 2500 to 3500 character articles', () => {
-  assert.match(edgeFunction, /approximately 2500 to 3500 characters/);
-  assert.match(edgeFunction, /MIN_BODY_CHARACTERS = 1800/);
-  assert.match(edgeFunction, /MAX_BODY_CHARACTERS = 4500/);
-  assert.match(edgeFunction, /never cut off a heading, word, sentence or conclusion/);
+  assert.match(edgeFunction, /preferred_min: 2400/);
+  assert.match(edgeFunction, /preferred_max: 3400/);
+  assert.match(edgeFunction, /default_body_characters/);
+  assert.match(edgeFunction, /markdown_headings/);
 });
 
 test('database status validation accepts complete article lengths', () => {
@@ -32,4 +32,11 @@ test('database status validation accepts complete article lengths', () => {
 test('prepare RPC only removes empty invalid translations', () => {
   assert.match(migration, /nullif\(trim\(body\), ''\) is null/);
   assert.doesNotMatch(migration, /char_length\(body\) <> 500/);
+});
+
+test('journal AI loads active languages from site_languages', () => {
+  assert.match(edgeFunction, /fetchActiveLanguages/);
+  assert.match(edgeFunction, /\.from\("site_languages"\)/);
+  assert.doesNotMatch(edgeFunction, /"ja","ko"\]/);
+  assert.doesNotMatch(edgeFunction, /Expected 15 translations/);
 });

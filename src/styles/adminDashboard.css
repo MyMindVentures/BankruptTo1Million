@@ -110,7 +110,7 @@
   }
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1024px) {
   .admin-sidebar { transform:translateX(-100%); transition:transform .22s ease; box-shadow:28px 0 70px rgba(0,0,0,.35); }
   .admin-sidebar.is-open { transform:translateX(0); }
   .admin-main { margin-left:0; }

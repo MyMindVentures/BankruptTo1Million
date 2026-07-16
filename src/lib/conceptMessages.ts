@@ -24,14 +24,6 @@ export type ProofOfMindConceptMessage = {
 
 type RawRow = Record<string, unknown>;
 
-const supportedLanguages = new Set(['en', 'nl', 'fr', 'de', 'es', 'it', 'pt', 'pl', 'tr', 'ar', 'hi', 'zh', 'ja', 'ko', 'sv']);
-
-function preferredLanguage() {
-  if (typeof navigator === 'undefined') return 'en';
-  const code = navigator.language.toLowerCase().split('-')[0];
-  return supportedLanguages.has(code) ? code : 'en';
-}
-
 function text(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
@@ -89,8 +81,7 @@ function normalize(row: RawRow, language: string): ProofOfMindConceptMessage {
   };
 }
 
-export async function getPublishedConceptMessages() {
-  const language = preferredLanguage();
+export async function getPublishedConceptMessages(language = 'en') {
   const query = `select=id,concept_id,message_type,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,video_status,cta_label,cta_url,proof_of_mind_concepts!inner(slug,title),journal_posts!inner(id,title,excerpt,status,published_at,journal_translations(language_code,title,excerpt,translation_status)),media_assets(id,external_url,storage_bucket,storage_path,thumbnail_url),journal_concept_message_translations(language_code,personal_intro,why_i_created_it,lived_experience,vision_for_impact,founder_video_title,founder_video_description,video_transcript,cta_label,translation_status)&order=display_order.asc,created_at.desc`;
   const rows = await readJson<RawRow[]>(supabase.from('journal_concept_messages').request({ query }));
   return rows.map((row) => normalize(row, language)).filter((row) => row.concept_slug || row.concept_title);

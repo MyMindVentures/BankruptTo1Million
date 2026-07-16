@@ -165,6 +165,20 @@
   line-height: 1.5;
 }
 
+@media (max-width: 1024px) {
+  .journal-article > .section:first-child {
+    padding-inline: 1.5rem;
+  }
+
+  .journal-article__header h1 {
+    max-width: 22ch;
+  }
+
+  .journal-body {
+    padding-inline: 1.5rem;
+  }
+}
+
 @media (max-width: 680px) {
   .journal-article > .section:first-child {
     padding-inline: 1rem;

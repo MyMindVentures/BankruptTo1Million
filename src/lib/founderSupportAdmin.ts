@@ -1,4 +1,5 @@
 import { getAdminSession } from './adminApi';
+import { parseFounderSupportInboxPayload } from './founderSupportAdminInbox';
 
 export type FounderSupportMessage = {
   id: string;
@@ -45,28 +46,19 @@ async function parse<T>(response: Response): Promise<T> {
   return payload as T;
 }
 
-function normalizeStatus(value: unknown): FounderSupportMessage['status'] | null {
-  const status = String(value ?? '').trim().toLowerCase();
-  return status === 'pending' || status === 'approved' || status === 'rejected' || status === 'spam' ? status : null;
-}
-
 export async function getFounderSupportInbox(): Promise<FounderSupportInbox> {
-  const response = await fetch(`${supabaseUrl}/rest/v1/founder_support_messages?select=*&order=created_at.desc`, {
-    method: 'GET',
+  const response = await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_founder_support_inbox`, {
+    method: 'POST',
     headers: headers(),
+    body: '{}',
     cache: 'no-store',
   });
-  const raw = await parse<FounderSupportMessage[]>(response);
-  if (!Array.isArray(raw)) throw new Error('Support inbox returned an invalid message list.');
-
-  const counts: FounderSupportCounts = { pending: 0, approved: 0, rejected: 0, spam: 0, total: raw.length };
-  const messages = raw.map((message) => {
-    const status = normalizeStatus(message.status);
-    if (status) counts[status] += 1;
-    return status ? { ...message, status } : message;
-  });
-
-  return { messages, counts };
+  const payload = await parse<unknown>(response);
+  const inbox = parseFounderSupportInboxPayload(payload);
+  return {
+    messages: inbox.messages as FounderSupportMessage[],
+    counts: inbox.counts,
+  };
 }
 
 export async function moderateFounderSupportMessage(input: {

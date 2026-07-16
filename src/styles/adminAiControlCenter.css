@@ -67,7 +67,7 @@
 .admin-ai-runs p { margin:0; color:#aab7b1; font-size:10px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
 .admin-ai-runs b { color:#d7dfdb; font-size:9px; font-weight:600; }
 
-@media (max-width: 1050px) {
+@media (max-width: 1024px) {
   .admin-ai-layout { grid-template-columns:230px minmax(0,1fr); }
 }
 @media (max-width: 820px) {

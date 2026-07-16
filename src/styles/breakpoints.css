@@ -1,6 +1,9 @@
 :root {
+  --bp-desktop-lg: 1440px;
   --bp-laptop: 1280px;
   --bp-laptop-sm: 1024px;
   --bp-tablet: 900px;
   --bp-mobile: 760px;
+  --bp-mobile-sm: 560px;
+  --header-height: 4.5rem;
 }

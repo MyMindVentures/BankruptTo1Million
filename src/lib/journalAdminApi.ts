@@ -25,6 +25,7 @@ export type JournalAiStatus = {
   published_at: string | null;
   ai_generated_at: string | null;
   translation_count: number;
+  expected_translation_count: number;
 };
 export type JournalAiProgressStage = 'generating' | 'translating' | 'publishing';
 
@@ -150,8 +151,9 @@ function wait(milliseconds: number) {
 }
 
 function progressStage(status: JournalAiStatus): JournalAiProgressStage {
-  if (Number(status.translation_count) > 0 && Number(status.translation_count) < 15) return 'translating';
-  if (Number(status.translation_count) >= 15 || status.status === 'published') return 'publishing';
+  const expected = Number(status.expected_translation_count) || 30;
+  if (Number(status.translation_count) > 0 && Number(status.translation_count) < expected) return 'translating';
+  if (Number(status.translation_count) >= expected || status.status === 'published') return 'publishing';
   return 'generating';
 }
 
@@ -188,7 +190,7 @@ export async function generateJournalAiPost(
     if (
       status.generation_status === 'completed'
       && status.status === 'published'
-      && Number(status.translation_count) === 15
+      && Number(status.translation_count) === Number(status.expected_translation_count)
     ) {
       return status;
     }
