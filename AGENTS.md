@@ -24,6 +24,7 @@ This website is **database-driven, backend-first and multilingual by design**. T
 10. **All count cards, dashboards, summaries and badges must be derived from live Supabase data.** Never hardcode totals and never initialize zeros in a way that can be mistaken for successfully loaded data.
 11. **All production entities must remain editable through Supabase-backed admin workflows where applicable.** Public data must not require a code deployment to change.
 12. **No component-specific exception is allowed.** These rules apply to public pages, admin pages, modals, cards, dashboards, navigation, SEO, forms, counters, maps, timelines, media views and all future components.
+13. **Every new or changed public UI surface must be registry-backed and 30-language ready before it is considered complete.** See §2.5 for the manifest, Supabase registry, translation keys and automated verification requirements.
 
 If the required database/backend foundation does not yet exist, the agent must build that foundation first. If it cannot be completed, the task must be reported as incomplete. The agent may not bypass the missing backend with frontend hardcoding.
 
@@ -54,11 +55,90 @@ The repository already contains:
 - `public.site_languages`
 - `public.website_translation_keys`
 - `public.website_translations`
+- `public.website_ui_components` (public component registry)
+- `public.website_ui_component_translation_keys` (manifest key links)
 - entity-specific translation tables such as `journal_translations`, `proof_of_mind_concept_translations`, `founder_profile_translations`, `founder_timeline_event_translations`, `platform_update_translations`, `journey_calendar_entry_translations`, `journey_exchange_item_translations`, `offer_translations`, and others.
 
 Do not replace this architecture with another i18n library, JSON locale files, inline language maps, browser-only translation, or per-component translation state unless the repository owner explicitly requests a migration.
 
+## 2.5. Public UI component registry contract — zero hardcoding
+
+This is a release-blocking guardrail for **public visitor-facing surfaces** enforced by CI (see scope note below). No agent may ship new public UI with hardcoded words, English-only keys, or an unregistered component.
+
+### Zero hardcoding rule
+
+Every visitor-visible word in public React/TSX must come from exactly one of:
+
+1. **`t('namespace.semantic_key', 'English fallback')`** — static interface copy loaded from `website_translations` via `get_website_translations`.
+2. **Localized dynamic fields** — editorial or entity content loaded from Supabase using the selected `language` (RPC, view, or translation table).
+3. **Allowed non-translatable values** — proper nouns, user-generated values, URLs, technical identifiers, or externally supplied brand names listed in the verifier allowlist.
+
+This applies without exception to headings, buttons, links, badges, form labels, placeholders, validation messages, loading/empty/error states, modals, tooltips, `title`, `aria-label`, `alt`, and SEO metadata.
+
+**The second argument to `t()` is resilience only.** It is not the content source of truth and never permits shipping English-only UI. All 30 active languages in `site_languages` must have published rows in `website_translations` before merge.
+
+### Registry and manifest — required for every new public component
+
+Every new or materially changed public component must ship **complete database wiring in the same change** as the React code. Never “UI first, translations later.”
+
+1. **Export `*_I18N_MANIFEST`** from the component file, typed with `I18nManifest` from `src/lib/i18nManifest.ts`.
+2. **Register the component** in `public.website_ui_components` (`component_key`, `source_path`, namespace, metadata).
+3. **Link every static key** in `public.website_ui_component_translation_keys`.
+4. **Upsert keys** in `public.website_translation_keys` and **all 30 languages** in `public.website_translations` (migration catalog or translation-job pipeline with bootstrap proof).
+5. **Document dynamic content** in `entityContent.rpc` and/or `entityContent.tables`; load it through Supabase with `language` in query dependencies.
+
+Example manifest:
+
+```tsx
+export const JOURNAL_VENUE_THANK_YOU_I18N_MANIFEST = {
+  componentKey: 'journal.venue_thank_you.section',
+  namespace: 'journal.place_context',
+  translationKeys: [
+    'journal.place_context.thank_you.eyebrow',
+    'journal.place_context.thank_you.heading',
+  ] as const,
+  entityContent: {
+    rpc: 'get_localized_journal_venue_thank_you',
+    tables: ['journal_post_venue_thank_you_translations'],
+  },
+} as const satisfies I18nManifest;
+```
+
+Declare every `t()` key in `translationKeys`, or cover dynamic key families with `keyPatterns`. Do not list entity field values as UI keys — document their Supabase source in `entityContent`.
+
+### Automated enforcement
+
+Public surfaces listed in `scripts/public-i18n-surfaces.json` are verified by:
+
+- `npm run verify:i18n` (offline migration proof; runs in `npm test` and `precommit`)
+- `npm run verify:i18n:live` (requires Supabase env; verifies 30/30 published counts)
+
+Generators (review output before merge):
+
+- `npm run generate:i18n-keys` — emits migration SQL for missing keys
+- `npm run generate:registry-seed` — emits registry upserts from manifests
+
+Detailed manifest rules and examples: `docs/REUSABLE_COMPONENTS.md`.
+
+### Scope note
+
+These rules and CI checks apply to **public visitor-facing surfaces** in `scripts/public-i18n-surfaces.json`. Admin and private routes are excluded from the automated verifier today but must still follow the same patterns (manifest, keys, registry, 30 languages, live data) when touched.
+
+### New public component checklist
+
+Agents must complete every step for each new public surface:
+
+1. Search existing keys and `website_ui_components` — reuse before creating duplicates.
+2. Design static keys (`namespace.semantic_key`) and the dynamic data path (canonical table/RPC + translation table).
+3. Write a migration: keys, 30-language `website_translations`, registry row, key links, and bootstrap proof (`= any(array[...])` pattern read by `scripts/i18n-script-utils.mjs`).
+4. Implement the component with `useWebsiteI18n()`, the manifest, and distinct loading/error/empty/success states (all via translation keys or live data).
+5. Optionally run `npm run generate:i18n-keys` and `npm run generate:registry-seed`; review and adjust the SQL.
+6. Run `npm run verify:i18n` (required). Run `npm run verify:i18n:live` when Supabase env vars are available.
+7. Verify language switch updates static UI and dynamic content (English, Spanish, and one substantially different language; RTL when applicable).
+
 ## 3. UI copy rules
+
+Every visitor-visible string in React/TSX must follow §2.5. Public surfaces must never ship with English-only keys or untracked literals. CI (`npm run verify:i18n`) fails on hardcoded visitor-facing UI.
 
 Every visitor-visible string in React/TSX must be one of the following:
 
@@ -113,16 +193,21 @@ const { language, t, formatDate } = useWebsiteI18n();
 
 Use stable semantic keys such as `founder_support.upcoming.title`, never keys derived from full English sentences.
 
+English-only UI keys are forbidden. If a key exists in code, it must exist in `website_translation_keys` with published translations for all 30 active languages before the change is complete.
+
 ## 4. Adding or changing interface copy
 
 When new interface copy is required:
 
 1. Add or upsert a canonical row in `website_translation_keys`.
-2. Add translations in `website_translations` for every active language in `site_languages`, or ensure the established translation-job pipeline creates them.
+2. Add translations in `website_translations` for every active language in `site_languages`, or ensure the established translation-job pipeline creates them with verifiable bootstrap proof in migrations.
 3. Use `t('namespace.semantic_key', 'English fallback')` in the component.
 4. Keep interpolation variables identical across all languages.
-5. Record source usage in `website_translation_key_usage` when the existing workflow requires it.
-6. Never silently leave a newly introduced key translated only in English.
+5. For new public components, register the component in `website_ui_components` and link keys in `website_ui_component_translation_keys` in the same migration.
+6. Record source usage in `website_translation_key_usage` when the existing workflow requires it.
+7. Never silently leave a newly introduced key translated only in English.
+
+Migrations for new public keys must include 30-language bootstrap proof so `npm run verify:i18n` passes (see `scripts/i18n-script-utils.mjs` and §2.5).
 
 The fallback argument is resilience, not the content source of truth and not permission to skip database translations.
 
@@ -236,6 +321,7 @@ Do not create:
 - local translation dictionaries
 - hardcoded admin module records
 - fake success states after failed requests
+- public UI components without a `website_ui_components` registry entry or `*_I18N_MANIFEST`
 
 Small technical constants are allowed only when they are not editorial/public content, for example query limits, enum keys, animation durations, route patterns and feature flags.
 
@@ -283,7 +369,7 @@ Before editing:
 1. Read this file completely.
 2. Inspect `src/lib/websiteI18n.tsx`, the affected components and existing data access patterns.
 3. Inspect the relevant Supabase tables and translation tables.
-4. Search for an existing translation key before creating another.
+4. Search for an existing translation key and `website_ui_components` registry entry before creating another.
 5. Identify all visitor-visible strings and dynamic fields touched by the change.
 6. Write down the canonical source of truth for every displayed value.
 7. Prove the backend result before touching the component.
@@ -294,10 +380,11 @@ During editing:
 2. Keep selected language in all localized query dependencies.
 3. Connect real Supabase data; do not add mocks.
 4. Add loading, empty and error states through translation keys.
-5. Preserve responsive behavior, accessibility and RTL.
-6. Delete obsolete mock/hardcoded data in the same change.
-7. Do not introduce silent fallback arrays, zeroes or placeholder records.
-8. Keep database/backend changes ahead of frontend changes in the implementation history whenever practical.
+5. For new public components, add or update `*_I18N_MANIFEST` before or alongside JSX changes (§2.5).
+6. Preserve responsive behavior, accessibility and RTL.
+7. Delete obsolete mock/hardcoded data in the same change.
+8. Do not introduce silent fallback arrays, zeroes or placeholder records.
+9. Keep database/backend changes ahead of frontend changes in the implementation history whenever practical.
 
 Before finishing:
 
@@ -315,9 +402,12 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+npm run verify:i18n
 ```
 
-9. Report which Supabase tables/RPCs/views/Edge Functions and translation keys were used or added.
+When Supabase env vars are available, also run `npm run verify:i18n:live`.
+
+9. Report which Supabase tables/RPCs/views/Edge Functions, translation keys, and registry entries were used or added.
 10. Report the deployment commit and whether the live result was verified.
 
 ## 13. Mandatory prohibited shortcuts
@@ -336,7 +426,11 @@ An agent must never:
 - use a service-role key in browser code;
 - create duplicate tables/RPCs without first understanding existing ones;
 - claim “fixed” before the live UI proves it;
-- introduce an exception for a single component, page or deadline.
+- introduce an exception for a single component, page or deadline;
+- ship a new public UI component without `*_I18N_MANIFEST` and a `website_ui_components` registry row;
+- add translation keys without 30-language rows in `website_translations` and migration bootstrap proof;
+- treat the `t()` English fallback as the sole translation for any key;
+- merge public UI that fails `npm run verify:i18n`.
 
 ## 14. Definition of done
 
@@ -351,6 +445,7 @@ A public or admin frontend change is complete only when:
 - no hardcoded editorial content, duplicate data source or mock production content was introduced;
 - loading, error, empty and success states are truthfully represented;
 - database, backend, API payload, frontend state and deployed rendering have all been verified;
-- lint, typecheck, tests and build pass.
+- lint, typecheck, tests and build pass;
+- for public surfaces (§2.5): `*_I18N_MANIFEST` is exported; the component is registered in `website_ui_components`; every manifest key is linked in `website_ui_component_translation_keys`; all manifest keys have 30/30 published translations (verified by `npm run verify:i18n` and, when available, `npm run verify:i18n:live`); dynamic content is loaded from the documented RPC/tables with `language` dependencies; `npm run verify:i18n` passes.
 
 If any condition is unmet, the agent must state that the task is incomplete rather than claiming completion.

@@ -1,4 +1,4 @@
-import { Heart } from 'lucide-react';
+import { Heart, LoaderCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { I18nManifest } from '../../lib/i18nManifest';
 import { getJournalVenueThankYou, type JournalVenueThankYou } from '../../lib/journalVenueThankYou';
@@ -12,6 +12,8 @@ export const JOURNAL_VENUE_THANK_YOU_I18N_MANIFEST = {
     'journal.place_context.thank_you.eyebrow',
     'journal.place_context.thank_you.heading',
     'journal.place_context.thank_you.aria_label',
+    'journal.place_context.thank_you.loading',
+    'journal.place_context.thank_you.error',
   ] as const,
   entityContent: {
     rpc: 'get_localized_journal_venue_thank_you',
@@ -49,6 +51,27 @@ export function JournalVenueThankYouSection({ slug }: { slug: string }) {
       cancelled = true;
     };
   }, [slug, language]);
+
+  if (loadState === 'loading') {
+    return (
+      <section className="journal-venue-thank-you section" aria-busy="true" aria-live="polite">
+        <p className="journal-venue-thank-you__loading">
+          <LoaderCircle className="spin" size={16} aria-hidden="true" />
+          {t('journal.place_context.thank_you.loading', 'Loading thank-you message…')}
+        </p>
+      </section>
+    );
+  }
+
+  if (loadState === 'error') {
+    return (
+      <section className="journal-venue-thank-you section" aria-live="polite">
+        <p className="journal-venue-thank-you__error" role="status">
+          {t('journal.place_context.thank_you.error', 'Thank-you message is temporarily unavailable.')}
+        </p>
+      </section>
+    );
+  }
 
   if (loadState !== 'ready' || !thankYou) {
     return null;
