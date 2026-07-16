@@ -17,6 +17,52 @@ export type OutreachOverviewRow = {
   responsible_email: string | null;
 };
 
+export type OutreachContactPayload = {
+  id?: string;
+  first_name: string;
+  last_name?: string;
+  company_name: string;
+  job_title?: string;
+  email?: string;
+  phone?: string;
+  whatsapp?: string;
+  website?: string;
+  instagram?: string;
+  linkedin?: string;
+  location?: string;
+  language_code?: string;
+  partnership_contact_id?: string;
+  lead_id?: string;
+  assigned_to_email?: string;
+};
+
+export type OutreachCampaignPayload = {
+  id?: string;
+  category?: OutreachCategory;
+  status?: OutreachStatus;
+  outreach_channel?: OutreachChannel | null;
+  responsible_email?: string;
+  internal_notes?: string;
+  ai_brief?: string;
+};
+
+export type OutreachPagePayload = {
+  id?: string;
+  slug?: string;
+  personal_intro?: string;
+  why_them?: string;
+  what_we_offer?: string;
+  what_we_ask?: string;
+  win_win?: string;
+  personal_message?: string;
+  mission_blurb?: string;
+  meeting_url?: string;
+  whatsapp_override?: string;
+  founder_video_media_id?: string;
+  expires_at?: string;
+  original_language?: string;
+};
+
 export type OutreachDetail = {
   contact: Record<string, unknown>;
   campaign: Record<string, unknown>;
@@ -26,12 +72,35 @@ export type OutreachDetail = {
   events: Record<string, unknown>[];
   messages: Record<string, unknown>[];
   responses: Record<string, unknown>[];
+  ai_source?: Record<string, unknown> | null;
 };
 
 export type OutreachUpsertPayload = {
-  contact: Record<string, unknown>;
-  campaign: Record<string, unknown>;
-  page: Record<string, unknown>;
+  contact: OutreachContactPayload;
+  campaign: OutreachCampaignPayload;
+  page: OutreachPagePayload;
+};
+
+export type OutreachAiGenerationStatus = 'not_requested' | 'generating' | 'completed' | 'failed';
+
+export type OutreachAiStatus = {
+  campaign_id: string;
+  ai_generation_status: OutreachAiGenerationStatus;
+  ai_generated_at: string | null;
+  ai_generation_error: string | null;
+  brief: string;
+  generated_payload: Record<string, unknown>;
+  page: OutreachPagePayload;
+};
+
+export type OutreachAiPageCopy = {
+  personal_intro?: string;
+  why_them?: string;
+  what_we_offer?: string;
+  what_we_ask?: string;
+  win_win?: string;
+  personal_message?: string;
+  mission_blurb?: string;
 };
 
 export type OutreachTokenResult = {
@@ -54,7 +123,7 @@ const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 function headers() {
   const token = getAdminSession()?.access_token;
-  if (!supabaseUrl || !anonKey || !token) throw new Error('Geen geldige adminsessie.');
+  if (!supabaseUrl || !anonKey || !token) throw new Error('admin.outreach.error.session');
   return { apikey: anonKey, Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', 'Cache-Control': 'no-store' };
 }
 
@@ -234,4 +303,60 @@ export async function setOutreachPageMedia(pageId: string, media: OutreachPageMe
     }),
     cache: 'no-store',
   }));
+}
+
+export async function prepareOutreachAi(campaignId: string, brief: string): Promise<void> {
+  await parse(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_prepare_outreach_ai`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ p_campaign_id: campaignId, p_brief: brief }),
+    cache: 'no-store',
+  }));
+}
+
+export async function getOutreachAiStatus(campaignId: string): Promise<OutreachAiStatus> {
+  return parse(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_get_outreach_ai_status`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ p_campaign_id: campaignId }),
+    cache: 'no-store',
+  }));
+}
+
+export async function generateOutreachAiContent(
+  campaignId: string,
+  onProgress?: (status: OutreachAiStatus) => void,
+): Promise<OutreachAiStatus> {
+  if (!supabaseUrl || !anonKey) throw new Error('admin.outreach.error.session');
+  const token = getAdminSession()?.access_token;
+  if (!token) throw new Error('admin.outreach.error.session');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-outreach-ai-content`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ campaign_id: campaignId }),
+  });
+
+  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string } | null;
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || `AI generation could not start (${response.status}).`);
+  }
+
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const status = await getOutreachAiStatus(campaignId);
+    onProgress?.(status);
+    if (status.ai_generation_status === 'completed' || status.ai_generation_status === 'failed') {
+      if (status.ai_generation_status === 'failed') {
+        throw new Error(status.ai_generation_error || 'admin.outreach.ai.failed');
+      }
+      return status;
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 1000));
+  }
+
+  throw new Error('admin.outreach.ai.failed');
 }

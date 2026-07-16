@@ -1,125 +1,31 @@
 #!/usr/bin/env node
-import assert from 'node:assert/strict';
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { fileURLToPath } from 'node:url';
+import {
+  extractExportFunctions,
+  extractManifest,
+  extractTranslationKeys,
+  isValidTranslationKey,
+  loadBootstrapKeySet,
+  loadConfig,
+  loadLocalEnv,
+  loadSqlKeyCatalog,
+  manifestCoversKey,
+  normalizePath,
+  repoRoot,
+  resolveSurfaceFiles,
+} from './i18n-script-utils.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const repoRoot = path.resolve(__dirname, '..');
-const configPath = path.join(__dirname, 'public-i18n-surfaces.json');
-const migrationsDir = path.join(repoRoot, 'supabase', 'migrations');
 
 const args = new Set(process.argv.slice(2));
-const skipDb = args.has('--skip-db');
-const verbose = args.has('--verbose');
-
-function normalizePath(value) {
-  return value.replace(/\\/g, '/');
-}
-
-async function loadConfig() {
-  return JSON.parse(await readFile(configPath, 'utf8'));
-}
-
-async function walkFiles(dir, matcher) {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files = [];
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await walkFiles(fullPath, matcher));
-      continue;
-    }
-    if (matcher(fullPath)) files.push(fullPath);
-  }
-  return files;
-}
-
-async function resolveSurfaceFiles(config) {
-  const exclude = new Set(config.excludePaths.map(normalizePath));
-  const files = new Set();
-
-  async function addIfIncluded(relativePath) {
-    const normalized = normalizePath(relativePath);
-    if (exclude.has(normalized)) return;
-    const absolute = path.join(repoRoot, normalized);
-    files.add(absolute);
-  }
-
-  for (const globLike of config.includeGlobs) {
-    const normalizedGlob = normalizePath(globLike);
-    if (!normalizedGlob.includes('*')) {
-      await addIfIncluded(normalizedGlob);
-      continue;
-    }
-
-    const wildcardIndex = normalizedGlob.indexOf('*');
-    const base = normalizedGlob.slice(0, normalizedGlob.lastIndexOf('/', wildcardIndex));
-    const ext = normalizedGlob.endsWith('.tsx') ? '.tsx' : normalizedGlob.endsWith('.ts') ? '.ts' : null;
-    const root = path.join(repoRoot, base);
-    const collected = await walkFiles(root, (filePath) => (ext ? filePath.endsWith(ext) : true));
-    for (const filePath of collected) {
-      await addIfIncluded(path.relative(repoRoot, filePath));
-    }
-  }
-
-  for (const relativePath of config.includePaths ?? []) {
-    await addIfIncluded(relativePath);
-  }
-
-  return [...files].sort();
-}
-
-function extractManifest(source) {
-  const match = source.match(/export const ([A-Z0-9_]+_I18N_MANIFEST)\s*=\s*(\{[\s\S]*?\})\s*as const(?:\s*satisfies\s+I18nManifest)?;/);
-  if (!match) return null;
-  const body = match[2];
-  const componentKey = body.match(/componentKey:\s*['"]([^'"]+)['"]/)?.[1];
-  const namespace = body.match(/namespace:\s*['"]([^'"]+)['"]/)?.[1];
-  let translationKeys = [...body.matchAll(/translationKeys:\s*\[([\s\S]*?)\]\s*as const/g)].flatMap((entry) =>
-    [...entry[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]),
-  );
-  if (!translationKeys.length) {
-    const ref = body.match(/translationKeys:\s*([A-Z0-9_]+)/)?.[1];
-    if (ref) {
-      const refMatch = source.match(new RegExp(`export const ${ref}\\s*=\\s*\\[([\\s\\S]*?)\\]\\s*as const`));
-      if (refMatch) {
-        translationKeys = [...refMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]);
-      }
-    }
-  }
-  const keyPatterns = [...body.matchAll(/keyPatterns:\s*\[([\s\S]*?)\]\s*as const/g)].flatMap((entry) =>
-    [...entry[1].matchAll(/['"]([^'"]+)['"]/g)].map((m) => m[1]),
-  );
-  return { exportName: match[1], componentKey, namespace, translationKeys, keyPatterns };
-}
-
-function manifestCoversKey(manifest, key) {
-  if (manifest.translationKeys.includes(key)) return true;
-  return manifest.keyPatterns.some((pattern) => {
-    if (pattern.endsWith('.*')) return key.startsWith(pattern.slice(0, -1));
-    if (pattern.includes('*')) {
-      const escaped = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*');
-      return new RegExp(`^${escaped}$`).test(key);
-    }
-    return pattern === key;
-  });
-}
-
-function extractTranslationKeys(source) {
-  const keys = new Set();
-  for (const match of source.matchAll(/\bt\(\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-  for (const match of source.matchAll(/translateText\(\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-  for (const match of source.matchAll(/translationKey:\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-  for (const match of source.matchAll(/labelKey:\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-  for (const match of source.matchAll(/titleKey:\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-  for (const match of source.matchAll(/key:\s*['"]([^'"]+)['"]/g)) {
-    const key = match[1];
-    if (key.includes('.')) keys.add(key);
-  }
-  return [...keys];
-}
+export const verifyOptions = {
+  skipDb: args.has('--skip-db'),
+  requireDb: args.has('--require-db'),
+  verbose: args.has('--verbose'),
+};
 
 function isBrandLiteral(value, brandAllowlist) {
   const trimmed = value.trim();
@@ -138,17 +44,6 @@ function isBrandLiteral(value, brandAllowlist) {
   if (/^#[0-9a-f]{3,8}$/i.test(trimmed)) return true;
   if (/^(xs|sm|md|lg|xl|\d+(px|rem|em|%)?)$/i.test(trimmed)) return true;
   return false;
-}
-
-function extractExportFunctions(source, exportNames) {
-  if (!exportNames?.length) return source;
-  const chunks = [];
-  for (const exportName of exportNames) {
-    const fnRegex = new RegExp(`export function ${exportName}\\b[\\s\\S]*?(?=\\nexport function |\\nexport const |$)`);
-    const match = source.match(fnRegex);
-    if (match) chunks.push(match[0]);
-  }
-  return chunks.length ? chunks.join('\n\n') : source;
 }
 
 function findHardcodedUi(source, brandAllowlist, isDataModule) {
@@ -218,29 +113,13 @@ function findHardcodedUi(source, brandAllowlist, isDataModule) {
   return violations;
 }
 
-async function loadMigrationKeyCatalog() {
-  const files = await readdir(migrationsDir);
-  const keys = new Set();
-  for (const file of files.filter((name) => name.endsWith('.sql')).sort()) {
-    const sql = await readFile(path.join(migrationsDir, file), 'utf8');
-    for (const match of sql.matchAll(/'([a-z][a-z0-9_.-]{2,})'/g)) {
-      const key = match[1];
-      if (key.includes('.') && !key.startsWith('public.') && !key.includes(' ')) keys.add(key);
-    }
+function isKeyBootstrapped(key, bootstrapSet) {
+  if (bootstrapSet.has(key)) return true;
+  for (const entry of bootstrapSet) {
+    if (entry.endsWith('%') && key.startsWith(entry.slice(0, -1))) return true;
+    if (entry.endsWith('.*') && key.startsWith(entry.slice(0, -2))) return true;
   }
-
-  const config = await loadConfig();
-  const surfaceFiles = await resolveSurfaceFiles(config);
-  for (const absolutePath of surfaceFiles) {
-    const source = await readFile(absolutePath, 'utf8');
-    for (const match of source.matchAll(/\bt\(\s*['"]([^'"]+)['"]/g)) keys.add(match[1]);
-    const manifest = extractManifest(source);
-    if (manifest) {
-      for (const key of manifest.translationKeys) keys.add(key);
-    }
-  }
-
-  return keys;
+  return false;
 }
 
 async function fetchRegistry() {
@@ -248,21 +127,111 @@ async function fetchRegistry() {
   const key = process.env.VITE_SUPABASE_ANON_KEY;
   if (!url || !key) return null;
 
-  const response = await fetch(`${url}/rest/v1/website_ui_components?select=component_key,source_path`, {
+  const response = await fetch(`${url}/rest/v1/rpc/get_public_ui_component_registry`, {
+    method: 'POST',
     headers: {
       apikey: key,
       Authorization: `Bearer ${key}`,
+      'Content-Type': 'application/json',
     },
+    body: '{}',
   });
   if (!response.ok) throw new Error(`Registry fetch failed: ${response.status} ${await response.text()}`);
   return response.json();
 }
 
-export async function verifyPublicI18n() {
+async function fetchActiveLanguageCount() {
+  const url = process.env.VITE_SUPABASE_URL;
+  const key = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !key) return null;
+
+  const response = await fetch(`${url}/rest/v1/site_languages?select=code&is_active=eq.true`, {
+    headers: {
+      apikey: key,
+      Authorization: `Bearer ${key}`,
+      Prefer: 'count=exact',
+    },
+  });
+  if (!response.ok) throw new Error(`Language fetch failed: ${response.status} ${await response.text()}`);
+  const rows = await response.json();
+  return rows.length;
+}
+
+async function fetchPublishedTranslationCounts(keys) {
+  const url = process.env.VITE_SUPABASE_URL;
+  const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!url || !anonKey || !keys.length) return new Map();
+
+  const counts = new Map();
+  const batchSize = 50;
+
+  for (let index = 0; index < keys.length; index += batchSize) {
+    const batch = keys.slice(index, index + batchSize);
+    const encodedKeys = batch.map((key) => encodeURIComponent(key)).join(',');
+    const response = await fetch(
+      `${url}/rest/v1/website_translation_keys?select=translation_key,website_translations(language_code,translation_status)&translation_key=in.(${encodedKeys})`,
+      {
+        headers: {
+          apikey: anonKey,
+          Authorization: `Bearer ${anonKey}`,
+        },
+      },
+    );
+    if (!response.ok) {
+      throw new Error(`Translation coverage fetch failed: ${response.status} ${await response.text()}`);
+    }
+
+    const rows = await response.json();
+    for (const row of rows) {
+      const published = (row.website_translations || []).filter((entry) => entry.translation_status === 'published').length;
+      counts.set(row.translation_key, published);
+    }
+  }
+
+  return counts;
+}
+
+function collectRequiredKeys(manifest, usedKeys) {
+  const keys = new Set();
+  for (const key of manifest.translationKeys) {
+    if (isValidTranslationKey(key) && !key.endsWith('.ui_scan')) keys.add(key);
+  }
+  for (const key of usedKeys) {
+    if (isValidTranslationKey(key) && manifestCoversKey(manifest, key)) keys.add(key);
+  }
+  return [...keys];
+}
+
+export async function verifyPublicI18n(options = verifyOptions) {
+  loadLocalEnv();
   const config = await loadConfig();
   const files = await resolveSurfaceFiles(config);
-  const migrationKeys = await loadMigrationKeyCatalog();
-  const registry = skipDb ? null : await fetchRegistry().catch(() => null);
+  const sqlKeyCatalog = await loadSqlKeyCatalog();
+  const bootstrapSet = await loadBootstrapKeySet();
+  const skipDb = options.skipDb ?? verifyOptions.skipDb;
+  const requireDb = options.requireDb ?? verifyOptions.requireDb;
+  const verbose = options.verbose ?? verifyOptions.verbose;
+
+  if (requireDb && (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY)) {
+    return ['Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY for --require-db verification.'];
+  }
+
+  const registry = skipDb ? null : await fetchRegistry().catch((error) => {
+    if (requireDb) throw error;
+    return null;
+  });
+
+  let activeLanguageCount = null;
+  let publishedCounts = null;
+  if (!skipDb) {
+    activeLanguageCount = await fetchActiveLanguageCount().catch((error) => {
+      if (requireDb) throw error;
+      return null;
+    });
+    publishedCounts = new Map();
+  }
+
+  const allRequiredKeys = new Set();
   const errors = [];
 
   for (const absolutePath of files) {
@@ -301,9 +270,14 @@ export async function verifyPublicI18n() {
       }
     }
 
-    for (const key of manifest.translationKeys) {
-      if (!migrationKeys.has(key) && !registry) {
-        errors.push(`${relativePath}: manifest key "${key}" not found in migration catalog`);
+    const requiredKeys = collectRequiredKeys(manifest, usedKeys);
+    for (const key of requiredKeys) allRequiredKeys.add(key);
+
+    for (const key of requiredKeys) {
+      if (!sqlKeyCatalog.has(key)) {
+        errors.push(`${relativePath}: translation key "${key}" missing from SQL migration catalog`);
+      } else if (skipDb && !isKeyBootstrapped(key, bootstrapSet)) {
+        errors.push(`${relativePath}: translation key "${key}" missing 30-language bootstrap proof in migrations`);
       }
     }
 
@@ -313,6 +287,23 @@ export async function verifyPublicI18n() {
         errors.push(`${relativePath}: component "${manifest.componentKey}" missing from website_ui_components registry`);
       } else if (row.component_key !== manifest.componentKey) {
         errors.push(`${relativePath}: registry component_key mismatch (${row.component_key} != ${manifest.componentKey})`);
+      }
+    } else if (requireDb) {
+      errors.push(`${relativePath}: registry sync required but Supabase registry fetch failed`);
+    }
+  }
+
+  if (!skipDb && activeLanguageCount && allRequiredKeys.size) {
+    const coverage = await fetchPublishedTranslationCounts([...allRequiredKeys]).catch((error) => {
+      if (requireDb) throw error;
+      return null;
+    });
+    if (coverage) {
+      for (const key of allRequiredKeys) {
+        const published = coverage.get(key) ?? 0;
+        if (published < activeLanguageCount) {
+          errors.push(`translation key "${key}" has ${published}/${activeLanguageCount} published translations`);
+        }
       }
     }
   }

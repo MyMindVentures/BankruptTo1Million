@@ -3,6 +3,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
   status,
@@ -21,6 +22,8 @@ async function invokePlaceContextBatch(secret: string, postId: string) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+      apikey: SUPABASE_ANON_KEY ?? SERVICE_ROLE_KEY,
       "x-journal-ai-worker-secret": secret,
     },
     body: JSON.stringify({ post_id: postId }),
@@ -64,6 +67,8 @@ Deno.serve(async (req: Request) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+            apikey: SUPABASE_ANON_KEY ?? SERVICE_ROLE_KEY,
             "x-journal-ai-worker-secret": secret,
           },
           body: JSON.stringify({ post_id: row.journal_post_id }),

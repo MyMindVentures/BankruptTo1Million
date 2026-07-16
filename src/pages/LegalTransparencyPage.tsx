@@ -2,22 +2,16 @@ import type { I18nManifest } from '../lib/i18nManifest';
 import { FileCheck2, Fingerprint, Globe2, LockKeyhole, Scale, ShieldCheck } from 'lucide-react';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
-
-const sections = [
-  { id: 'ownership', label: 'Ownership & IP', icon: Fingerprint },
-  { id: 'terms', label: 'Terms of Use', icon: Scale },
-  { id: 'privacy', label: 'Privacy', icon: LockKeyhole },
-  { id: 'mission', label: 'Public Mission', icon: Globe2 },
-] as const;
-
-export const LEGAL_TRANSPARENCY_PAGE_I18N_MANIFEST = {
-  componentKey: 'pages.legal.transparency.page',
-  namespace: 'ui',
-  translationKeys: [
-  ] as const,
-} as const satisfies I18nManifest;
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 export function LegalTransparencyPage() {
+  const { t } = useWebsiteI18n();
+  const sections = [
+    { id: 'ownership' as const, label: t('legal.nav.ownership', 'Ownership & IP'), icon: Fingerprint },
+    { id: 'terms' as const, label: t('legal.nav.terms', 'Terms of Use'), icon: Scale },
+    { id: 'privacy' as const, label: t('legal.nav.privacy', 'Privacy'), icon: LockKeyhole },
+    { id: 'mission' as const, label: t('legal.nav.mission', 'Public Mission'), icon: Globe2 },
+  ];
   return (
     <>
       <Header />
@@ -25,13 +19,12 @@ export function LegalTransparencyPage() {
         <main id="top" className="legal-page">
           <section className="hero legal-hero section-grid" aria-labelledby="legal-title">
             <div className="hero__content">
-              <p className="eyebrow">Legal & Transparency</p>
-              <h1 id="legal-title">Clear ownership. Honest publication. Open collaboration.</h1>
+              <p className="eyebrow">{t('legal.hero.eyebrow', 'Legal & Transparency')}</p>
+              <h1 id="legal-title">{t('legal.hero.title', 'Clear ownership. Honest publication. Open collaboration.')}</h1>
               <p className="hero__lede">
-                This page explains who owns the concepts and content published through Bankrupt to 1 Million,
-                why the work is shared publicly, how visitors may use it, and how personal information is handled.
+                {t('legal.hero.description', 'This page explains who owns the concepts and content published through Bankrupt to 1 Million, why the work is shared publicly, how visitors may use it, and how personal information is handled.')}
               </p>
-              <nav className="legal-hero__nav" aria-label="Legal page sections">
+              <nav className="legal-hero__nav" aria-label={t('legal.nav.aria', 'Legal page sections')}>
                 {sections.map(({ id, label, icon: Icon }) => (
                   <a key={id} href={`#${id}`}><Icon size={16} aria-hidden="true" /> {label}</a>
                 ))}
@@ -39,19 +32,18 @@ export function LegalTransparencyPage() {
             </div>
             <aside className="hero-card legal-hero__card">
               <ShieldCheck aria-hidden="true" />
-              <blockquote>Public does not mean ownerless.</blockquote>
+              <blockquote>{t('legal.hero.card_quote', 'Public does not mean ownerless.')}</blockquote>
               <p>
-                Publication creates visibility and opportunity. It does not transfer ownership or grant permission
-                to copy, commercialize or present the work as someone else’s creation.
+                {t('legal.hero.card_description', "Publication creates visibility and opportunity. It does not transfer ownership or grant permission to copy, commercialize or present the work as someone else's creation.")}
               </p>
             </aside>
           </section>
 
-          <section className="section legal-summary" aria-label="Ownership summary">
-            <article><span>Owner entity</span><strong>MyMindVentures.io</strong></article>
-            <article><span>Owner & CEO</span><strong>Kevin De Vlieger</strong></article>
-            <article><span>Identification</span><strong>NIE Y8541916Y</strong></article>
-            <article><span>Based in</span><strong>Alicante, Spain</strong></article>
+          <section className="section legal-summary" aria-label={t('legal.summary.aria', 'Ownership summary')}>
+            <article><span>{t('legal.summary.owner_entity', 'Owner entity')}</span><strong>MyMindVentures.io</strong></article>
+            <article><span>{t('legal.summary.owner_ceo', 'Owner & CEO')}</span><strong>Kevin De Vlieger</strong></article>
+            <article><span>{t('legal.summary.identification', 'Identification')}</span><strong>NIE Y8541916Y</strong></article>
+            <article><span>{t('legal.summary.based_in', 'Based in')}</span><strong>Alicante, Spain</strong></article>
           </section>
 
           <div className="section legal-content">
@@ -148,9 +140,9 @@ export function LegalTransparencyPage() {
               <div className="legal-section__heading"><Globe2 aria-hidden="true" /><div><p className="eyebrow">04 · Mission</p><h2 id="mission-title">Public Mission Statement</h2></div></div>
               <div className="legal-section__body">
                 <p>
-                  Kevin De Vlieger publishes this work to establish visibility as a <strong>Concept Thinker & Vision Partner</strong>,
+                  Kevin De Vlieger publishes this work to establish visibility as a <strong>{t('legal.mission.role', 'Concept Thinker & Vision Partner')}</strong>,
                   attract the builders and strategic partners required to turn strong ideas into real ventures, and build a
-                  location-independent future as a <strong>Digital Nomad</strong>.
+                  location-independent future as a <strong>{t('legal.mission.digital_nomad', 'Digital Nomad')}</strong>.
                 </p>
                 <p>
                   The portfolio is published under <strong>Bankrupt to 1 Million</strong>: a build-in-public mission documenting
@@ -170,10 +162,9 @@ export function LegalTransparencyPage() {
           <section className="section legal-footer-note">
             <ShieldCheck aria-hidden="true" />
             <div>
-              <h2>One central source of truth</h2>
+              <h2>{t('legal.footer.title', 'One central source of truth')}</h2>
               <p>
-                Concept-specific ownership notices remain linked to every item in Proof of Mind. This page provides the
-                broader website-wide context. Nothing on this page replaces a signed agreement or professional legal advice.
+                {t('legal.footer.description', 'Concept-specific ownership notices remain linked to every item in Proof of Mind. This page provides the broader website-wide context. Nothing on this page replaces a signed agreement or professional legal advice.')}
               </p>
             </div>
           </section>
@@ -183,3 +174,29 @@ export function LegalTransparencyPage() {
     </>
   );
 }
+
+export const LEGAL_TRANSPARENCY_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.legal.transparency.page',
+  namespace: 'legal',
+  translationKeys: [
+    'legal.footer.description',
+    'legal.footer.title',
+    'legal.hero.card_description',
+    'legal.hero.card_quote',
+    'legal.hero.description',
+    'legal.hero.eyebrow',
+    'legal.hero.title',
+    'legal.mission.digital_nomad',
+    'legal.mission.role',
+    'legal.nav.aria',
+    'legal.nav.mission',
+    'legal.nav.ownership',
+    'legal.nav.privacy',
+    'legal.nav.terms',
+    'legal.summary.aria',
+    'legal.summary.based_in',
+    'legal.summary.identification',
+    'legal.summary.owner_ceo',
+    'legal.summary.owner_entity',
+  ] as const,
+} as const satisfies I18nManifest;

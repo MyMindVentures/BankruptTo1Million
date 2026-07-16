@@ -1,19 +1,22 @@
 import type { I18nManifest } from '../lib/i18nManifest';
-import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Copy, Database, ExternalLink, Factory, Film, Globe2, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
+import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Copy, Database, ExternalLink, Factory, Film, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import { canOpenProofOfMindConcept, getProofOfMindConceptBySlug, getProofOfMindConcepts, normalizeProofOfMindUrl, submitProofOfMindDiscovery, trackProofOfMindEvent, validateProofOfMindDiscoveryInput } from '../lib/proofOfMind';
 import type { ProofOfMindConcept, ProofOfMindConceptDetail } from '../lib/proofOfMind';
 import '../styles/proofOfMind.css';
 import '../styles/proofOfMindExpandableCards.css';
 
 function ProofOfMindErrorState({ onRetry }: { onRetry: () => void }) {
-  return <div className="impact-state impact-state--error" role="alert"><div><strong>Proof of Mind could not be loaded.</strong><br />The public archive request failed.</div><button className="button button--small" type="button" onClick={onRetry}><RefreshCw size={16} aria-hidden="true" /> Try again</button></div>;
+  const { t } = useWebsiteI18n();
+  return <div className="impact-state impact-state--error" role="alert"><div><strong>{t('proof_of_mind.error.title', 'Proof of Mind could not be loaded.')}</strong><br />{t('proof_of_mind.error.description', 'The public archive request failed.')}</div><button className="button button--small" type="button" onClick={onRetry}><RefreshCw size={16} aria-hidden="true" /> {t('proof_of_mind.error.retry', 'Try again')}</button></div>;
 }
 
 function ProofOfMindEmptyState() {
-  return <div className="impact-state"><strong>The archive is being prepared.</strong><br />The first public concepts will appear here soon.</div>;
+  const { t } = useWebsiteI18n();
+  return <div className="impact-state"><strong>{t('proof_of_mind.empty.title', 'The archive is being prepared.')}</strong><br />{t('proof_of_mind.empty.description', 'The first public concepts will appear here soon.')}</div>;
 }
 
 function setProofMeta(title: string, description?: string | null, image?: string | null) {
@@ -111,27 +114,78 @@ function ConceptCard({ concept, onDiscovery }: { concept: ProofOfMindConcept; on
 const interestTypes = ['potential customer', 'launch partner', 'investor', 'developer/builder', 'sponsor', 'media', 'other'];
 
 function DiscoveryCallModal({ concept, onClose }: { concept: ProofOfMindConcept; onClose: () => void }) {
+  const { t } = useWebsiteI18n();
   const [form, setForm] = useState({ full_name: '', email: '', company: '', role: '', country: '', interest_message: '', consent_to_contact: false, website: '', linkedin: '', interest_type: 'potential customer' });
   const [state, setState] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
   async function submit(event: FormEvent) {
     event.preventDefault(); const payload = { concept_id: concept.id, ...form };
-    try { validateProofOfMindDiscoveryInput(payload); } catch (error) { setState('error'); setMessage(error instanceof Error ? error.message : 'Please complete the required fields.'); return; }
+    try { validateProofOfMindDiscoveryInput(payload); } catch (error) { setState('error'); setMessage(error instanceof Error ? error.message : t('proof_of_mind.discovery.validation', 'Please complete the required fields.')); return; }
     setState('loading'); setMessage('');
-    try { await submitProofOfMindDiscovery(payload); setState('success'); setMessage(`Your request has been linked to ${concept.title}.`); } catch { setState('error'); setMessage('The request could not be saved. Please try again shortly.'); }
+    try { await submitProofOfMindDiscovery(payload); setState('success'); setMessage(t('proof_of_mind.discovery.success_message', 'Your request has been linked to {title}.', { title: concept.title })); } catch { setState('error'); setMessage(t('proof_of_mind.discovery.error', 'The request could not be saved. Please try again shortly.')); }
   }
   const set = (key: keyof typeof form, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
-  return <div className="discovery-modal" role="dialog" aria-modal="true" aria-labelledby="discovery-title"><div className="discovery-modal__panel"><button className="discovery-modal__close" type="button" onClick={onClose} aria-label="Close discovery call form"><X size={18} /></button>{state === 'success' ? <div className="impact-state"><CheckCircle /><div><strong>Request received.</strong><br />{message}</div><button className="button button--small" type="button" onClick={onClose}>Close</button></div> : <form className="application-form journal-form discovery-form" onSubmit={submit}><p className="eyebrow">Book Discovery Call</p><h2 id="discovery-title">Discuss {concept.title}</h2><p>Tell us how you could help validate, build, fund or launch this concept.</p><div className="form-grid"><label>Full name<input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} /></label><label>Email<input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></label></div><div className="form-grid"><label>Company or organisation<input required value={form.company} onChange={(e) => set('company', e.target.value)} /></label><label>Role<input required value={form.role} onChange={(e) => set('role', e.target.value)} /></label></div><label>Country/location<input required value={form.country} onChange={(e) => set('country', e.target.value)} /></label><div className="form-grid"><label>Website <span className="optional-label">optional</span><input type="url" value={form.website} onChange={(e) => set('website', e.target.value)} /></label><label>LinkedIn <span className="optional-label">optional</span><input type="url" value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} /></label></div><label>Interest type<select value={form.interest_type} onChange={(e) => set('interest_type', e.target.value)}>{interestTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Why does this concept interest you?<textarea required rows={5} value={form.interest_message} onChange={(e) => set('interest_message', e.target.value)} /></label><label><input type="checkbox" required checked={form.consent_to_contact} onChange={(e) => set('consent_to_contact', e.target.checked)} /> I consent to be contacted about this concept.</label><div className={`form-status ${state === 'error' ? 'impact-state--error' : ''}`} role="status">{state === 'loading' ? 'Saving…' : message}</div><div className="hero__actions"><button className="button" disabled={state === 'loading'} type="submit">Submit request</button><button className="button button--ghost" type="button" onClick={onClose}>Cancel</button></div></form>}</div></div>;
+  return <div className="discovery-modal" role="dialog" aria-modal="true" aria-labelledby="discovery-title"><div className="discovery-modal__panel"><button className="discovery-modal__close" type="button" onClick={onClose} aria-label={t('proof_of_mind.discovery.close_aria', 'Close discovery call form')}><X size={18} /></button>{state === 'success' ? <div className="impact-state"><CheckCircle /><div><strong>{t('proof_of_mind.discovery.received', 'Request received.')}</strong><br />{message}</div><button className="button button--small" type="button" onClick={onClose}>{t('proof_of_mind.discovery.close', 'Close')}</button></div> : <form className="application-form journal-form discovery-form" onSubmit={submit}><p className="eyebrow">{t('proof_of_mind.discovery.eyebrow', 'Book Discovery Call')}</p><h2 id="discovery-title">{t('proof_of_mind.discovery.title', 'Discuss {title}', { title: concept.title })}</h2><p>{t('proof_of_mind.discovery.description', 'Tell us how you could help validate, build, fund or launch this concept.')}</p><div className="form-grid"><label>{t('proof_of_mind.discovery.full_name', 'Full name')}<input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} /></label><label>{t('proof_of_mind.discovery.email', 'Email')}<input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></label></div><div className="form-grid"><label>{t('proof_of_mind.discovery.company', 'Company or organisation')}<input required value={form.company} onChange={(e) => set('company', e.target.value)} /></label><label>{t('proof_of_mind.discovery.role', 'Role')}<input required value={form.role} onChange={(e) => set('role', e.target.value)} /></label></div><label>{t('proof_of_mind.discovery.country', 'Country/location')}<input required value={form.country} onChange={(e) => set('country', e.target.value)} /></label><div className="form-grid"><label>{t('proof_of_mind.discovery.website', 'Website')} <span className="optional-label">{t('proof_of_mind.discovery.optional', 'optional')}</span><input type="url" value={form.website} onChange={(e) => set('website', e.target.value)} /></label><label>{t('proof_of_mind.discovery.linkedin', 'LinkedIn')} <span className="optional-label">{t('proof_of_mind.discovery.optional', 'optional')}</span><input type="url" value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} /></label></div><label>{t('proof_of_mind.discovery.interest_type', 'Interest type')}<select value={form.interest_type} onChange={(e) => set('interest_type', e.target.value)}>{interestTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>{t('proof_of_mind.discovery.interest_message', 'Why does this concept interest you?')}<textarea required rows={5} value={form.interest_message} onChange={(e) => set('interest_message', e.target.value)} /></label><label><input type="checkbox" required checked={form.consent_to_contact} onChange={(e) => set('consent_to_contact', e.target.checked)} /> {t('proof_of_mind.discovery.consent', 'I consent to be contacted about this concept.')}</label><div className={`form-status ${state === 'error' ? 'impact-state--error' : ''}`} role="status">{state === 'loading' ? t('proof_of_mind.discovery.saving', 'Saving…') : message}</div><div className="hero__actions"><button className="button" disabled={state === 'loading'} type="submit">{t('proof_of_mind.discovery.submit', 'Submit request')}</button><button className="button button--ghost" type="button" onClick={onClose}>{t('proof_of_mind.discovery.cancel', 'Cancel')}</button></div></form>}</div></div>;
 }
 
 export const PROOF_OF_MIND_PAGES_I18N_MANIFEST = {
   componentKey: 'pages.proof.of.mind.pages',
-  namespace: 'ui',
+  namespace: 'proof_of_mind',
   translationKeys: [
+    'proof_of_mind.discovery.cancel',
+    'proof_of_mind.discovery.close',
+    'proof_of_mind.discovery.close_aria',
+    'proof_of_mind.discovery.company',
+    'proof_of_mind.discovery.consent',
+    'proof_of_mind.discovery.country',
+    'proof_of_mind.discovery.description',
+    'proof_of_mind.discovery.email',
+    'proof_of_mind.discovery.error',
+    'proof_of_mind.discovery.eyebrow',
+    'proof_of_mind.discovery.full_name',
+    'proof_of_mind.discovery.interest_message',
+    'proof_of_mind.discovery.interest_type',
+    'proof_of_mind.discovery.linkedin',
+    'proof_of_mind.discovery.optional',
+    'proof_of_mind.discovery.received',
+    'proof_of_mind.discovery.role',
+    'proof_of_mind.discovery.saving',
+    'proof_of_mind.discovery.submit',
+    'proof_of_mind.discovery.success_message',
+    'proof_of_mind.discovery.title',
+    'proof_of_mind.discovery.validation',
+    'proof_of_mind.discovery.website',
+    'proof_of_mind.empty.description',
+    'proof_of_mind.empty.title',
+    'proof_of_mind.error.description',
+    'proof_of_mind.error.retry',
+    'proof_of_mind.error.title',
+    'proof_of_mind.page.archive.description',
+    'proof_of_mind.page.archive.eyebrow',
+    'proof_of_mind.page.archive.title',
+    'proof_of_mind.page.empty_filters',
+    'proof_of_mind.page.filter.all',
+    'proof_of_mind.page.hero.card_description',
+    'proof_of_mind.page.hero.card_quote',
+    'proof_of_mind.page.hero.description',
+    'proof_of_mind.page.hero.eyebrow',
+    'proof_of_mind.page.hero.title',
+    'proof_of_mind.page.loading',
+    'proof_of_mind.page.search.label',
+    'proof_of_mind.page.search.placeholder',
+    'proof_of_mind.page.stats.aria',
+    'proof_of_mind.page.stats.categories',
+    'proof_of_mind.page.stats.full',
+    'proof_of_mind.page.stats.visible',
   ] as const,
+  entityContent: {
+    rpc: 'submit_proof_of_mind_discovery_call',
+    tables: ['proof_of_mind_concepts', 'proof_of_mind_concept_translations'],
+  },
 } as const satisfies I18nManifest;
 
 export function ProofOfMindPage() {
+  const { t } = useWebsiteI18n();
   const [concepts, setConcepts] = useState<ProofOfMindConcept[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [query, setQuery] = useState('');
@@ -142,7 +196,7 @@ export function ProofOfMindPage() {
   const categories = useMemo(() => ['all', ...Array.from(new Set(concepts.map((concept) => concept.category))).sort()], [concepts]);
   const filtered = useMemo(() => { const needle = query.trim().toLowerCase(); return concepts.filter((concept) => (category === 'all' || concept.category === category) && (!needle || [concept.title, concept.tagline, concept.short_description, concept.innovation_summary, concept.category, concept.concept_status, concept.concept_type, concept.concept_format, concept.delivery_model, concept.primary_market, ...concept.tags].filter(Boolean).join(' ').toLowerCase().includes(needle))); }, [category, concepts, query]);
   const fullCount = concepts.filter(canOpenProofOfMindConcept).length;
-  return <main id="top" className="proof-page"><section className="hero proof-hero section-grid" aria-labelledby="proof-title"><div className="hero__content"><p className="eyebrow">PROOF OF MIND</p><h1 id="proof-title">Ideas are easy to dismiss. A body of work is harder to ignore.</h1><p className="hero__lede">A public venture archive built to help developers, venture studios, investors and launch partners discover concepts worth building.</p><div className="proof-search" role="search"><label htmlFor="proof-search"><Search size={16} /> Search concepts</label><input id="proof-search" value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="Search by title, market, type or tag" /></div></div><aside className="hero-card proof-hero-card"><Sparkles /><blockquote>Concepts designed to become ventures.</blockquote><p>Every full concept combines founder attribution, commercial scoring, competitors, target audiences, AI opportunities, partner leads and build-ready product detail.</p></aside></section><section className="section proof-stats" aria-label="Proof of Mind statistics"><article><span>{concepts.length}</span><p>Visible concepts</p></article><article><span>{Math.max(categories.length - 1, 0)}</span><p>Categories</p></article><article><span>{fullCount}</span><p>Fully revealed</p></article></section><section className="section" aria-labelledby="proof-archive-title"><SectionHeading eyebrow="Public archive" title="Explore concepts worth building" titleId="proof-archive-title">Find the concepts that match your expertise, capital, audience or distribution network.</SectionHeading><div className="concept-filters">{categories.map((item) => <button key={item} type="button" className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)}>{item === 'all' ? 'All concepts' : item}</button>)}</div>{status === 'loading' ? <div className="proof-skeleton" role="status">Loading concepts…</div> : null}{status === 'error' ? <ProofOfMindErrorState onRetry={load} /> : null}{status === 'ready' && !concepts.length ? <ProofOfMindEmptyState /> : null}{status === 'ready' && concepts.length && !filtered.length ? <div className="impact-state">No concepts match the current filters.</div> : null}<div className="concept-grid">{filtered.map((concept) => <ConceptCard key={concept.id} concept={concept} onDiscovery={setSelectedConcept} />)}</div></section>{selectedConcept ? <DiscoveryCallModal concept={selectedConcept} onClose={() => setSelectedConcept(null)} /> : null}</main>;
+  return <main id="top" className="proof-page"><section className="hero proof-hero section-grid" aria-labelledby="proof-title"><div className="hero__content"><p className="eyebrow">{t('proof_of_mind.page.hero.eyebrow', 'PROOF OF MIND')}</p><h1 id="proof-title">{t('proof_of_mind.page.hero.title', 'Ideas are easy to dismiss. A body of work is harder to ignore.')}</h1><p className="hero__lede">{t('proof_of_mind.page.hero.description', 'A public venture archive built to help developers, venture studios, investors and launch partners discover concepts worth building.')}</p><div className="proof-search" role="search"><label htmlFor="proof-search"><Search size={16} /> {t('proof_of_mind.page.search.label', 'Search concepts')}</label><input id="proof-search" value={query} onChange={(e)=>setQuery(e.target.value)} placeholder={t('proof_of_mind.page.search.placeholder', 'Search by title, market, type or tag')} /></div></div><aside className="hero-card proof-hero-card"><Sparkles /><blockquote>{t('proof_of_mind.page.hero.card_quote', 'Concepts designed to become ventures.')}</blockquote><p>{t('proof_of_mind.page.hero.card_description', 'Every full concept combines founder attribution, commercial scoring, competitors, target audiences, AI opportunities, partner leads and build-ready product detail.')}</p></aside></section><section className="section proof-stats" aria-label={t('proof_of_mind.page.stats.aria', 'Proof of Mind statistics')}><article><span>{concepts.length}</span><p>{t('proof_of_mind.page.stats.visible', 'Visible concepts')}</p></article><article><span>{Math.max(categories.length - 1, 0)}</span><p>{t('proof_of_mind.page.stats.categories', 'Categories')}</p></article><article><span>{fullCount}</span><p>{t('proof_of_mind.page.stats.full', 'Fully revealed')}</p></article></section><section className="section" aria-labelledby="proof-archive-title"><SectionHeading eyebrow={t('proof_of_mind.page.archive.eyebrow', 'Public archive')} title={t('proof_of_mind.page.archive.title', 'Explore concepts worth building')} titleId="proof-archive-title">{t('proof_of_mind.page.archive.description', 'Find the concepts that match your expertise, capital, audience or distribution network.')}</SectionHeading><div className="concept-filters">{categories.map((item) => <button key={item} type="button" className={category === item ? 'is-active' : ''} onClick={() => setCategory(item)}>{item === 'all' ? t('proof_of_mind.page.filter.all', 'All concepts') : item}</button>)}</div>{status === 'loading' ? <div className="proof-skeleton" role="status">{t('proof_of_mind.page.loading', 'Loading concepts…')}</div> : null}{status === 'error' ? <ProofOfMindErrorState onRetry={load} /> : null}{status === 'ready' && !concepts.length ? <ProofOfMindEmptyState /> : null}{status === 'ready' && concepts.length && !filtered.length ? <div className="impact-state">{t('proof_of_mind.page.empty_filters', 'No concepts match the current filters.')}</div> : null}<div className="concept-grid">{filtered.map((concept) => <ConceptCard key={concept.id} concept={concept} onDiscovery={setSelectedConcept} />)}</div></section>{selectedConcept ? <DiscoveryCallModal concept={selectedConcept} onClose={() => setSelectedConcept(null)} /> : null}</main>;
 }
 
 function DetailBlock({ title, eyebrow, children }: { title: string; eyebrow?: string; children?: ReactNode }) {

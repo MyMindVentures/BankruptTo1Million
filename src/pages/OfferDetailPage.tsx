@@ -3,6 +3,7 @@ import { ArrowLeft, Camera, Check, Clock3, MapPin, Play, ShieldCheck, Sparkles, 
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOfferBySlug } from '../lib/offers';
 import type { OfferMediaItem, PublicOffer } from '../lib/offers';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 function founderLabel(offer: PublicOffer): string {
   return offer.founders.map((founder) => founder.displayName).join(' & ') || 'Kevin & Micha';
@@ -20,12 +21,18 @@ function MediaCard({ item, onOpen }: { item: OfferMediaItem; onOpen: () => void 
 
 export const OFFER_DETAIL_PAGE_I18N_MANIFEST = {
   componentKey: 'pages.offer.detail.page',
-  namespace: 'ui',
+  namespace: 'offers.detail',
   translationKeys: [
+    'offers.detail.close_media',
+    'offers.detail.personal_story',
   ] as const,
+  entityContent: {
+    tables: ['offers', 'offer_translations'],
+  },
 } as const satisfies I18nManifest;
 
 export function OfferDetailPage({ slug }: { slug: string }) {
+  const { t } = useWebsiteI18n();
   const [offer, setOffer] = useState<PublicOffer | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'missing'>('loading');
   const [selected, setSelected] = useState<OfferMediaItem | null>(null);
@@ -87,7 +94,7 @@ export function OfferDetailPage({ slug }: { slug: string }) {
         <p className="eyebrow">The offer</p>
         <h2>A real skill, shared personally.</h2>
         <p>{offer.fullDescription || offer.shortDescription}</p>
-        {offer.personalStory ? <><h3>Why this matters to us</h3><p>{offer.personalStory}</p></> : null}
+        {offer.personalStory ? <><h3>{t('offers.detail.personal_story', 'Why this matters to us')}</h3><p>{offer.personalStory}</p></> : null}
       </article>
 
       <aside className="offer-detail__facts">
@@ -122,7 +129,7 @@ export function OfferDetailPage({ slug }: { slug: string }) {
     </section>
 
     {selected ? <div className="offer-media-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}>
-      <button type="button" onClick={() => setSelected(null)} aria-label="Close media">×</button>
+      <button type="button" onClick={() => setSelected(null)} aria-label={t('offers.detail.close_media', 'Close media')}>×</button>
       <div onClick={(event) => event.stopPropagation()}>{selected.kind === 'video' ? <video src={selected.url} controls autoPlay /> : <img src={selected.url} alt={selected.altText} />}<p>{selected.caption || selected.description}</p></div>
     </div> : null}
   </main>;

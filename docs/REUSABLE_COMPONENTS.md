@@ -4,7 +4,7 @@ This document defines the reusable frontend components for the Bankrupt to 1 Mil
 
 The goal is to prevent duplicated UI, duplicated translation logic and inconsistent behavior across pages.
 
-Every visitor-facing component must work with the shared 15-language selector.
+Every visitor-facing component must work with the shared 30-language selector.
 
 ---
 
@@ -494,6 +494,65 @@ Wrapper around `formatNumber()`.
 
 ### `LocalizedList`
 Formats translated lists with locale-aware separators and conjunctions.
+
+---
+
+## Public component i18n manifest (required)
+
+Every public React surface under `src/components/**`, `src/pages/**` (except admin/private routes), `src/App.tsx`, and the DOM injectors listed in `scripts/public-i18n-surfaces.json` must export a manifest constant:
+
+```tsx
+export const EXAMPLE_I18N_MANIFEST = {
+  componentKey: 'journal.place_context.section',
+  namespace: 'journal.place_context',
+  translationKeys: [
+    'journal.place_context.section.title',
+  ] as const,
+  keyPatterns: ['journal.place_context.place_type.*'] as const,
+  entityContent: {
+    rpc: 'get_localized_journal_place_context',
+    tables: ['journal_post_place_context_translations'],
+  },
+} as const satisfies I18nManifest;
+```
+
+Rules:
+
+1. Declare every static UI key used via `t('namespace.key')` in `translationKeys`, or cover dynamic keys with `keyPatterns`.
+2. Document editorial/database copy sources in `entityContent` — do not force entity fields into UI key manifests.
+3. Add canonical rows to `website_translation_keys` (and all 30 active languages in `website_translations`) through migrations before merge.
+4. Register the component in `website_ui_components` and link keys in `website_ui_component_translation_keys` in the same migration when introducing a new surface.
+5. Run `npm run verify:i18n` locally; it is wired into `npm test` / `precommit` and fails on missing manifests, undeclared keys, hardcoded visitor-facing UI, and registry drift.
+
+Shared type: `src/lib/i18nManifest.ts` (`I18nManifest`, `manifestCoversKey()`).
+
+Verifier: `scripts/verify-public-i18n.mjs` · allowlist: `scripts/public-i18n-surfaces.json`.
+
+### Generating keys/registry migrations
+
+When adding or changing public UI keys or manifests, use the deterministic generators (review output before merge):
+
+```bash
+npm run generate:i18n-keys      # writes supabase/migrations/*_public_i18n_keys_bootstrap.sql
+npm run generate:registry-seed  # writes supabase/migrations/*_public_ui_component_registry_seed.sql
+```
+
+**`generate:i18n-keys`** scans enforced surfaces in `scripts/public-i18n-surfaces.json`, collects every `t('key', 'fallback')` call, diffs against keys already present in `supabase/migrations/*.sql`, and emits SQL that:
+
+1. Upserts missing rows into `website_translation_keys`
+2. Bootstraps `website_translations` for all active `site_languages` (English default text as interim published copy)
+3. Enqueues proper translation jobs via `private.enqueue_translation_job_expansion(..., 'public-i18n-registry-v1')`
+
+**`generate:registry-seed`** parses each `*_I18N_MANIFEST` export and emits upserts for `website_ui_components` plus key links in `website_ui_component_translation_keys` (explicit manifest keys plus `t()` keys covered by the manifest).
+
+Workflow:
+
+1. Update component code and manifests first.
+2. Run both generators; review the SQL diff (split by namespace if a file is too large to review comfortably).
+3. Apply migrations to Supabase (`supabase db push` or project migration pipeline).
+4. Run `npm run verify:i18n` (offline migration proof) and `npm run verify:i18n:live` when Supabase env vars are available (`--require-db`).
+
+Shared utilities: `scripts/i18n-script-utils.mjs`.
 
 ---
 

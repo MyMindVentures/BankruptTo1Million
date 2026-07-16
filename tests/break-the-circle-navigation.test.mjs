@@ -37,7 +37,7 @@ test('legacy Break the Circle route still resolves without conflicting with admi
 
 test('Break the Circle internal article and not-found links use the canonical route', () => {
   assert.match(page, /href=\{`\/break-the-circle\/\$\{post\.slug\}`\}/);
-  assert.match(page, /href="\/break-the-circle">Back to collection/);
+  assert.match(page, /href="\/break-the-circle"\>\{t\('break_the_circle\.article\.back'/);
 });
 
 test('production server falls back to index.html for direct route refreshes', () => {

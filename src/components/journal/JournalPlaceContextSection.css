@@ -66,6 +66,36 @@
   text-decoration: none;
 }
 
+.journal-place-context__thank-you {
+  margin-top: 1.25rem;
+  padding: 1rem 1.1rem;
+  border-radius: 0.85rem;
+  border: 1px solid color-mix(in srgb, var(--accent, #c45) 28%, transparent);
+  background: color-mix(in srgb, var(--accent, #c45) 8%, var(--surface) 92%);
+}
+
+.journal-place-context__thank-you-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+  color: color-mix(in srgb, var(--accent, #c45) 82%, var(--text) 18%);
+}
+
+.journal-place-context__thank-you-head h4 {
+  margin: 0.15rem 0 0;
+}
+
+.journal-place-context__thank-you-body {
+  margin: 0;
+  font-size: 0.98rem;
+}
+
+[dir='rtl'] .journal-place-context__thank-you-head {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
 .journal-place-context__poi-list {
   margin: 0;
   padding-inline-start: 1.2rem;

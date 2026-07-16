@@ -26,6 +26,7 @@ export type JournalPlaceContext = {
   links: JournalPlaceContextLinks;
   place: { title: string; history: string };
   area: { title: string; history: string };
+  thank_you?: { message: string };
   pois: JournalPlaceContextPoi[];
 };
 

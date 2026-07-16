@@ -48,6 +48,7 @@ export const BREAK_THE_CIRCLE_PAGES_I18N_MANIFEST = {
     'break_the_circle.card.category',
     'break_the_circle.card.read_time',
   ] as const,
+  keyPatterns: ['break_the_circle.*'] as const,
 } as const satisfies I18nManifest;
 
 export function BreakTheCirclePage() {

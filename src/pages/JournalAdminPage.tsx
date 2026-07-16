@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Edit3, ExternalLink, FilePlus2, LoaderCircle, RefreshCw, Search, Sparkles, Trash2, X } from 'lucide-react';
 import { JournalEventCapture } from '../components/JournalEventCapture';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -10,8 +10,8 @@ import {
   getJournalAiSource,
   getJournalEventContext,
   getJournalOptions,
+  getJournalOverview,
   journalEventHasPlaceContext,
-  listJournalPosts,
   prepareJournalAi,
   updateJournalPost,
   uploadJournalFootage,
@@ -21,8 +21,12 @@ import {
   type JournalOption,
   type JournalPayload,
   type JournalPost,
+  type JournalPostStatus,
+  type JournalStatusCounts,
   type JourneyPerson,
 } from '../lib/journalAdminApi';
+
+const STATUS_FILTERS = ['all', 'draft', 'scheduled', 'published', 'archived'] as const;
 
 function localNow() {
   const date = new Date();
@@ -55,7 +59,8 @@ function toLocalInput(value: string | null | undefined) {
 export function JournalAdminPage() {
   const { languages, t } = useWebsiteI18n();
   const languageCount = languages.length || 30;
-  const [posts, setPosts] = useState<JournalPost[]>([]);
+  const [posts, setPosts] = useState<JournalPost[] | null>(null);
+  const [counts, setCounts] = useState<JournalStatusCounts | null>(null);
   const [categories, setCategories] = useState<JournalOption[]>([]);
   const [authors, setAuthors] = useState<JournalOption[]>([]);
   const [founders, setFounders] = useState<FounderOption[]>([]);
@@ -65,26 +70,60 @@ export function JournalAdminPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('all');
+  const [status, setStatus] = useState<'all' | JournalPostStatus>('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<JournalPayload>>(emptyForm);
   const [eventForm, setEventForm] = useState<JournalEventPayload>(emptyEvent);
   const [footage, setFootage] = useState<File[]>([]);
   const [saveStage, setSaveStage] = useState('');
+  const optionsLoaded = useRef(false);
 
-  async function load() {
+  async function loadOverview() {
     setLoading(true);
     setError(null);
     try {
-      const [rows, options] = await Promise.all([listJournalPosts(), getJournalOptions()]);
-      setPosts(rows);
-      setCategories(options.categories);
-      setAuthors(options.authors);
-      setFounders(options.founders);
-      setPeople(options.people);
-      setEventTypes(options.eventTypes);
+      const overview = await getJournalOverview({
+        status: status === 'all' ? null : status,
+        query,
+      });
+      setPosts(overview.rows);
+      setCounts(overview.counts);
     } catch (reason) {
+      setPosts(null);
+      setCounts(null);
+      setError(reason instanceof Error ? reason.message : 'Journal data could not be loaded.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadOptions() {
+    const options = await getJournalOptions();
+    setCategories(options.categories);
+    setAuthors(options.authors);
+    setFounders(options.founders);
+    setPeople(options.people);
+    setEventTypes(options.eventTypes);
+  }
+
+  async function refresh() {
+    setLoading(true);
+    setError(null);
+    try {
+      const overview = await getJournalOverview({
+        status: status === 'all' ? null : status,
+        query,
+      });
+      setPosts(overview.rows);
+      setCounts(overview.counts);
+      if (!optionsLoaded.current) {
+        await loadOptions();
+        optionsLoaded.current = true;
+      }
+    } catch (reason) {
+      setPosts(null);
+      setCounts(null);
       setError(reason instanceof Error ? reason.message : 'Journal data could not be loaded.');
     } finally {
       setLoading(false);
@@ -92,7 +131,13 @@ export function JournalAdminPage() {
   }
 
   useEffect(() => {
-    void load();
+    if (!optionsLoaded.current) {
+      void loadOptions()
+        .then(() => { optionsLoaded.current = true; })
+        .catch((reason) => {
+          setError(reason instanceof Error ? reason.message : 'Journal options could not be loaded.');
+        });
+    }
     if (new URLSearchParams(window.location.search).get('create') === '1') {
       setEditingId(null);
       setForm({ ...emptyForm });
@@ -102,10 +147,9 @@ export function JournalAdminPage() {
     }
   }, []);
 
-  const filtered = useMemo(() => posts.filter((post) => {
-    const matchesQuery = `${post.title} ${post.slug} ${post.excerpt || ''}`.toLowerCase().includes(query.toLowerCase());
-    return matchesQuery && (status === 'all' || post.status === status);
-  }), [posts, query, status]);
+  useEffect(() => {
+    void loadOverview();
+  }, [status, query]);
 
   function openCreate() {
     setEditingId(null);
@@ -238,7 +282,7 @@ export function JournalAdminPage() {
       setSaveStage(t('journal.admin.publish_success', 'Published successfully in {count} languages.', { count: languageCount }));
       setEditorOpen(false);
       window.history.replaceState({}, '', '/admin/journal');
-      await load();
+      await loadOverview();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'AI publication failed. The editor remains open and the event can be retried safely.');
     } finally {
@@ -252,35 +296,29 @@ export function JournalAdminPage() {
     setError(null);
     try {
       await deleteJournalPost(post.id);
-      await load();
+      await loadOverview();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Delete failed.');
     }
   }
 
-  const counts = {
-    all: posts.length,
-    draft: posts.filter((post) => post.status === 'draft').length,
-    scheduled: posts.filter((post) => post.status === 'scheduled').length,
-    published: posts.filter((post) => post.status === 'published').length,
-    archived: posts.filter((post) => post.status === 'archived').length,
-  };
+  const rows = posts || [];
 
   return <div className="journal-admin-page">
     <div className="journal-admin-heading">
       <div><p>CONTENT MANAGEMENT</p><h1>Journal posts</h1><span>{t('journal.admin.page_subtitle', 'Capture an event on location and publish an AI-polished story in {count} languages.', { count: languageCount })}</span></div>
-      <div><button onClick={() => void load()}><RefreshCw size={16} />Refresh</button><button className="primary" onClick={openCreate}><FilePlus2 size={17} />New event</button></div>
+      <div><button onClick={() => void refresh()} disabled={loading}><RefreshCw size={16} />Refresh</button><button className="primary" onClick={openCreate}><FilePlus2 size={17} />New event</button></div>
     </div>
 
-    <div className="journal-admin-stats">{Object.entries(counts).map(([key, value]) => <button key={key} className={status === key ? 'active' : ''} onClick={() => setStatus(key)}><span>{key}</span><strong>{value}</strong></button>)}</div>
-    <div className="journal-admin-toolbar"><div><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, slug or excerpt…" /></div><select value={status} onChange={(e) => setStatus(e.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
+    <div className="journal-admin-stats">{STATUS_FILTERS.map((key) => <button key={key} type="button" className={status === key ? 'active' : ''} onClick={() => setStatus(key)}><span>{key}</span><strong>{loading || !counts ? '—' : counts[key] ?? 0}</strong></button>)}</div>
+    <div className="journal-admin-toolbar"><div><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by title, slug or excerpt…" /></div><select value={status} onChange={(e) => setStatus(e.target.value as 'all' | JournalPostStatus)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="scheduled">Scheduled</option><option value="published">Published</option><option value="archived">Archived</option></select></div>
 
     {loading && <div className="admin-loading"><LoaderCircle className="spin" />Loading live journal data…</div>}
     {error && <div className="admin-error">{error}</div>}
 
-    {!loading && <div className="journal-admin-table"><table><thead><tr><th>Post</th><th>Status</th><th>AI</th><th>Published</th><th>Updated</th><th /></tr></thead><tbody>{filtered.map((post) => <tr key={post.id}><td><strong>{post.title}</strong><span>/{post.slug}</span></td><td><span className={`journal-status ${post.status}`}>{post.status}</span></td><td>{post.ai_generation_status || 'not requested'}</td><td>{post.published_at ? new Date(post.published_at).toLocaleString() : '—'}</td><td>{new Date(post.updated_at).toLocaleString()}</td><td><div className="journal-row-actions"><a href={`/journal/${post.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /></a><button onClick={() => void openEdit(post)}><Edit3 size={14} /></button><button className="danger" onClick={() => void remove(post)}><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>}
+    {!loading && <div className="journal-admin-table"><table><thead><tr><th>Post</th><th>Status</th><th>AI</th><th>Published</th><th>Updated</th><th /></tr></thead><tbody>{rows.map((post) => <tr key={post.id}><td><strong>{post.title}</strong><span>/{post.slug}</span></td><td><span className={`journal-status ${post.status}`}>{post.status}</span></td><td>{post.ai_generation_status || 'not requested'}</td><td>{post.published_at ? new Date(post.published_at).toLocaleString() : '—'}</td><td>{new Date(post.updated_at).toLocaleString()}</td><td><div className="journal-row-actions"><a href={`/journal/${post.slug}`} target="_blank" rel="noreferrer"><ExternalLink size={14} /></a><button onClick={() => void openEdit(post)}><Edit3 size={14} /></button><button className="danger" onClick={() => void remove(post)}><Trash2 size={14} /></button></div></td></tr>)}</tbody></table></div>}
 
-    {!loading && filtered.length === 0 && <div className="admin-section-empty">No journal posts found.</div>}
+    {!loading && rows.length === 0 && <div className="admin-section-empty">No journal posts found.</div>}
 
     {editorOpen && <div className="journal-editor-backdrop"><form className="journal-editor journal-editor-premium" onSubmit={submit}>
       <header><div><p>{editingId ? 'EDIT AI JOURNAL EVENT' : 'CREATE LIVE AI JOURNAL EVENT'}</p><h2>{editingId ? form.title || 'Untitled event' : 'Capture once. Publish everywhere.'}</h2><span>Your quick notes stay private. Only AI-polished content becomes public.</span></div><button type="button" onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}><X /></button></header>

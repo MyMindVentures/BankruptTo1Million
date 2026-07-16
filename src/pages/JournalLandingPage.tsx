@@ -98,30 +98,30 @@ function personLabel(person: JourneyExchangeItem['journey_person']) {
 }
 
 function JournalExchangeSection({ items }: { items: JourneyExchangeItem[] }) {
-  const { translateText } = useWebsiteI18n();
+  const { t, translateText } = useWebsiteI18n();
   const needs = items.filter((item) => item.item_type === 'need');
   const offers = items.filter((item) => item.item_type === 'offer');
   return <section className="journal-exchange" aria-labelledby="journal-exchange-title">
     <div className="journal-exchange__heading">
-      <p className="eyebrow">{translateText('Exchange, not charity')}</p>
-      <h2 id="journal-exchange-title">{translateText('What we need — and what we give back.')}</h2>
-      <p>{translateText('Follow the journey, see the practical needs around each chapter, and discover the real skills and experiences Kevin and Micha can offer in return.')}</p>
+      <p className="eyebrow">{t('journal.exchange.eyebrow', 'Exchange, not charity')}</p>
+      <h2 id="journal-exchange-title">{t('journal.exchange.title', 'What we need — and what we give back.')}</h2>
+      <p>{t('journal.exchange.description', 'Follow the journey, see the practical needs around each chapter, and discover the real skills and experiences Kevin and Micha can offer in return.')}</p>
     </div>
     <div className="journal-exchange__columns">
       <article className="journal-exchange__panel" id="what-we-need">
-        <div className="journal-exchange__panel-heading"><HandHeart size={22} /><div><p className="eyebrow">{translateText('What we need')}</p><h3>{translateText('Help create the next step')}</h3></div></div>
+        <div className="journal-exchange__panel-heading"><HandHeart size={22} /><div><p className="eyebrow">{t('journal.exchange.needs.eyebrow', 'What we need')}</p><h3>{t('journal.exchange.needs.title', 'Help create the next step')}</h3></div></div>
         <div className="journal-exchange__items">
           {needs.map((item) => <div className="journal-exchange__item" key={item.id}><div><span>{personLabel(item.journey_person)} · {translateText(item.category.replaceAll('_', ' '))}</span><h4>{item.title}</h4><p>{item.tagline || item.description}</p></div>{item.priority ? <strong>{translateText(item.priority)}</strong> : null}</div>)}
-          {!needs.length ? <p className="journal-exchange__empty">{translateText('No public needs are active right now.')}</p> : null}
+          {!needs.length ? <p className="journal-exchange__empty">{t('journal.exchange.needs.empty', 'No public needs are active right now.')}</p> : null}
         </div>
       </article>
       <article className="journal-exchange__panel journal-exchange__panel--offer" id="what-we-offer">
-        <div className="journal-exchange__panel-heading"><Gift size={22} /><div><p className="eyebrow">{translateText('What we offer')}</p><h3>{translateText('Skills, experiences and honest value')}</h3></div></div>
+        <div className="journal-exchange__panel-heading"><Gift size={22} /><div><p className="eyebrow">{t('journal.exchange.offers.eyebrow', 'What we offer')}</p><h3>{t('journal.exchange.offers.title', 'Skills, experiences and honest value')}</h3></div></div>
         <div className="journal-exchange__items">
           {offers.slice(0, 3).map((item) => <a className="journal-exchange__item journal-exchange__item--link" href={item.slug ? `/offers/${item.slug}` : '/offers'} key={item.id}><div><span>{personLabel(item.journey_person)} · {translateText(item.category.replaceAll('_', ' '))}</span><h4>{item.title}</h4><p>{item.tagline || item.description}</p></div><ArrowRight size={18} /></a>)}
-          {!offers.length ? <p className="journal-exchange__empty">{translateText('Explore the complete offer catalogue.')}</p> : null}
+          {!offers.length ? <p className="journal-exchange__empty">{t('journal.exchange.offers.empty', 'Explore the complete offer catalogue.')}</p> : null}
         </div>
-        <a className="journal-exchange__all" href="/offers">{translateText('View all offers')} <ArrowRight size={17} /></a>
+        <a className="journal-exchange__all" href="/offers">{t('journal.exchange.view_all', 'View all offers')} <ArrowRight size={17} /></a>
       </article>
     </div>
   </section>;
@@ -129,19 +129,22 @@ function JournalExchangeSection({ items }: { items: JourneyExchangeItem[] }) {
 
 export const JOURNAL_LANDING_PAGE_I18N_MANIFEST = {
   componentKey: 'pages.journal.landing.page',
-  namespace: 'Exchange, not charity',
+  namespace: 'journal.exchange',
   translationKeys: [
-    'Exchange, not charity',
-    'Explore the complete offer catalogue.',
-    'Follow the journey, see the practical needs around each chapter, and discover the real skills and experiences Kevin and Micha can offer in return.',
-    'Help create the next step',
-    'No public needs are active right now.',
-    'Skills, experiences and honest value',
-    'View all offers',
-    'What we need',
-    'What we need — and what we give back.',
-    'What we offer',
+    'journal.exchange.eyebrow',
+    'journal.exchange.title',
+    'journal.exchange.description',
+    'journal.exchange.needs.eyebrow',
+    'journal.exchange.needs.title',
+    'journal.exchange.needs.empty',
+    'journal.exchange.offers.eyebrow',
+    'journal.exchange.offers.title',
+    'journal.exchange.offers.empty',
+    'journal.exchange.view_all',
   ] as const,
+  entityContent: {
+    tables: ['journey_exchange_items', 'journey_exchange_item_translations'],
+  },
 } as const satisfies I18nManifest;
 
 export function JournalLandingPage() {

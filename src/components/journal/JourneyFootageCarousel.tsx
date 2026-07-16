@@ -5,13 +5,13 @@ import './JourneyFootageCarousel.css';
 
 export const JOURNEY_FOOTAGE_CAROUSEL_I18N_MANIFEST = {
   componentKey: 'components.journal.journey.footage.carousel',
-  namespace: 'Footage',
+  namespace: 'journal.footage',
   translationKeys: [
-    'Footage',
-    'Footage for {title}',
-    'Footage slides',
-    'Show footage {number}',
-    '{title} footage {number}',
+    'journal.footage.badge',
+    'journal.footage.for_title',
+    'journal.footage.slides_aria',
+    'journal.footage.show_slide',
+    'journal.footage.default_alt',
   ] as const,
 } as const satisfies I18nManifest;
 
@@ -31,7 +31,7 @@ function isVideo(item: JourneyFootageItem) {
 }
 
 export function JourneyFootageCarousel({ items, title }: { items?: JourneyFootageItem[]; title: string }) {
-  const { translateText } = useWebsiteI18n();
+  const { t } = useWebsiteI18n();
   const footage = useMemo(
     () => (items || []).filter((item) => Boolean(item?.url)).sort((a, b) => Number(a.display_order || 0) - Number(b.display_order || 0)),
     [items],
@@ -47,18 +47,18 @@ export function JourneyFootageCarousel({ items, title }: { items?: JourneyFootag
 
   if (!footage.length) return null;
   const active = footage[activeIndex];
-  const label = active.alt_text || active.caption || translateText('{title} footage {number}', { title, number: activeIndex + 1 });
+  const label = active.alt_text || active.caption || t('journal.footage.default_alt', '{title} footage {number}', { title, number: activeIndex + 1 });
 
-  return <div className="journey-footage" aria-label={translateText('Footage for {title}', { title })}>
+  return <div className="journey-footage" aria-label={t('journal.footage.for_title', 'Footage for {title}', { title })}>
     <div className="journey-footage__viewport">
       {isVideo(active)
         ? <video key={active.id} src={active.url} poster={active.thumbnail_url || undefined} muted playsInline autoPlay loop preload="metadata" aria-label={label} />
         : <img key={active.id} src={active.url} alt={label} loading="lazy" />}
-      <span className="journey-footage__badge">{translateText('Footage')}</span>
+      <span className="journey-footage__badge">{t('journal.footage.badge', 'Footage')}</span>
       {active.caption ? <span className="journey-footage__caption">{active.caption}</span> : null}
     </div>
-    {footage.length > 1 ? <div className="journey-footage__controls" aria-label={translateText('Footage slides')}>
-      {footage.map((item, index) => <button key={item.id} type="button" className={index === activeIndex ? 'is-active' : ''} onClick={() => setActiveIndex(index)} aria-label={translateText('Show footage {number}', { number: index + 1 })} aria-pressed={index === activeIndex} />)}
+    {footage.length > 1 ? <div className="journey-footage__controls" aria-label={t('journal.footage.slides_aria', 'Footage slides')}>
+      {footage.map((item, index) => <button key={item.id} type="button" className={index === activeIndex ? 'is-active' : ''} onClick={() => setActiveIndex(index)} aria-label={t('journal.footage.show_slide', 'Show footage {number}', { number: index + 1 })} aria-pressed={index === activeIndex} />)}
     </div> : null}
   </div>;
 }

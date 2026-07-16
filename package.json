@@ -8,7 +8,10 @@
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "typecheck": "tsc -b --pretty false",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "verify:i18n": "node scripts/verify-public-i18n.mjs",
+    "verify:i18n": "node scripts/verify-public-i18n.mjs --skip-db",
+    "verify:i18n:live": "node scripts/verify-public-i18n.mjs --require-db",
+    "generate:i18n-keys": "node scripts/generate-public-i18n-keys.mjs",
+    "generate:registry-seed": "node scripts/generate-registry-seed.mjs",
     "precommit": "npm run lint && npm run typecheck && npm test && npm run verify:i18n"
   },
   "dependencies": {

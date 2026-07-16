@@ -4,6 +4,7 @@ import type { FormEvent } from 'react';
 import { ArrowRight, Heart, LockKeyhole, MessageCircleHeart, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
 import { SectionHeading } from '../components/SectionHeading';
 import { supabase } from '../lib/supabase';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import {
   addFounderSupportReaction,
   getFounderMappings,
@@ -125,6 +126,7 @@ function ReminderCard({ reminder }: { reminder: FounderMissionReminder }) {
 }
 
 function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
+  const { t } = useWebsiteI18n();
   const initialSession = supabase.auth.getSession();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -202,39 +204,39 @@ function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
       <div className="founder-private-login">
         <LockKeyhole aria-hidden="true" size={28} />
         <div>
-          <p className="eyebrow">Private founder space</p>
-          <h3>Founder sign-in</h3>
-          <p>Private reflections and wellbeing check-ins are protected by Supabase authentication and RLS.</p>
+          <p className="eyebrow">{t('founder_support.private.login.eyebrow', 'Private founder space')}</p>
+          <h3>{t('founder_support.private.login.title', 'Founder sign-in')}</h3>
+          <p>{t('founder_support.private.login.description', 'Private reflections and wellbeing check-ins are protected by Supabase authentication and RLS.')}</p>
         </div>
         <form onSubmit={signIn}>
-          <input type="email" placeholder="Email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-          <input type="password" placeholder="Password" value={password} onChange={(event) => setPassword(event.target.value)} required />
-          <button className="button" type="submit">Sign in securely</button>
+          <input type="email" placeholder={t('founder_support.private.login.email', 'Email')} value={email} onChange={(event) => setEmail(event.target.value)} required />
+          <input type="password" placeholder={t('founder_support.private.login.password', 'Password')} value={password} onChange={(event) => setPassword(event.target.value)} required />
+          <button className="button" type="submit">{t('founder_support.private.login.submit', 'Sign in securely')}</button>
           {authError ? <p className="form-error">{authError}</p> : null}
         </form>
       </div>
     );
   }
 
-  if (dashboardState === 'loading') return <div className="impact-state">Loading private founder dashboard…</div>;
+  if (dashboardState === 'loading') return <div className="impact-state">{t('founder_support.private.dashboard.loading', 'Loading private founder dashboard…')}</div>;
   if (dashboardState === 'error') return <div className="impact-state impact-state--error">{authError}</div>;
 
   const activeFounder = profiles.find((profile) => profile.id === mapping?.founder_profile_id);
   const ranges = [
-    ['energy_level', 'Energy'],
-    ['motivation_level', 'Motivation'],
-    ['stress_level', 'Stress'],
-    ['mission_belief_level', 'Mission belief'],
-    ['confidence_level', 'Confidence'],
+    ['energy_level', t('founder_support.private.checkin.energy', 'Energy')],
+    ['motivation_level', t('founder_support.private.checkin.motivation', 'Motivation')],
+    ['stress_level', t('founder_support.private.checkin.stress', 'Stress')],
+    ['mission_belief_level', t('founder_support.private.checkin.mission_belief', 'Mission belief')],
+    ['confidence_level', t('founder_support.private.checkin.confidence', 'Confidence')],
   ] as const;
 
   return (
     <div className="founder-dashboard">
       <div className="founder-dashboard__header">
         <div>
-          <p className="eyebrow">Private founder dashboard</p>
-          <h3>{activeFounder?.display_name || 'Founder'} check-in</h3>
-          <p>This reflection is private and is not a medical or diagnostic tool.</p>
+          <p className="eyebrow">{t('founder_support.private.dashboard.eyebrow', 'Private founder dashboard')}</p>
+          <h3>{t('founder_support.private.dashboard.title', '{name} check-in', { name: activeFounder?.display_name || t('founder_support.private.dashboard.founder_fallback', 'Founder') })}</h3>
+          <p>{t('founder_support.private.dashboard.disclaimer', 'This reflection is private and is not a medical or diagnostic tool.')}</p>
         </div>
         <ShieldCheck aria-hidden="true" />
       </div>
@@ -247,29 +249,29 @@ function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
           ))}
         </div>
         <div className="form-grid">
-          <label>Mood<input value={checkIn.mood_label || ''} onChange={(event) => setCheckIn({ ...checkIn, mood_label: event.target.value })} placeholder="One honest word" /></label>
-          <label>Today’s win<input value={checkIn.biggest_win || ''} onChange={(event) => setCheckIn({ ...checkIn, biggest_win: event.target.value })} placeholder="Even something small" /></label>
+          <label>{t('founder_support.private.checkin.mood', 'Mood')}<input value={checkIn.mood_label || ''} onChange={(event) => setCheckIn({ ...checkIn, mood_label: event.target.value })} placeholder={t('founder_support.private.checkin.mood_placeholder', 'One honest word')} /></label>
+          <label>{t('founder_support.private.checkin.win', "Today's win")}<input value={checkIn.biggest_win || ''} onChange={(event) => setCheckIn({ ...checkIn, biggest_win: event.target.value })} placeholder={t('founder_support.private.checkin.win_placeholder', 'Even something small')} /></label>
         </div>
-        <label>Biggest challenge<textarea value={checkIn.biggest_challenge || ''} onChange={(event) => setCheckIn({ ...checkIn, biggest_challenge: event.target.value })} /></label>
-        <label>What support would help?<textarea value={checkIn.support_needed || ''} onChange={(event) => setCheckIn({ ...checkIn, support_needed: event.target.value })} /></label>
-        <label>Private reflection<textarea value={checkIn.private_reflection || ''} onChange={(event) => setCheckIn({ ...checkIn, private_reflection: event.target.value })} /></label>
+        <label>{t('founder_support.private.checkin.challenge', 'Biggest challenge')}<textarea value={checkIn.biggest_challenge || ''} onChange={(event) => setCheckIn({ ...checkIn, biggest_challenge: event.target.value })} /></label>
+        <label>{t('founder_support.private.checkin.support_needed', 'What support would help?')}<textarea value={checkIn.support_needed || ''} onChange={(event) => setCheckIn({ ...checkIn, support_needed: event.target.value })} /></label>
+        <label>{t('founder_support.private.checkin.reflection', 'Private reflection')}<textarea value={checkIn.private_reflection || ''} onChange={(event) => setCheckIn({ ...checkIn, private_reflection: event.target.value })} /></label>
         <div className="form-grid">
-          <label>Gratitude note<input value={checkIn.gratitude_note || ''} onChange={(event) => setCheckIn({ ...checkIn, gratitude_note: event.target.value })} /></label>
-          <label>Tomorrow’s intention<input value={checkIn.tomorrow_intention || ''} onChange={(event) => setCheckIn({ ...checkIn, tomorrow_intention: event.target.value })} /></label>
+          <label>{t('founder_support.private.checkin.gratitude', 'Gratitude note')}<input value={checkIn.gratitude_note || ''} onChange={(event) => setCheckIn({ ...checkIn, gratitude_note: event.target.value })} /></label>
+          <label>{t('founder_support.private.checkin.intention', "Tomorrow's intention")}<input value={checkIn.tomorrow_intention || ''} onChange={(event) => setCheckIn({ ...checkIn, tomorrow_intention: event.target.value })} /></label>
         </div>
-        <label className="founder-checkin-alert"><input type="checkbox" checked={checkIn.needs_human_support || false} onChange={(event) => setCheckIn({ ...checkIn, needs_human_support: event.target.checked, support_urgency: event.target.checked ? 'medium' : 'none' })} /> I would benefit from a human check-in.</label>
-        <button className="button" type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? 'Saving privately…' : 'Save private check-in'}</button>
-        {saveState === 'saved' ? <p className="founder-save-success">Private check-in saved.</p> : null}
-        {saveState === 'error' ? <p className="form-error">The check-in could not be saved.</p> : null}
+        <label className="founder-checkin-alert"><input type="checkbox" checked={checkIn.needs_human_support || false} onChange={(event) => setCheckIn({ ...checkIn, needs_human_support: event.target.checked, support_urgency: event.target.checked ? 'medium' : 'none' })} /> {t('founder_support.private.checkin.human_support', 'I would benefit from a human check-in.')}</label>
+        <button className="button" type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? t('founder_support.private.checkin.saving', 'Saving privately…') : t('founder_support.private.checkin.save', 'Save private check-in')}</button>
+        {saveState === 'saved' ? <p className="founder-save-success">{t('founder_support.private.checkin.saved', 'Private check-in saved.')}</p> : null}
+        {saveState === 'error' ? <p className="form-error">{t('founder_support.private.checkin.save_error', 'The check-in could not be saved.')}</p> : null}
       </form>
       {recent.length ? (
         <div className="founder-recent-checkins">
-          <h4>Recent check-ins</h4>
+          <h4>{t('founder_support.private.checkin.recent_title', 'Recent check-ins')}</h4>
           {recent.slice(0, 5).map((row) => (
             <article key={`${row.founder_profile_id}-${row.check_in_date}`}>
               <time>{formatDate(row.check_in_date)}</time>
-              <strong>{row.mood_label || 'No mood label'}</strong>
-              <span>Energy {row.energy_level || '—'} · Motivation {row.motivation_level || '—'} · Stress {row.stress_level || '—'}</span>
+              <strong>{row.mood_label || t('founder_support.private.checkin.no_mood', 'No mood label')}</strong>
+              <span>{t('founder_support.private.checkin.metrics', 'Energy {energy} · Motivation {motivation} · Stress {stress}', { energy: row.energy_level || '—', motivation: row.motivation_level || '—', stress: row.stress_level || '—' })}</span>
             </article>
           ))}
         </div>
@@ -280,12 +282,78 @@ function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
 
 export const FOUNDER_SUPPORT_PAGE_I18N_MANIFEST = {
   componentKey: 'pages.founder.support.page',
-  namespace: 'ui',
+  namespace: 'founder_support',
   translationKeys: [
+    'founder_support.closing.description',
+    'founder_support.closing.eyebrow',
+    'founder_support.closing.title',
+    'founder_support.form.message',
+    'founder_support.form.message_placeholder',
+    'founder_support.form.optional',
+    'founder_support.form.title',
+    'founder_support.form.title_placeholder',
+    'founder_support.messages.description',
+    'founder_support.messages.eyebrow',
+    'founder_support.messages.title',
+    'founder_support.private.checkin.challenge',
+    'founder_support.private.checkin.confidence',
+    'founder_support.private.checkin.energy',
+    'founder_support.private.checkin.gratitude',
+    'founder_support.private.checkin.human_support',
+    'founder_support.private.checkin.intention',
+    'founder_support.private.checkin.metrics',
+    'founder_support.private.checkin.mission_belief',
+    'founder_support.private.checkin.mood',
+    'founder_support.private.checkin.mood_placeholder',
+    'founder_support.private.checkin.motivation',
+    'founder_support.private.checkin.no_mood',
+    'founder_support.private.checkin.recent_title',
+    'founder_support.private.checkin.reflection',
+    'founder_support.private.checkin.save',
+    'founder_support.private.checkin.save_error',
+    'founder_support.private.checkin.saved',
+    'founder_support.private.checkin.saving',
+    'founder_support.private.checkin.stress',
+    'founder_support.private.checkin.support_needed',
+    'founder_support.private.checkin.win',
+    'founder_support.private.checkin.win_placeholder',
+    'founder_support.private.dashboard.disclaimer',
+    'founder_support.private.dashboard.eyebrow',
+    'founder_support.private.dashboard.founder_fallback',
+    'founder_support.private.dashboard.loading',
+    'founder_support.private.dashboard.title',
+    'founder_support.private.login.description',
+    'founder_support.private.login.email',
+    'founder_support.private.login.eyebrow',
+    'founder_support.private.login.password',
+    'founder_support.private.login.submit',
+    'founder_support.private.login.title',
+    'founder_support.private.section.description',
+    'founder_support.private.section.eyebrow',
+    'founder_support.private.section.title',
+    'founder_support.reactions.description',
+    'founder_support.reactions.eyebrow',
+    'founder_support.reactions.title',
+    'founder_support.reminders.description',
+    'founder_support.reminders.eyebrow',
+    'founder_support.reminders.title',
+    'founder_support.wins.description',
+    'founder_support.wins.eyebrow',
+    'founder_support.wins.title',
   ] as const,
+  entityContent: {
+    tables: [
+      'founder_profiles',
+      'founder_profile_translations',
+      'founder_support_messages',
+      'founder_wins',
+      'founder_mission_reminders',
+    ],
+  },
 } as const satisfies I18nManifest;
 
 export function FounderSupportPage() {
+  const { t } = useWebsiteI18n();
   const [profiles, setProfiles] = useState<FounderProfile[]>([]);
   const [messages, setMessages] = useState<FounderSupportMessage[]>([]);
   const [wins, setWins] = useState<FounderWin[]>([]);
@@ -367,7 +435,7 @@ export function FounderSupportPage() {
       </section>
 
       <section className="section founder-reaction-section" aria-labelledby="reaction-title">
-        <SectionHeading eyebrow="A small signal" title="Send belief in one tap" titleId="reaction-title">Anonymous reactions become a quiet signal that people are following, caring and rooting for this mission.</SectionHeading>
+        <SectionHeading eyebrow={t('founder_support.reactions.eyebrow', 'A small signal')} title={t('founder_support.reactions.title', 'Send belief in one tap')} titleId="reaction-title">{t('founder_support.reactions.description', 'Anonymous reactions become a quiet signal that people are following, caring and rooting for this mission.')}</SectionHeading>
         <div className="founder-reaction-grid">
           {reactionOptions.map((option) => (
             <button type="button" key={option.value} className={reactionState === `done:${option.value}` ? 'founder-reaction founder-reaction--done' : 'founder-reaction'} onClick={() => void react(option.value)} disabled={reactionState === option.value}>
@@ -378,7 +446,7 @@ export function FounderSupportPage() {
       </section>
 
       <section className="section" id="founder-progress" aria-labelledby="wins-title">
-        <SectionHeading eyebrow="Proof of movement" title="Progress worth remembering" titleId="wins-title">The journey is not only measured in revenue. Courage, consistency, partnerships, shipped concepts and recovery all count.</SectionHeading>
+        <SectionHeading eyebrow={t('founder_support.wins.eyebrow', 'Proof of movement')} title={t('founder_support.wins.title', 'Progress worth remembering')} titleId="wins-title">{t('founder_support.wins.description', 'The journey is not only measured in revenue. Courage, consistency, partnerships, shipped concepts and recovery all count.')}</SectionHeading>
         {loadState === 'loading' ? <div className="impact-state">Loading founder progress…</div> : null}
         {loadState === 'error' ? <div className="impact-state impact-state--error">Founder support data is temporarily unavailable.</div> : null}
         {loadState === 'ready' && !wins.length ? <div className="impact-state">The first public wins will appear here after they are published.</div> : null}
@@ -387,13 +455,13 @@ export function FounderSupportPage() {
 
       {reminders.length ? (
         <section className="section founder-reminder-section" aria-labelledby="reminders-title">
-          <SectionHeading eyebrow="Mission memory" title="What we refuse to forget" titleId="reminders-title">Words and promises that reconnect hard days to the bigger reason behind this rebuild.</SectionHeading>
+          <SectionHeading eyebrow={t('founder_support.reminders.eyebrow', 'Mission memory')} title={t('founder_support.reminders.title', 'What we refuse to forget')} titleId="reminders-title">{t('founder_support.reminders.description', 'Words and promises that reconnect hard days to the bigger reason behind this rebuild.')}</SectionHeading>
           <div className="founder-reminder-grid">{reminders.map((reminder) => <ReminderCard key={reminder.id} reminder={reminder} />)}</div>
         </section>
       ) : null}
 
       <section className="section" aria-labelledby="messages-title">
-        <SectionHeading eyebrow="Community voice" title="Messages that carry us forward" titleId="messages-title">Only moderated messages with explicit permission to publish appear here.</SectionHeading>
+        <SectionHeading eyebrow={t('founder_support.messages.eyebrow', 'Community voice')} title={t('founder_support.messages.title', 'Messages that carry us forward')} titleId="messages-title">{t('founder_support.messages.description', 'Only moderated messages with explicit permission to publish appear here.')}</SectionHeading>
         {loadState === 'ready' && !messages.length ? <div className="impact-state">No public messages yet. You can be one of the first people to send encouragement below.</div> : null}
         <div className="founder-support-grid">{messages.map((message) => <MessageCard key={message.id} message={message} profiles={profiles} />)}</div>
       </section>
@@ -415,8 +483,8 @@ export function FounderSupportPage() {
             {form.recipientScope === 'founder' ? <label>Founder<select value={form.founderProfileId} onChange={(event) => setForm({ ...form, founderProfileId: event.target.value })}>{profiles.map((profile) => <option value={profile.id} key={profile.id}>{profile.display_name}</option>)}</select></label> : <label>Location <span className="optional-label">Optional</span><input value={form.senderLocation} onChange={(event) => setForm({ ...form, senderLocation: event.target.value })} /></label>}
           </div>
           <label>Message type<select value={form.messageType} onChange={(event) => setForm({ ...form, messageType: event.target.value })}>{messageTypes.map(([value, label]) => <option value={value} key={value}>{label}</option>)}</select></label>
-          <label>Title <span className="optional-label">Optional</span><input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder="A few words that frame your message" /></label>
-          <label>Your message<textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} required placeholder="Share encouragement, belief, gratitude or a piece of your own story…" /></label>
+          <label>{t('founder_support.form.title', 'Title')} <span className="optional-label">{t('founder_support.form.optional', 'Optional')}</span><input value={form.title} onChange={(event) => setForm({ ...form, title: event.target.value })} placeholder={t('founder_support.form.title_placeholder', 'A few words that frame your message')} /></label>
+          <label>{t('founder_support.form.message', 'Your message')}<textarea value={form.body} onChange={(event) => setForm({ ...form, body: event.target.value })} required placeholder={t('founder_support.form.message_placeholder', 'Share encouragement, belief, gratitude or a piece of your own story…')} /></label>
           <label><input type="checkbox" checked={form.isAnonymous} onChange={(event) => setForm({ ...form, isAnonymous: event.target.checked })} /> Publish anonymously if approved.</label>
           <label><input type="checkbox" checked={form.consentToPublish} onChange={(event) => setForm({ ...form, consentToPublish: event.target.checked })} /> I allow this message to be considered for public publication.</label>
           <label><input type="checkbox" checked={form.consentToContact} onChange={(event) => setForm({ ...form, consentToContact: event.target.checked })} /> You may contact me privately about this message.</label>
@@ -427,13 +495,13 @@ export function FounderSupportPage() {
       </section>
 
       <section className="section founder-private-section" aria-labelledby="private-title">
-        <SectionHeading eyebrow="For the founders" title="A private place to check in honestly" titleId="private-title">Public building should never mean every vulnerable thought becomes public. This protected space belongs to the founders.</SectionHeading>
+        <SectionHeading eyebrow={t('founder_support.private.section.eyebrow', 'For the founders')} title={t('founder_support.private.section.title', 'A private place to check in honestly')} titleId="private-title">{t('founder_support.private.section.description', 'Public building should never mean every vulnerable thought becomes public. This protected space belongs to the founders.')}</SectionHeading>
         <FounderDashboard profiles={profiles} />
       </section>
 
       <section className="section founder-support-closing">
         <Users aria-hidden="true" />
-        <div><p className="eyebrow">The larger truth</p><h2>People are part of the infrastructure.</h2><p>Technology can organize the mission, but human belief is what keeps it alive when momentum disappears.</p></div>
+        <div><p className="eyebrow">{t('founder_support.closing.eyebrow', 'The larger truth')}</p><h2>{t('founder_support.closing.title', 'People are part of the infrastructure.')}</h2><p>{t('founder_support.closing.description', 'Technology can organize the mission, but human belief is what keeps it alive when momentum disappears.')}</p></div>
       </section>
     </main>
   );

@@ -12,6 +12,9 @@ const migration = readFileSync(new URL('../supabase/migrations/20260717100000_pr
 const adminApi = readFileSync(new URL('../src/lib/outreachAdminApi.ts', import.meta.url), 'utf8');
 const publicApi = readFileSync(new URL('../src/lib/outreachPublicApi.ts', import.meta.url), 'utf8');
 const adminPage = readFileSync(new URL('../src/pages/OutreachAdminPage.tsx', import.meta.url), 'utf8');
+const adminEditor = readFileSync(new URL('../src/components/outreach/OutreachAdminEditor.tsx', import.meta.url), 'utf8');
+const aiMigration = readFileSync(new URL('../supabase/migrations/20260717190000_outreach_ai_premium.sql', import.meta.url), 'utf8');
+const edgeFunction = readFileSync(new URL('../supabase/functions/generate-outreach-ai-content/index.ts', import.meta.url), 'utf8');
 const privatePage = readFileSync(new URL('../src/pages/OutreachPrivatePage.tsx', import.meta.url), 'utf8');
 const mainEntry = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 
@@ -39,17 +42,44 @@ test('admin outreach api uses RPCs instead of direct table reads', () => {
   assert.match(adminApi, /admin_search_media_assets_for_outreach/);
   assert.match(adminApi, /admin_set_outreach_page_media/);
   assert.match(adminApi, /admin_import_outreach_from_partnership/);
+  assert.match(adminApi, /prepareOutreachAi/);
+  assert.match(adminApi, /getOutreachAiStatus/);
+  assert.match(adminApi, /generateOutreachAiContent/);
   assert.doesNotMatch(adminApi, /outreach_campaigns\?select=/);
 });
 
-test('admin page wires partnership import, media picker and translated copy', () => {
+test('admin page wires partnership import and premium editor', () => {
   assert.match(adminPage, /importOutreachFromPartnership/);
   assert.match(adminPage, /listPartnershipContactsForOutreach/);
-  assert.match(adminPage, /searchMediaAssetsForOutreach/);
-  assert.match(adminPage, /setOutreachPageMedia/);
+  assert.match(adminPage, /OutreachAdminEditor/);
   assert.match(adminPage, /t\('admin\.outreach\.import\.title'/);
-  assert.match(adminPage, /t\('admin\.outreach\.section\.media'/);
-  assert.match(adminPage, /t\('admin\.outreach\.save'/);
+});
+
+test('premium outreach editor exposes tabs, AI brief and all DB fields', () => {
+  assert.match(adminEditor, /outreach-editor-premium/);
+  assert.match(adminEditor, /outreach-editor-tabs/);
+  assert.match(adminEditor, /admin\.outreach\.tab\.contact/);
+  assert.match(adminEditor, /admin\.outreach\.field\.instagram/);
+  assert.match(adminEditor, /admin\.outreach\.field\.expires_at/);
+  assert.match(adminEditor, /admin\.outreach\.field\.ai_brief/);
+  assert.match(adminEditor, /generateOutreachAiContent/);
+  assert.match(adminEditor, /admin\.outreach\.field\.max_visits/);
+  assert.match(adminEditor, /outreach-publish-sidebar/);
+});
+
+test('outreach AI migration adds status columns and admin AI RPCs', () => {
+  assert.match(aiMigration, /ai_generation_status/);
+  assert.match(aiMigration, /outreach_ai_sources/);
+  assert.match(aiMigration, /admin_prepare_outreach_ai/);
+  assert.match(aiMigration, /admin_get_outreach_ai_status/);
+  assert.match(aiMigration, /admin\.outreach\.tab\.page/);
+});
+
+test('outreach AI edge function generates single-language page copy', () => {
+  assert.match(edgeFunction, /generate-outreach-ai-content/);
+  assert.match(edgeFunction, /get_outreach_ai_generation_context/);
+  assert.match(edgeFunction, /openrouter\.ai/);
+  assert.match(edgeFunction, /personal_intro/);
 });
 
 test('public outreach api uses token-gated RPCs', () => {

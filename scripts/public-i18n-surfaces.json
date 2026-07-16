@@ -21,6 +21,7 @@
     "src/pages/FounderSupportAdminPage.tsx",
     "src/pages/JournalAdminPage.tsx",
     "src/pages/OutreachAdminPage.tsx",
+    "src/components/outreach/OutreachAdminEditor.tsx",
     "src/pages/OutreachPrivatePage.tsx"
   ],
   "dataModulePaths": [
@@ -54,6 +55,7 @@
   ],
   "publicExportsOnly": {
     "src/pages/JournalPages.tsx": ["JournalPage", "JournalArticlePage", "ShareBlock", "CommentsBlock"],
-    "src/pages/BreakTheCirclePages.tsx": ["BreakTheCirclePage", "BreakTheCircleArticlePage", "StoryArticle", "PublicCard"]
+    "src/pages/BreakTheCirclePages.tsx": ["BreakTheCirclePage", "BreakTheCircleArticlePage", "StoryArticle", "PublicCard"],
+    "src/pages/ProofOfMindPages.tsx": ["ProofOfMindPage", "DiscoveryCallModal", "ProofOfMindErrorState", "ProofOfMindEmptyState", "ConceptCard"]
   }
 }

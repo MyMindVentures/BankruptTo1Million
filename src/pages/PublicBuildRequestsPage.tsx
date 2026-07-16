@@ -6,32 +6,32 @@ import { useWebsiteI18n } from '../lib/websiteI18n';
 
 export const PUBLIC_BUILD_REQUESTS_PAGE_I18N_MANIFEST = {
   componentKey: 'pages.public.build.requests.page',
-  namespace: 'issues.buildRequest',
+  namespace: 'issues.build_request',
   translationKeys: [
-    'issues.buildRequest.affectedAreas',
-    'issues.buildRequest.deployment',
-    'issues.buildRequest.desiredOutcome',
-    'issues.buildRequest.founderRequest',
-    'issues.buildRequest.technicalSummary',
-    'issues.buildRequests.backToImpact',
-    'issues.buildRequests.empty',
-    'issues.buildRequests.error',
-    'issues.buildRequests.eyebrow',
-    'issues.buildRequests.intro',
-    'issues.buildRequests.latestDescription',
-    'issues.buildRequests.latestEyebrow',
-    'issues.buildRequests.latestTitle',
-    'issues.buildRequests.loading',
-    'issues.buildRequests.noRemaining',
-    'issues.buildRequests.openCount',
-    'issues.buildRequests.remainingDescription',
-    'issues.buildRequests.remainingEyebrow',
-    'issues.buildRequests.remainingTitle',
-    'issues.buildRequests.title',
+    'issues.build_request.affected_areas',
+    'issues.build_request.deployment',
+    'issues.build_request.desired_outcome',
+    'issues.build_request.founder_request',
+    'issues.build_request.technical_summary',
+    'issues.build_requests.back_to_impact',
+    'issues.build_requests.empty',
+    'issues.build_requests.error',
+    'issues.build_requests.eyebrow',
+    'issues.build_requests.intro',
+    'issues.build_requests.latest_description',
+    'issues.build_requests.latest_eyebrow',
+    'issues.build_requests.latest_title',
+    'issues.build_requests.loading',
+    'issues.build_requests.no_remaining',
+    'issues.build_requests.open_count',
+    'issues.build_requests.remaining_description',
+    'issues.build_requests.remaining_eyebrow',
+    'issues.build_requests.remaining_title',
+    'issues.build_requests.title',
   ] as const,
   keyPatterns: [
-    'issues.buildRequest.*',
-    'issues.buildRequests.*',
+    'issues.build_request.*',
+    'issues.build_requests.*',
   ] as const,
 } as const satisfies I18nManifest;
 
@@ -102,19 +102,19 @@ function BuildRequestCard({ request }: { request: BuildRequest }) {
 
       {expanded ? (
         <div className="build-request-card__body" id={panelId}>
-          {request.raw_request ? <section><h3>{t('issues.buildRequest.founderRequest', 'Founder request')}</h3><p>{request.raw_request}</p></section> : null}
-          {request.desired_outcome ? <section><h3>{t('issues.buildRequest.desiredOutcome', 'Desired outcome')}</h3><p>{request.desired_outcome}</p></section> : null}
-          {request.technical_summary ? <section><h3>{t('issues.buildRequest.technicalSummary', 'Technical summary')}</h3><p>{request.technical_summary}</p></section> : null}
+          {request.raw_request ? <section><h3>{t('issues.build_request.founder_request', 'Founder request')}</h3><p>{request.raw_request}</p></section> : null}
+          {request.desired_outcome ? <section><h3>{t('issues.build_request.desired_outcome', 'Desired outcome')}</h3><p>{request.desired_outcome}</p></section> : null}
+          {request.technical_summary ? <section><h3>{t('issues.build_request.technical_summary', 'Technical summary')}</h3><p>{request.technical_summary}</p></section> : null}
           {affected.length ? (
             <section>
-              <h3>{t('issues.buildRequest.affectedAreas', 'Affected areas')}</h3>
+              <h3>{t('issues.build_request.affected_areas', 'Affected areas')}</h3>
               <div className="build-request-card__tags">{affected.map((item) => <span key={item}>{item}</span>)}</div>
             </section>
           ) : null}
           <div className="build-request-card__links">
             {request.github_issue_url ? <a href={request.github_issue_url} target="_blank" rel="noreferrer">GitHub issue #{request.github_issue_number}<ExternalLink size={14} aria-hidden="true" /></a> : null}
             {request.github_pr_url ? <a href={request.github_pr_url} target="_blank" rel="noreferrer">Pull request #{request.github_pr_number}<ExternalLink size={14} aria-hidden="true" /></a> : null}
-            {request.deployment_url ? <a href={request.deployment_url} target="_blank" rel="noreferrer">{t('issues.buildRequest.deployment', 'Deployment')}: {humanize(request.deployment_status)}<ExternalLink size={14} aria-hidden="true" /></a> : null}
+            {request.deployment_url ? <a href={request.deployment_url} target="_blank" rel="noreferrer">{t('issues.build_request.deployment', 'Deployment')}: {humanize(request.deployment_status)}<ExternalLink size={14} aria-hidden="true" /></a> : null}
           </div>
         </div>
       ) : null}
@@ -142,42 +142,42 @@ export function PublicBuildRequestsPage() {
     <main className="issues-page build-requests-page">
       <section className="hero issue-hero section-grid" aria-labelledby="build-requests-title">
         <div>
-          <p className="eyebrow">{t('issues.buildRequests.eyebrow', 'Live build requests')}</p>
-          <h1 id="build-requests-title">{t('issues.buildRequests.title', 'See what we are building next.')}</h1>
-          <p className="hero__lede">{t('issues.buildRequests.intro', 'Follow the newest founder requests, open each card for the full context, and discover where focused help can move the mission forward.')}</p>
-          <a className="button" href="/impact">{t('issues.buildRequests.backToImpact', 'Back to impact')}</a>
+          <p className="eyebrow">{t('issues.build_requests.eyebrow', 'Live build requests')}</p>
+          <h1 id="build-requests-title">{t('issues.build_requests.title', 'See what we are building next.')}</h1>
+          <p className="hero__lede">{t('issues.build_requests.intro', 'Follow the newest founder requests, open each card for the full context, and discover where focused help can move the mission forward.')}</p>
+          <a className="button" href="/impact">{t('issues.build_requests.back_to_impact', 'Back to impact')}</a>
         </div>
         <aside className="hero-card">
           <GitPullRequest aria-hidden="true" />
           <blockquote>{requests.filter(isOpen).length}</blockquote>
-          <p>{t('issues.buildRequests.openCount', 'open build requests loaded dynamically from Supabase.')}</p>
+          <p>{t('issues.build_requests.open_count', 'open build requests loaded dynamically from Supabase.')}</p>
         </aside>
       </section>
 
       <section className="section build-request-section" aria-labelledby="latest-build-requests">
         <div className="build-request-section__heading">
           <div>
-            <p className="eyebrow">{t('issues.buildRequests.latestEyebrow', 'Latest activity')}</p>
-            <h2 id="latest-build-requests">{t('issues.buildRequests.latestTitle', 'Latest five build requests')}</h2>
+            <p className="eyebrow">{t('issues.build_requests.latest_eyebrow', 'Latest activity')}</p>
+            <h2 id="latest-build-requests">{t('issues.build_requests.latest_title', 'Latest five build requests')}</h2>
           </div>
-          <p>{t('issues.buildRequests.latestDescription', 'Newest first. Expand a request to see the founder context and technical direction.')}</p>
+          <p>{t('issues.build_requests.latest_description', 'Newest first. Expand a request to see the founder context and technical direction.')}</p>
         </div>
 
-        {status === 'loading' ? <div className="impact-state" role="status">{t('issues.buildRequests.loading', 'Loading build requests…')}</div> : null}
-        {status === 'error' ? <div className="impact-state impact-state--error" role="alert">{t('issues.buildRequests.error', 'Could not load build requests.')} {error}</div> : null}
-        {status === 'ready' && !latest.length ? <div className="impact-state">{t('issues.buildRequests.empty', 'No build requests are available yet.')}</div> : null}
+        {status === 'loading' ? <div className="impact-state" role="status">{t('issues.build_requests.loading', 'Loading build requests…')}</div> : null}
+        {status === 'error' ? <div className="impact-state impact-state--error" role="alert">{t('issues.build_requests.error', 'Could not load build requests.')} {error}</div> : null}
+        {status === 'ready' && !latest.length ? <div className="impact-state">{t('issues.build_requests.empty', 'No build requests are available yet.')}</div> : null}
         <div className="build-request-list">{latest.map((request) => <BuildRequestCard request={request} key={request.id} />)}</div>
       </section>
 
       <section className="section build-request-section build-request-section--remaining" aria-labelledby="remaining-build-requests">
         <div className="build-request-section__heading">
           <div>
-            <p className="eyebrow">{t('issues.buildRequests.remainingEyebrow', 'Still open')}</p>
-            <h2 id="remaining-build-requests">{t('issues.buildRequests.remainingTitle', 'Remaining open build requests')}</h2>
+            <p className="eyebrow">{t('issues.build_requests.remaining_eyebrow', 'Still open')}</p>
+            <h2 id="remaining-build-requests">{t('issues.build_requests.remaining_title', 'Remaining open build requests')}</h2>
           </div>
-          <p>{t('issues.buildRequests.remainingDescription', 'All other requests that have not reached a terminal status.')}</p>
+          <p>{t('issues.build_requests.remaining_description', 'All other requests that have not reached a terminal status.')}</p>
         </div>
-        {status === 'ready' && !remainingOpen.length ? <div className="impact-state">{t('issues.buildRequests.noRemaining', 'No additional open build requests remain.')}</div> : null}
+        {status === 'ready' && !remainingOpen.length ? <div className="impact-state">{t('issues.build_requests.no_remaining', 'No additional open build requests remain.')}</div> : null}
         <div className="build-request-list">{remainingOpen.map((request) => <BuildRequestCard request={request} key={request.id} />)}</div>
       </section>
     </main>

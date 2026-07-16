@@ -16,7 +16,8 @@ test('discovery form is tied to the selected concept and captures required field
   for (const field of ['full_name', 'email', 'company', 'role', 'country', 'interest_message', 'consent_to_contact']) {
     assert.match(page + lib, new RegExp(field));
   }
-  assert.match(page, /Discuss \{concept\.title\}/);
+  assert.match(page, /proof_of_mind\.discovery\.title/);
+  assert.match(page, /title: concept\.title/);
   assert.match(lib, /p_concept_id: input\.concept_id/);
 });
 
@@ -45,6 +46,7 @@ test('raw Supabase errors are not displayed as the only fallback', () => {
 
 
 test('discovery success copy references the selected concept instead of a hard-coded venture', () => {
-  assert.match(page, /linked to \${concept\.title}/);
+  assert.match(page, /proof_of_mind\.discovery\.success_message/);
+  assert.match(page, /title: concept\.title/);
   assert.doesNotMatch(page, /linked to Maritex AI/);
 });

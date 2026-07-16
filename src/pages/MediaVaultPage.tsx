@@ -3,6 +3,7 @@ import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Fi
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPublicMediaAssets } from '../lib/mediaVault';
 import type { MediaVaultKind, PublicMediaAsset } from '../lib/mediaVault';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 const CAROUSEL_LIMIT = 10;
 const CAROUSEL_INTERVAL_MS = 6000;
@@ -32,12 +33,65 @@ function MediaPlaceholder({ kind }: { kind: MediaVaultKind }) {
 
 export const MEDIA_VAULT_PAGE_I18N_MANIFEST = {
   componentKey: 'pages.media.vault.page',
-  namespace: 'ui',
+  namespace: 'media_vault',
   translationKeys: [
+    'media_vault.carousel.aria',
+    'media_vault.carousel.choose_slide',
+    'media_vault.carousel.latest_upload',
+    'media_vault.carousel.next',
+    'media_vault.carousel.open',
+    'media_vault.carousel.pause',
+    'media_vault.carousel.play',
+    'media_vault.carousel.previous',
+    'media_vault.carousel.show_slide',
+    'media_vault.categories.aria',
+    'media_vault.empty.clear',
+    'media_vault.empty.featured',
+    'media_vault.empty.featured_note',
+    'media_vault.empty.filters',
+    'media_vault.empty.none',
+    'media_vault.error.retry',
+    'media_vault.error.title',
+    'media_vault.explorer.count',
+    'media_vault.explorer.eyebrow',
+    'media_vault.explorer.title',
+    'media_vault.filter.all',
+    'media_vault.filter.type',
+    'media_vault.intro.description',
+    'media_vault.intro.eyebrow',
+    'media_vault.intro.title',
+    'media_vault.kind.document',
+    'media_vault.kind.photo',
+    'media_vault.kind.video',
+    'media_vault.loading',
+    'media_vault.search.label',
+    'media_vault.search.placeholder',
+    'media_vault.sort.label',
+    'media_vault.sort.newest',
+    'media_vault.sort.oldest',
+    'media_vault.sort.title',
+    'media_vault.stats.aria',
+    'media_vault.stats.documents',
+    'media_vault.stats.photos',
+    'media_vault.stats.videos',
+    'media_vault.viewer.close',
+    'media_vault.viewer.dimensions',
+    'media_vault.viewer.hide_details',
+    'media_vault.viewer.location',
+    'media_vault.viewer.next',
+    'media_vault.viewer.open_document',
+    'media_vault.viewer.previous',
+    'media_vault.viewer.published',
+    'media_vault.viewer.show_details',
+    'media_vault.viewer.type',
   ] as const,
+  entityContent: {
+    tables: ['media_assets'],
+  },
 } as const satisfies I18nManifest;
 
 export function MediaVaultPage() {
+  const { t, formatNumber } = useWebsiteI18n();
   const [items, setItems] = useState<PublicMediaAsset[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState('');
@@ -145,17 +199,17 @@ export function MediaVaultPage() {
 
   return <main className="media-vault" id="top">
     <section className="media-vault__intro" aria-labelledby="media-vault-title">
-      <p className="eyebrow">The visual archive</p>
-      <h1 id="media-vault-title">Media Vault</h1>
-      <p>The people, places, setbacks and breakthroughs behind the journey from rock bottom to one million.</p>
-      <div className="media-vault__stats" aria-label="Media statistics">
-        <span><strong>{photos}</strong> Photos</span>
-        <span><strong>{videos}</strong> Videos</span>
-        <span><strong>{documents}</strong> Documents</span>
+      <p className="eyebrow">{t('media_vault.intro.eyebrow', 'The visual archive')}</p>
+      <h1 id="media-vault-title">{t('media_vault.intro.title', 'Media Vault')}</h1>
+      <p>{t('media_vault.intro.description', 'The people, places, setbacks and breakthroughs behind the journey from rock bottom to one million.')}</p>
+      <div className="media-vault__stats" aria-label={t('media_vault.stats.aria', 'Media statistics')}>
+        <span><strong>{formatNumber(photos)}</strong> {t('media_vault.stats.photos', 'Photos')}</span>
+        <span><strong>{formatNumber(videos)}</strong> {t('media_vault.stats.videos', 'Videos')}</span>
+        <span><strong>{formatNumber(documents)}</strong> {t('media_vault.stats.documents', 'Documents')}</span>
       </div>
     </section>
 
-    {status === 'ready' && activeCarouselItem ? <section className="media-carousel" aria-label="Latest uploaded media">
+    {status === 'ready' && activeCarouselItem ? <section className="media-carousel" aria-label={t('media_vault.carousel.aria', 'Latest uploaded media')}>
       <div
         className="media-carousel__stage"
         onTouchStart={(event) => { touchStartX.current = event.touches[0]?.clientX ?? null; }}
@@ -168,11 +222,11 @@ export function MediaVaultPage() {
           changeCarousel(distance > 0 ? -1 : 1);
         }}
       >
-        <button className="media-carousel__slide" type="button" onClick={() => openMedia(activeCarouselItem.id)} aria-label={`Open media: ${activeCarouselItem.title}`}>
+        <button className="media-carousel__slide" type="button" onClick={() => openMedia(activeCarouselItem.id)} aria-label={t('media_vault.carousel.open', 'Open media: {title}', { title: activeCarouselItem.title })}>
           {activeCarouselItem.imageUrl ? <img src={activeCarouselItem.imageUrl} alt={activeCarouselItem.altText} /> : <MediaPlaceholder kind={activeCarouselItem.kind} />}
           <span className="media-carousel__shade" />
           <span className="media-carousel__content" aria-live="polite">
-            <small>Latest upload {carouselIndex + 1} / {carouselItems.length}</small>
+            <small>{t('media_vault.carousel.latest_upload', 'Latest upload {current} / {total}', { current: formatNumber(carouselIndex + 1), total: formatNumber(carouselItems.length) })}</small>
             <strong>{activeCarouselItem.title}</strong>
             {activeCarouselItem.caption || activeCarouselItem.description ? <span className="media-carousel__caption">{activeCarouselItem.caption || activeCarouselItem.description}</span> : null}
             <span className="media-carousel__meta">
@@ -184,60 +238,60 @@ export function MediaVaultPage() {
         </button>
 
         {carouselItems.length > 1 ? <>
-          <button className="media-carousel__arrow media-carousel__arrow--previous" type="button" onClick={() => changeCarousel(-1)} aria-label="Previous latest media"><ChevronLeft /></button>
-          <button className="media-carousel__arrow media-carousel__arrow--next" type="button" onClick={() => changeCarousel(1)} aria-label="Next latest media"><ChevronRight /></button>
-          <button className="media-carousel__playback" type="button" onClick={() => setCarouselPlaying((playing) => !playing)} aria-label={carouselPlaying ? 'Pause carousel' : 'Play carousel'}>{carouselPlaying ? <Pause size={16} /> : <Play size={16} />}</button>
-          <div className="media-carousel__dots" aria-label="Choose carousel slide">{carouselItems.map((item, index) => <button key={item.id} type="button" data-active={index === carouselIndex} onClick={() => setCarouselIndex(index)} aria-label={`Show slide ${index + 1}: ${item.title}`} />)}</div>
+          <button className="media-carousel__arrow media-carousel__arrow--previous" type="button" onClick={() => changeCarousel(-1)} aria-label={t('media_vault.carousel.previous', 'Previous latest media')}><ChevronLeft /></button>
+          <button className="media-carousel__arrow media-carousel__arrow--next" type="button" onClick={() => changeCarousel(1)} aria-label={t('media_vault.carousel.next', 'Next latest media')}><ChevronRight /></button>
+          <button className="media-carousel__playback" type="button" onClick={() => setCarouselPlaying((playing) => !playing)} aria-label={carouselPlaying ? t('media_vault.carousel.pause', 'Pause carousel') : t('media_vault.carousel.play', 'Play carousel')}>{carouselPlaying ? <Pause size={16} /> : <Play size={16} />}</button>
+          <div className="media-carousel__dots" aria-label={t('media_vault.carousel.choose_slide', 'Choose carousel slide')}>{carouselItems.map((item, index) => <button key={item.id} type="button" data-active={index === carouselIndex} onClick={() => setCarouselIndex(index)} aria-label={t('media_vault.carousel.show_slide', 'Show slide {index}: {title}', { index: formatNumber(index + 1), title: item.title })} />)}</div>
         </> : null}
       </div>
     </section> : null}
 
     <section className="media-explorer" aria-labelledby="media-explorer-title">
       <div className="media-explorer__heading">
-        <div><p className="eyebrow">Explore the archive</p><h2 id="media-explorer-title">Every moment tells part of the story.</h2></div>
-        <p>{filtered.length} of {items.length} public assets</p>
+        <div><p className="eyebrow">{t('media_vault.explorer.eyebrow', 'Explore the archive')}</p><h2 id="media-explorer-title">{t('media_vault.explorer.title', 'Every moment tells part of the story.')}</h2></div>
+        <p>{t('media_vault.explorer.count', '{shown} of {total} public assets', { shown: formatNumber(filtered.length), total: formatNumber(items.length) })}</p>
       </div>
 
-      {status === 'loading' ? <div className="media-state" role="status"><RefreshCw className="media-state__spinner" size={24} aria-hidden="true" /><span>Loading published media from Supabase…</span></div> : null}
-      {status === 'error' ? <div className="media-state media-state--error" role="alert"><strong>Media could not be loaded.</strong><span>{error}</span><button className="button button--ghost" type="button" onClick={() => setReloadKey((value) => value + 1)}><RefreshCw size={16} aria-hidden="true" /> Try again</button></div> : null}
+      {status === 'loading' ? <div className="media-state" role="status"><RefreshCw className="media-state__spinner" size={24} aria-hidden="true" /><span>{t('media_vault.loading', 'Loading published media from Supabase…')}</span></div> : null}
+      {status === 'error' ? <div className="media-state media-state--error" role="alert"><strong>{t('media_vault.error.title', 'Media could not be loaded.')}</strong><span>{error}</span><button className="button button--ghost" type="button" onClick={() => setReloadKey((value) => value + 1)}><RefreshCw size={16} aria-hidden="true" /> {t('media_vault.error.retry', 'Try again')}</button></div> : null}
 
       {status === 'ready' ? <>
         <div className="media-toolbar">
-          <label className="media-search"><Search size={18} aria-hidden="true" /><span className="sr-only">Search media</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search titles, tags or descriptions..." /></label>
-          <label className="media-select"><Filter size={17} aria-hidden="true" /><span className="sr-only">Filter media type</span><select value={kind} onChange={(event) => setKind(event.target.value as 'all' | MediaVaultKind)}><option value="all">All media</option><option value="photo">Photos</option><option value="video">Videos</option><option value="document">Documents</option></select></label>
-          <label className="media-select"><span className="sr-only">Sort media</span><select value={sort} onChange={(event) => setSort(event.target.value as 'newest' | 'oldest' | 'title')}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="title">Title A–Z</option></select></label>
+          <label className="media-search"><Search size={18} aria-hidden="true" /><span className="sr-only">{t('media_vault.search.label', 'Search media')}</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('media_vault.search.placeholder', 'Search titles, tags or descriptions...')} /></label>
+          <label className="media-select"><Filter size={17} aria-hidden="true" /><span className="sr-only">{t('media_vault.filter.type', 'Filter media type')}</span><select value={kind} onChange={(event) => setKind(event.target.value as 'all' | MediaVaultKind)}><option value="all">{t('media_vault.filter.all', 'All media')}</option><option value="photo">{t('media_vault.stats.photos', 'Photos')}</option><option value="video">{t('media_vault.stats.videos', 'Videos')}</option><option value="document">{t('media_vault.stats.documents', 'Documents')}</option></select></label>
+          <label className="media-select"><span className="sr-only">{t('media_vault.sort.label', 'Sort media')}</span><select value={sort} onChange={(event) => setSort(event.target.value as 'newest' | 'oldest' | 'title')}><option value="newest">{t('media_vault.sort.newest', 'Newest first')}</option><option value="oldest">{t('media_vault.sort.oldest', 'Oldest first')}</option><option value="title">{t('media_vault.sort.title', 'Title A–Z')}</option></select></label>
         </div>
-        <div className="media-category-strip" aria-label="Media categories">{categories.map((item) => <button key={item} type="button" data-active={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>
+        <div className="media-category-strip" aria-label={t('media_vault.categories.aria', 'Media categories')}>{categories.map((item) => <button key={item} type="button" data-active={category === item} onClick={() => setCategory(item)}>{item}</button>)}</div>
 
         {explorerItems.length ? <div className="media-grid">{explorerItems.map((item, index) => <button className={`media-card ${index % 4 === 0 ? 'media-card--wide' : ''}`} key={item.id} type="button" onClick={() => openMedia(item.id)}>
           {item.imageUrl ? <img src={item.imageUrl} alt={item.altText} loading="lazy" onError={(event) => { event.currentTarget.hidden = true; }} /> : <MediaPlaceholder kind={item.kind} />}
           <span className="media-card__shade" />
-          <span className="media-card__type"><MediaKindIcon kind={item.kind} /> {item.kind === 'video' ? formatDuration(item.durationSeconds) || 'Video' : item.kind === 'document' ? 'Document' : 'Photo'}</span>
+          <span className="media-card__type"><MediaKindIcon kind={item.kind} /> {item.kind === 'video' ? formatDuration(item.durationSeconds) || t('media_vault.kind.video', 'Video') : item.kind === 'document' ? t('media_vault.kind.document', 'Document') : t('media_vault.kind.photo', 'Photo')}</span>
           <span className="media-card__content"><small>{item.category}</small><strong>{item.title}</strong>{item.location ? <span><MapPin size={13} aria-hidden="true" /> {item.location}</span> : null}</span>
-        </button>)}</div> : filtered.length ? <div className="media-empty"><h3>All matching media is featured above.</h3><p>Newer uploads remain in the carousel and are not duplicated in the grid.</p></div> : <div className="media-empty"><h3>No public media found.</h3><p>Try clearing one or more filters.</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>Clear filters</button></div>}
+        </button>)}</div> : filtered.length ? <div className="media-empty"><h3>{t('media_vault.empty.featured', 'All matching media is featured above.')}</h3><p>{t('media_vault.empty.featured_note', 'Newer uploads remain in the carousel and are not duplicated in the grid.')}</p></div> : <div className="media-empty"><h3>{t('media_vault.empty.none', 'No public media found.')}</h3><p>{t('media_vault.empty.filters', 'Try clearing one or more filters.')}</p><button className="button button--ghost" type="button" onClick={() => { setQuery(''); setCategory('All'); setKind('all'); }}>{t('media_vault.empty.clear', 'Clear filters')}</button></div>}
       </> : null}
     </section>
 
     {selected ? <div className="media-viewer" role="dialog" aria-modal="true" aria-label={selected.title} onClick={() => setSelectedId(null)}>
-      <button className="media-viewer__close" type="button" onClick={() => setSelectedId(null)} aria-label="Close media viewer"><X aria-hidden="true" /></button>
-      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label="Previous media"><ChevronLeft aria-hidden="true" /></button> : null}
+      <button className="media-viewer__close" type="button" onClick={() => setSelectedId(null)} aria-label={t('media_vault.viewer.close', 'Close media viewer')}><X aria-hidden="true" /></button>
+      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--previous" type="button" onClick={(event) => { event.stopPropagation(); move(-1); }} aria-label={t('media_vault.viewer.previous', 'Previous media')}><ChevronLeft aria-hidden="true" /></button> : null}
       <div className="media-viewer__panel" data-metadata-open={metadataOpen} onClick={(event) => event.stopPropagation()}>
         <div className="media-viewer__visual">
-          {selected.kind === 'video' ? <video src={selected.mediaUrl} poster={selected.thumbnailUrl || undefined} controls preload="metadata" playsInline /> : selected.kind === 'document' ? <a className="media-document-link" href={selected.mediaUrl} target="_blank" rel="noreferrer"><FileText size={42} aria-hidden="true" /><span>Open document</span></a> : <img src={selected.mediaUrl} alt={selected.altText} />}
+          {selected.kind === 'video' ? <video src={selected.mediaUrl} poster={selected.thumbnailUrl || undefined} controls preload="metadata" playsInline /> : selected.kind === 'document' ? <a className="media-document-link" href={selected.mediaUrl} target="_blank" rel="noreferrer"><FileText size={42} aria-hidden="true" /><span>{t('media_vault.viewer.open_document', 'Open document')}</span></a> : <img src={selected.mediaUrl} alt={selected.altText} />}
         </div>
         <button className="media-viewer__metadata-toggle" type="button" aria-expanded={metadataOpen} aria-controls="media-viewer-metadata" onClick={() => setMetadataOpen((value) => !value)}>
-          <span>{metadataOpen ? 'Hide details' : 'Show details'}</span>
+          <span>{metadataOpen ? t('media_vault.viewer.hide_details', 'Hide details') : t('media_vault.viewer.show_details', 'Show details')}</span>
           {metadataOpen ? <ChevronDown size={18} aria-hidden="true" /> : <ChevronUp size={18} aria-hidden="true" />}
         </button>
         <div className="media-viewer__details" id="media-viewer-metadata">
           <p className="eyebrow">{selected.category}</p><h2>{selected.title}</h2>
           {selected.description ? <p>{selected.description}</p> : null}
           {selected.caption ? <p className="media-viewer__caption">{selected.caption}</p> : null}
-          <dl>{selected.location ? <div><dt>Location</dt><dd>{selected.location}</dd></div> : null}<div><dt>Published</dt><dd>{formatDate(selected.capturedAt)}</dd></div><div><dt>Type</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>{selected.width && selected.height ? <div><dt>Dimensions</dt><dd>{selected.width} × {selected.height}</dd></div> : null}</dl>
+          <dl>{selected.location ? <div><dt>{t('media_vault.viewer.location', 'Location')}</dt><dd>{selected.location}</dd></div> : null}<div><dt>{t('media_vault.viewer.published', 'Published')}</dt><dd>{formatDate(selected.capturedAt)}</dd></div><div><dt>{t('media_vault.viewer.type', 'Type')}</dt><dd>{selected.kind}{selected.durationSeconds ? ` · ${formatDuration(selected.durationSeconds)}` : ''}</dd></div>{selected.width && selected.height ? <div><dt>{t('media_vault.viewer.dimensions', 'Dimensions')}</dt><dd>{selected.width} × {selected.height}</dd></div> : null}</dl>
           {selected.tags.length ? <div className="media-viewer__tags">{selected.tags.map((tag) => <span key={tag}>{tag}</span>)}</div> : null}
         </div>
       </div>
-      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label="Next media"><ChevronRight aria-hidden="true" /></button> : null}
+      {items.length > 1 ? <button className="media-viewer__nav media-viewer__nav--next" type="button" onClick={(event) => { event.stopPropagation(); move(1); }} aria-label={t('media_vault.viewer.next', 'Next media')}><ChevronRight aria-hidden="true" /></button> : null}
     </div> : null}
   </main>;
 }
