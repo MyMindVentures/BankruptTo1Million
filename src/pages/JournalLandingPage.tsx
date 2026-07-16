@@ -14,6 +14,7 @@ import {
   type JourneyPoint,
 } from '../components/journal/JournalLandingSections';
 import { applyTranslation, filterPosts, getJournalIndex, type JournalCategory, type JournalIndexData, type PublicJournalPost } from '../lib/journal';
+import { normalizeJourneyFootageItems } from '../lib/journalFootage';
 import { newestMapPoint } from '../lib/journalMapNavigation';
 import { getJournalDisplayPeople } from '../lib/journalPeople';
 import { supabase } from '../lib/supabase';
@@ -71,7 +72,12 @@ function newestPoint(points: JourneyPoint[]) {
 }
 
 function hydrateJourneyPoint(point: JourneyPoint, post?: PublicJournalPost): JourneyPoint {
-  if (!post) return point;
+  if (!post) {
+    return {
+      ...point,
+      footage: normalizeJourneyFootageItems(point.footage),
+    };
+  }
   const people = getJournalDisplayPeople(post).map((person, index) => ({ ...person, relation_role: 'subject', display_order: index }));
   return {
     ...point,
@@ -83,6 +89,7 @@ function hydrateJourneyPoint(point: JourneyPoint, post?: PublicJournalPost): Jou
     cover_image_alt: post.cover_image_alt || point.cover_image_alt,
     original_language: post.original_language || point.original_language,
     involved_people: people.length ? people : point.involved_people,
+    footage: normalizeJourneyFootageItems(point.footage),
   };
 }
 
@@ -167,12 +174,11 @@ export function JournalLandingPage() {
     Promise.all([
       getJournalIndex(),
       readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' })),
-      readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.desc,journey_entry_id.desc&limit=5' })),
       readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
         query: `select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured,journey_exchange_item_translations(language_code,title,tagline,description,translation_status),calendar_entry:journey_calendar_entries(city_name,location_name,region_name,starts_on,ends_on)&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc`,
       })),
       readJson<CategoryTranslation[]>(supabase.from('journal_category_translations').request({ query: `select=category_id,language_code,name,description,translation_status&language_code=eq.${encodeURIComponent(language)}` })),
-    ]).then(([rawJournal, journeyRows, mapRows, exchangeRows, categoryTranslations]) => {
+    ]).then(([rawJournal, journeyRows, exchangeRows, categoryTranslations]) => {
       if (cancelled) return;
       const categoryById = new Map(categoryTranslations.filter((row) => !row.translation_status || row.translation_status === 'published').map((row) => [row.category_id, row]));
       const categories: JournalCategory[] = rawJournal.categories.map((category) => ({ ...category, name: categoryById.get(category.id)?.name || category.name, description: categoryById.get(category.id)?.description || category.description }));
@@ -191,7 +197,7 @@ export function JournalLandingPage() {
       };
       const postsBySlug = new Map(posts.map((post) => [post.slug, post]));
       const hydratedJourney = journeyRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
-      const hydratedMapJourney = mapRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
+      const hydratedMapJourney = [...hydratedJourney].sort((a, b) => compareByOccurredAt(b, a));
       setJournal(journalData);
       setJourney(hydratedJourney);
       setMapJourney(hydratedMapJourney);

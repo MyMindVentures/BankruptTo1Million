@@ -47,7 +47,7 @@ export const JOURNAL_FOOTAGE_SECTION_I18N_MANIFEST = {
   ] as const,
 } as const satisfies I18nManifest;
 
-export function JournalFootageSection({ slug }: { slug: string }) {
+export function JournalFootageSection({ postId }: { postId: string }) {
   const { t } = useWebsiteI18n();
   const [loadState, setLoadState] = useState<LoadState>('loading');
   const [error, setError] = useState('');
@@ -60,13 +60,15 @@ export function JournalFootageSection({ slug }: { slug: string }) {
   }), [t]);
 
   useEffect(() => {
+    if (!postId) return undefined;
+
     let cancelled = false;
     setLoadState('loading');
     setError('');
     setItems([]);
     setViewerIndex(null);
 
-    getJournalPostFootage(slug, altLabels)
+    getJournalPostFootage(postId, altLabels)
       .then((footage) => {
         if (cancelled) return;
         if (!footage.length) {
@@ -83,7 +85,7 @@ export function JournalFootageSection({ slug }: { slug: string }) {
       });
 
     return () => { cancelled = true; };
-  }, [altLabels, slug, t]);
+  }, [altLabels, postId, t]);
 
   const openViewer = useCallback((index: number) => {
     setViewerIndex(index);

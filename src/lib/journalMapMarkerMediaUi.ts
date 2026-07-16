@@ -1,4 +1,5 @@
 import type { I18nManifest } from '../lib/i18nManifest';
+import { normalizeJourneyFootageItems, resolvePublicMediaUrl } from './journalFootage';
 import { supabase } from './supabase';
 import type { WebsiteTranslate } from './websiteI18n';
 
@@ -15,6 +16,8 @@ type MapFootage = {
   asset_type?: string | null;
   mime_type?: string | null;
   thumbnail_url?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
   display_order?: number | null;
 };
 
@@ -41,7 +44,10 @@ function loadPoints() {
       supabase.from('public_journal_map_points').request({
         query: 'select=journey_entry_id,title,involved_people,footage&order=occurred_at.asc,journey_entry_id.asc',
       }),
-    ).catch((error) => {
+    ).then((rows) => rows.map((row) => ({
+      ...row,
+      footage: normalizeJourneyFootageItems(row.footage),
+    }))).catch((error) => {
       pointsPromise = null;
       if (import.meta.env.DEV) console.error('[Journal map pins] Could not load marker media.', error);
       return [];
@@ -65,10 +71,21 @@ function sortedFootage(point: MapPointMedia) {
 function footageImage(item?: MapFootage) {
   if (!item) return '';
   const isVideo = item.asset_type === 'video' || item.mime_type?.startsWith('video/');
-  return isVideo ? item.thumbnail_url || '' : item.thumbnail_url || item.url || '';
+  const thumbnail = resolvePublicMediaUrl(item.thumbnail_url, item.storage_bucket, item.storage_path);
+  const url = resolvePublicMediaUrl(item.url, item.storage_bucket, item.storage_path);
+  return isVideo ? thumbnail : thumbnail || url;
+}
+
+function markerEntryId(marker: HTMLElement) {
+  return marker.getAttribute('data-journey-entry-id')
+    || marker.closest('[data-journey-entry-id]')?.getAttribute('data-journey-entry-id')
+    || '';
 }
 
 function pointForMarker(marker: HTMLElement, points: MapPointMedia[]) {
+  const entryId = markerEntryId(marker);
+  if (entryId) return points.find((point) => point.journey_entry_id === entryId);
+
   const label = marker.getAttribute('aria-label') || '';
   return points
     .filter((point) => label === `Open ${point.title}` || label.startsWith(`Open ${point.title} —`))
@@ -133,7 +150,7 @@ function enhanceMarker(marker: HTMLElement, point: MapPointMedia) {
 }
 
 async function enhanceVisibleMarkers() {
-  const markers = Array.from(document.querySelectorAll<HTMLElement>('.premium-map-dom-marker'));
+  const markers = Array.from(document.querySelectorAll<HTMLElement>('.premium-map-dom-marker, .journey-medallion, [data-journey-entry-id]'));
   if (!markers.length) return;
   const points = await loadPoints();
   markers.forEach((marker) => {

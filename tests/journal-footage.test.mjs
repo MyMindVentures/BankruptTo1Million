@@ -1,5 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {
+  buildFootageStorageFileName,
+  nextFootageFileNumber,
+  resolveJournalFootageNameBase,
+  slugifyJournalFootageName,
+} from '../src/lib/journalFootageNaming.ts';
 
 const FILENAME_LIKE = /^[\w.-]+\.(jpe?g|png|gif|webp|avif|heic|mp4|mov|webm|mkv)$/i;
 const NUMERIC_ONLY = /^\d+$/;
@@ -59,4 +65,55 @@ test('wrapFootageIndex loops in both directions', () => {
   assert.equal(wrapFootageIndex(0, 4, -1), 3);
   assert.equal(wrapFootageIndex(3, 4, 1), 0);
   assert.equal(wrapFootageIndex(1, 4, 1), 2);
+});
+
+function footageStoragePathMatchesPost(storagePath, postId) {
+  if (!storagePath) return false;
+  if (storagePath.startsWith('journey-events/')) return false;
+  if (!storagePath.startsWith('journal/')) return true;
+  const segments = storagePath.split('/');
+  return segments[3] === postId;
+}
+
+test('footageStoragePathMatchesPost validates journal folder ownership', () => {
+  const postId = '01bf802b-6b66-4487-a7c8-f2202094bb31';
+  assert.equal(
+    footageStoragePathMatchesPost(`journal/2026/07/${postId}/images/photo.jpg`, postId),
+    true,
+  );
+  assert.equal(
+    footageStoragePathMatchesPost('journal/2026/07/other-post-id/images/photo.jpg', postId),
+    false,
+  );
+  assert.equal(footageStoragePathMatchesPost('journey-events/2026/07/13/slug/videos/video.mp4', postId), false);
+});
+
+test('slugifyJournalFootageName normalizes editorial titles', () => {
+  assert.equal(
+    slugifyJournalFootageName('A Productive Farewell at Cafeteria Cajiz'),
+    'a-productive-farewell-at-cafeteria-cajiz',
+  );
+});
+
+test('resolveJournalFootageNameBase prefers slug for placeholder titles', () => {
+  assert.equal(
+    resolveJournalFootageNameBase('Journal event 7/15/2026, 2:42:00 PM', 'journal-event-15-7-2026-14-42-00'),
+    'journal-event-15-7-2026-14-42-00',
+  );
+  assert.equal(
+    resolveJournalFootageNameBase('A Productive Farewell at Cafeteria Cajiz', 'journal-event-15-7-2026-14-42-00'),
+    'a-productive-farewell-at-cafeteria-cajiz',
+  );
+});
+
+test('nextFootageFileNumber continues per extension in a folder', () => {
+  const nameBase = 'a-productive-farewell-at-cafeteria-cajiz';
+  const existing = [
+    `${nameBase}-1.jpg`,
+    `${nameBase}-2.jpg`,
+    `${nameBase}-1.mp4`,
+  ];
+  assert.equal(nextFootageFileNumber(existing, nameBase, 'jpg'), 3);
+  assert.equal(nextFootageFileNumber(existing, nameBase, 'mp4'), 2);
+  assert.equal(buildFootageStorageFileName(nameBase, 3, 'jpg'), `${nameBase}-3.jpg`);
 });

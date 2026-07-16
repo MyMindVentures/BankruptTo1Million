@@ -219,8 +219,8 @@ export function JournalAdminPage() {
 
       setSaveStage(`Uploading media${footage.length ? ` (${footage.length})` : ''}…`);
       const uploadedAssetIds: string[] = [];
-      for (let index = 0; index < footage.length; index += 1) {
-        uploadedAssetIds.push(await uploadJournalFootage(saved.id, footage[index], index, {
+      for (const file of footage) {
+        uploadedAssetIds.push(await uploadJournalFootage(saved.id, file, {
           ...eventForm,
           occurred_at: occurredAt,
         }));

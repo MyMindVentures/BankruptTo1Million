@@ -1,4 +1,5 @@
 import { supabase, type SupabaseSession } from './supabase';
+import { resolvePublicMediaUrl } from './journalFootage';
 
 export type JournalStatus = 'draft' | 'scheduled' | 'published' | 'archived';
 export type ContentFormat = 'markdown' | 'rich_text' | 'video' | 'mixed';
@@ -60,7 +61,34 @@ export function getPostAuthors(post: JournalPost): JournalAuthor[] { return [...
 export function formatAuthorByline(post: JournalPost): string { const names = getPostAuthors(post).map((a)=>a.display_name).filter(Boolean); if (!names.length) return ''; if (names.length === 1) return `By ${names[0]}`; if (names.length === 2) return `By ${names[0]} & ${names[1]}`; return `By ${names.slice(0,-1).join(', ')} & ${names[names.length - 1]}`; }
 export function getSafeJournalErrorMessage() { return 'The Journal is temporarily unavailable. Please try again shortly.'; }
 export function logJournalError(error: unknown, context: string) { if (import.meta.env.DEV) console.error(`[Journal] ${context}`, error); }
-export function applyTranslation(post: JournalPost, language = new URLSearchParams(location.search).get('lang') || post.original_language): PublicJournalPost { const translations = post.journal_translations || []; const published = translations.filter((t) => t.translation_status === 'published' && (!t.published_at || Date.parse(t.published_at) <= Date.now())); const t = published.find((row) => row.language_code === language); return { ...post, displayTitle: t?.title || post.title, displaySubtitle: t?.subtitle || post.subtitle, displayExcerpt: t?.excerpt || post.excerpt, displayBody: t?.body || post.body, activeLanguage: t?.language_code || post.original_language, availableLanguages: [post.original_language, ...published.map((row) => row.language_code)].filter((v, i, a) => v && a.indexOf(v) === i) }; }
+export function resolveJournalMediaUrl(url?: string | null) {
+  const resolved = resolvePublicMediaUrl(url);
+  return resolved || undefined;
+}
+
+export function normalizeJournalPostMedia(post: JournalPost): JournalPost {
+  return {
+    ...post,
+    cover_image_url: resolveJournalMediaUrl(post.cover_image_url),
+    og_image_url: resolveJournalMediaUrl(post.og_image_url),
+  };
+}
+
+export function applyTranslation(post: JournalPost, language = new URLSearchParams(location.search).get('lang') || post.original_language): PublicJournalPost {
+  const normalized = normalizeJournalPostMedia(post);
+  const translations = normalized.journal_translations || [];
+  const published = translations.filter((t) => t.translation_status === 'published' && (!t.published_at || Date.parse(t.published_at) <= Date.now()));
+  const t = published.find((row) => row.language_code === language);
+  return {
+    ...normalized,
+    displayTitle: t?.title || normalized.title,
+    displaySubtitle: t?.subtitle || normalized.subtitle,
+    displayExcerpt: t?.excerpt || normalized.excerpt,
+    displayBody: t?.body || normalized.body,
+    activeLanguage: t?.language_code || normalized.original_language,
+    availableLanguages: [normalized.original_language, ...published.map((row) => row.language_code)].filter((v, i, a) => v && a.indexOf(v) === i),
+  };
+}
 export function filterPosts(posts: PublicJournalPost[], opts: { category?: string; search?: string; sort?: string }) { const q = (opts.search || '').trim().toLowerCase(); return posts.filter((p) => (!opts.category || opts.category === 'all' || p.journal_categories?.slug === opts.category) && (!q || [p.displayTitle,p.displaySubtitle,p.displayExcerpt,...getPostAuthors(p).map((a)=>a.display_name),...(p.journal_post_tags || []).map((t)=>t.journal_tags?.name),...(p.journal_post_ventures || []).map((v)=>v.venture_name)].filter(Boolean).join(' ').toLowerCase().includes(q))).sort((a,b)=> opts.sort === 'updated' ? Date.parse(b.updated_at)-Date.parse(a.updated_at) : opts.sort === 'short' ? (a.reading_time_minutes||999)-(b.reading_time_minutes||999) : opts.sort === 'long' ? (b.reading_time_minutes||0)-(a.reading_time_minutes||0) : Date.parse(b.published_at || '')-Date.parse(a.published_at || '')); }
 export function sanitizeMarkdown(markdown = '') {
   const normalized = markdown

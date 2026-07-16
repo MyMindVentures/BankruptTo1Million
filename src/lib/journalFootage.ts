@@ -46,10 +46,27 @@ async function readJson<T>(responseOrPromise: Response | Promise<Response>): Pro
   return response.json() as Promise<T>;
 }
 
-function publicStorageUrl(bucket: string | null, path: string | null) {
+export function publicStorageUrl(bucket: string | null, path: string | null) {
   if (!bucket || !path) return '';
   const safePath = path.split('/').map(encodeURIComponent).join('/');
   return `${supabase.url}/storage/v1/object/public/${encodeURIComponent(bucket)}/${safePath}`;
+}
+
+export function resolvePublicMediaUrl(url?: string | null, bucket?: string | null, path?: string | null) {
+  if (bucket && path) return publicStorageUrl(bucket, path);
+  const trimmed = String(url || '').trim();
+  if (!trimmed) return '';
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+  if (trimmed.startsWith('/storage/v1/object/public/')) return `${supabase.url}${trimmed}`;
+  return trimmed;
+}
+
+export function footageStoragePathMatchesPost(storagePath: string | null | undefined, postId: string) {
+  if (!storagePath) return false;
+  if (storagePath.startsWith('journey-events/')) return false;
+  if (!storagePath.startsWith('journal/')) return true;
+  const segments = storagePath.split('/');
+  return segments[3] === postId;
 }
 
 export function isFilenameLikeText(value: string | null | undefined) {
@@ -85,12 +102,18 @@ export function wrapFootageIndex(index: number, length: number, direction: -1 | 
   return (index + direction + length) % length;
 }
 
-function normalizeFootageRow(row: JournalPostMediaRow, labels: { image: string; video: string }, index: number): JournalFootageItem | null {
+function normalizeFootageRow(
+  row: JournalPostMediaRow,
+  labels: { image: string; video: string },
+  index: number,
+  postId: string,
+): JournalFootageItem | null {
   const asset = row.media_assets;
   if (!asset || asset.visibility !== 'public' || asset.status !== 'published') return null;
   if (asset.asset_type !== 'image' && asset.asset_type !== 'video') return null;
+  if (!footageStoragePathMatchesPost(asset.storage_path, postId)) return null;
 
-  const url = publicStorageUrl(asset.storage_bucket, asset.storage_path);
+  const url = resolvePublicMediaUrl(null, asset.storage_bucket, asset.storage_path);
   if (!url) return null;
 
   const assetType = asset.asset_type === 'video' ? 'video' : 'image';
@@ -98,7 +121,7 @@ function normalizeFootageRow(row: JournalPostMediaRow, labels: { image: string; 
     id: asset.id,
     asset_type: assetType,
     url,
-    thumbnail_url: asset.thumbnail_url,
+    thumbnail_url: resolvePublicMediaUrl(asset.thumbnail_url) || null,
     mime_type: asset.mime_type,
     alt_text: resolveFootageAlt(row.alt_text_override, asset.alt_text, assetType, index + 1, labels),
     caption: resolveFootageCaption(row.caption_override, asset.caption),
@@ -107,13 +130,13 @@ function normalizeFootageRow(row: JournalPostMediaRow, labels: { image: string; 
 }
 
 export async function getJournalPostFootage(
-  slug: string,
+  postId: string,
   labels: { image: string; video: string },
 ): Promise<JournalFootageItem[]> {
   const rows = await readJson<JournalPostFootageRow[]>(supabase.from('journal_posts').request({
     query: [
       'select=id,journal_post_media(display_order,caption_override,alt_text_override,created_at,media_assets(id,asset_type,storage_bucket,storage_path,thumbnail_url,mime_type,alt_text,caption,visibility,status))',
-      `slug=eq.${encodeURIComponent(slug)}`,
+      `id=eq.${encodeURIComponent(postId)}`,
       'status=eq.published',
       'published_at=not.is.null',
       `published_at=lte.${encodeURIComponent(new Date().toISOString())}`,
@@ -121,9 +144,31 @@ export async function getJournalPostFootage(
     ].join('&'),
   }));
 
-  const links = rows[0]?.journal_post_media || [];
-  return links
+  const post = rows[0];
+  if (!post) return [];
+
+  const links = post.journal_post_media || [];
+  const normalized = links
     .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0) || Date.parse(a.created_at) - Date.parse(b.created_at))
-    .map((row, index) => normalizeFootageRow(row, labels, index))
+    .map((row, index) => normalizeFootageRow(row, labels, index, post.id))
     .filter((item): item is JournalFootageItem => Boolean(item));
+
+  if (links.length > 0 && normalized.length === 0) {
+    throw new Error('Footage links exist but none matched this journal post.');
+  }
+
+  return normalized;
+}
+
+export function normalizeJourneyFootageItems<T extends {
+  url?: string | null;
+  thumbnail_url?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+}>(items?: T[] | null): T[] {
+  return (items || []).map((item) => ({
+    ...item,
+    url: resolvePublicMediaUrl(item.url, item.storage_bucket, item.storage_path) || item.url || '',
+    thumbnail_url: resolvePublicMediaUrl(item.thumbnail_url) || item.thumbnail_url || null,
+  }));
 }

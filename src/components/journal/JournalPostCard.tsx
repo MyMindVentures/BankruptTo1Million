@@ -55,7 +55,7 @@ export function JournalPostCard({ post, href, categoryLabel, readTimeLabel }: Jo
     let cancelled = false;
     setFootage([]);
 
-    getJournalPostFootage(post.slug, altLabels)
+    getJournalPostFootage(post.id, altLabels)
       .then((items) => {
         if (cancelled || !items.length) return;
         setFootage(mapFootageItems(items));
@@ -65,7 +65,7 @@ export function JournalPostCard({ post, href, categoryLabel, readTimeLabel }: Jo
       });
 
     return () => { cancelled = true; };
-  }, [altLabels, post.slug]);
+  }, [altLabels, post.id]);
 
   return (
     <AceternityContentCard

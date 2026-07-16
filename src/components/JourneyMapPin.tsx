@@ -57,6 +57,7 @@ export function JourneyMapPin({ point, active, onSelect, i18n }: {
     <button
       type="button"
       className={className}
+      data-journey-entry-id={point.journey_entry_id}
       aria-label={t('journey_map_pin.open', 'Open {title}{people}', { title: point.title, people: people.length ? ` — ${peopleLabel(point)}` : '' })}
       onClick={() => onSelect(point.journey_entry_id)}
     >

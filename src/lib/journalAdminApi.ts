@@ -374,50 +374,43 @@ export async function createJourneyPerson(payload: Record<string, unknown>) {
   return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
 }
 
-export async function uploadJournalFootage(postId: string, file: File, index: number, event: JournalEventPayload) {
+export async function uploadJournalFootage(postId: string, file: File, event: JournalEventPayload) {
   if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
-  const isVideo = file.type.startsWith('video/');
-  const bucket = isVideo ? 'media-videos' : 'media-images';
-  const typeFolder = isVideo ? 'videos' : 'images';
-  const date = new Date(event.occurred_at || Date.now());
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '-');
-  const objectPath = `journal/${year}/${month}/${postId}/${typeFolder}/${Date.now()}-${index}-${safeName}`;
 
-  const upload = await fetch(`${supabaseUrl}/storage/v1/object/${bucket}/${objectPath}`, {
+  const form = new FormData();
+  form.append('post_id', postId);
+  form.append('file', file, file.name);
+  form.append('asset_metadata', JSON.stringify({
+    occurred_at: event.occurred_at,
+    event_type: event.event_type,
+    location_name: event.location_name,
+    featured_business_name: event.featured_business_name || '',
+    plus_code: event.plus_code,
+    latitude: event.latitude,
+    longitude: event.longitude,
+    subject_founder_ids: event.subject_founder_ids,
+    person_ids: event.person_ids,
+  }));
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/upload-journal-footage`, {
     method: 'POST',
-    headers: { apikey: anonKey, Authorization: `Bearer ${token()}`, 'Content-Type': file.type, 'x-upsert': 'false' },
-    body: file,
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token()}`,
+    },
+    body: form,
   });
-  if (!upload.ok) {
-    const payload = await upload.json().catch(() => null) as { message?: string } | null;
-    throw new Error(payload?.message || 'Footage upload failed.');
+
+  const payload = await response.json().catch(() => null) as {
+    ok?: boolean;
+    asset_id?: string;
+    error?: string;
+  } | null;
+
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.error || `Footage upload failed (${response.status}).`);
   }
 
-  const asset = await request<{ id: string }>('/rest/v1/rpc/admin_register_journal_footage', {
-    method: 'POST',
-    body: JSON.stringify({
-      post_id: postId,
-      bucket_name: bucket,
-      object_path: objectPath,
-      file_name: file.name,
-      mime_type: file.type,
-      file_size: file.size,
-      placement_name: index === 0 ? 'hero' : 'gallery',
-      display_index: index,
-      asset_metadata: {
-        occurred_at: event.occurred_at,
-        event_type: event.event_type,
-        location_name: event.location_name,
-        featured_business_name: event.featured_business_name || '',
-        plus_code: event.plus_code,
-        latitude: event.latitude,
-        longitude: event.longitude,
-        subject_founder_ids: event.subject_founder_ids,
-        person_ids: event.person_ids,
-      },
-    }),
-  });
-  return asset.id;
+  if (!payload?.asset_id) throw new Error('Footage upload did not return an asset id.');
+  return payload.asset_id;
 }
