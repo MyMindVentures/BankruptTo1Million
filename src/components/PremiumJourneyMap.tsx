@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { Badge, Card, Callout } from './ui/card';
 import { Button, ButtonLink } from './ui/button';
+import { loadMapLibre, POI_MAP_STYLE } from '../lib/mapLibreLoader';
 import { mountJourneyMapPin } from './JourneyMapPin';
 import { JourneyFootageCarousel, type JourneyFootageItem } from './journal/JourneyFootageCarousel';
 import './PremiumJourneyMap.css';
@@ -87,55 +88,12 @@ type FounderRoute = {
   status: 'idle' | 'loading' | 'routed' | 'fallback';
 };
 
-type MapLibreGlobal = {
-  Map: new (options: Record<string, unknown>) => any;
-  Marker: new (options?: Record<string, unknown>) => any;
-  Popup: new (options?: Record<string, unknown>) => any;
-  NavigationControl: new (options?: Record<string, unknown>) => any;
-  FullscreenControl: new () => any;
-  AttributionControl: new (options?: Record<string, unknown>) => any;
-  ScaleControl: new (options?: Record<string, unknown>) => any;
-};
-
 type MountedMapPin = ReturnType<typeof mountJourneyMapPin>;
 type MarkerRecord = {
   marker: any;
   pin: MountedMapPin;
   pointId: string;
 };
-
-declare global { interface Window { maplibregl?: MapLibreGlobal; } }
-
-const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js';
-const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css';
-const MAP_STYLE = {
-  version: 8,
-  sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png','https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } },
-  layers: [{ id: 'carto-voyager', type: 'raster', source: 'carto', minzoom: 0, maxzoom: 20 }],
-};
-
-let mapLibrePromise: Promise<MapLibreGlobal> | null = null;
-
-function loadMapLibre(): Promise<MapLibreGlobal> {
-  if (window.maplibregl) return Promise.resolve(window.maplibregl);
-  if (mapLibrePromise) return mapLibrePromise;
-  mapLibrePromise = new Promise((resolve, reject) => {
-    if (!document.querySelector(`link[href="${MAPLIBRE_CSS}"]`)) {
-      const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = MAPLIBRE_CSS; document.head.appendChild(link);
-    }
-    const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
-    if (existing) {
-      existing.addEventListener('load', () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.')), { once: true });
-      existing.addEventListener('error', () => reject(new Error('MapLibre failed to load.')), { once: true });
-      return;
-    }
-    const script = document.createElement('script'); script.src = MAPLIBRE_JS; script.async = true;
-    script.onload = () => window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.'));
-    script.onerror = () => reject(new Error('MapLibre failed to load.'));
-    document.head.appendChild(script);
-  });
-  return mapLibrePromise;
-}
 
 function coordinates(point: PremiumJourneyPoint): Coordinate {
   return [Number(point.longitude), Number(point.latitude)];
@@ -247,7 +205,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-      map = new maplibregl.Map({ container: containerRef.current, style: MAP_STYLE, center: coordinates(active), zoom: 10.5, pitch: 32, bearing: -4, attributionControl: false, cooperativeGestures: true });
+      map = new maplibregl.Map({ container: containerRef.current, style: POI_MAP_STYLE, center: coordinates(active), zoom: 10.5, pitch: 32, bearing: -4, attributionControl: false, cooperativeGestures: true });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');

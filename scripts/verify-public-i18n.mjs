@@ -140,6 +140,17 @@ function isBrandLiteral(value, brandAllowlist) {
   return false;
 }
 
+function extractExportFunctions(source, exportNames) {
+  if (!exportNames?.length) return source;
+  const chunks = [];
+  for (const exportName of exportNames) {
+    const fnRegex = new RegExp(`export function ${exportName}\\b[\\s\\S]*?(?=\\nexport function |\\nexport const |$)`);
+    const match = source.match(fnRegex);
+    if (match) chunks.push(match[0]);
+  }
+  return chunks.length ? chunks.join('\n\n') : source;
+}
+
 function findHardcodedUi(source, brandAllowlist, isDataModule) {
   const violations = [];
   const manifestStart = source.indexOf('_I18N_MANIFEST');
@@ -166,7 +177,7 @@ function findHardcodedUi(source, brandAllowlist, isDataModule) {
     if (/\bt\(/.test(line) || /translateText\(/.test(line)) continue;
     if (/^\s*'[^']+'\s*,?\s*$/.test(line)) {
       const prev = lines[index - 1] ?? '';
-      if (/\bt\(/.test(prev) || /'[a-z][a-z0-9_.-]+'\s*,?\s*$/.test(prev)) continue;
+      if (/\bt\(/.test(prev) || /'[a-z][a-z0-9_.-]+'\s*,?\s*$/.test(prev) || /,\s*$/.test(prev) || /\(\s*$/.test(prev)) continue;
     }
     if (/translationKey:/.test(line) || /labelKey:/.test(line) || /titleKey:/.test(line)) continue;
     if (/translationKeys:/.test(line) || /keyPatterns:/.test(line) || /componentKey:/.test(line)) continue;
@@ -259,20 +270,22 @@ export async function verifyPublicI18n() {
     const source = await readFile(absolutePath, 'utf8');
     const isDataModule = config.dataModulePaths.map(normalizePath).includes(relativePath);
     const manifest = extractManifest(source);
+    const publicExports = config.publicExportsOnly?.[relativePath];
+    const scanSource = publicExports ? extractExportFunctions(source, publicExports) : source;
 
     if (!manifest?.componentKey) {
       errors.push(`${relativePath}: missing export const *_I18N_MANIFEST`);
       continue;
     }
 
-    const usedKeys = extractTranslationKeys(source);
+    const usedKeys = extractTranslationKeys(publicExports ? scanSource : source);
     for (const key of usedKeys) {
       if (!manifestCoversKey(manifest, key)) {
         errors.push(`${relativePath}: t()/translation key "${key}" not declared in ${manifest.exportName}`);
       }
     }
 
-    const hardcoded = findHardcodedUi(source, config.brandAllowlist, isDataModule);
+    const hardcoded = findHardcodedUi(scanSource, config.brandAllowlist, isDataModule);
     if (isDataModule) {
       for (const key of usedKeys) {
         if (!manifestCoversKey(manifest, key)) {

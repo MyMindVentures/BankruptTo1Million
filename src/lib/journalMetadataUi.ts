@@ -58,7 +58,8 @@ export const JOURNAL_METADATA_UI_I18N_MANIFEST = {
   entityContent: { tables: [] },
 } as const satisfies I18nManifest;
 
-export function initializeJournalMetadataUi(_t: WebsiteTranslate) {
+export function initializeJournalMetadataUi(t: WebsiteTranslate) {
+  void t;
   const observer = new MutationObserver(() => enhanceJournalMetadata());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('popstate', enhanceJournalMetadata);

@@ -157,7 +157,8 @@ function enhanceOwnershipUi(notice: ConceptOwnershipNotice) {
   replaceDetailSignature(notice);
 }
 
-export function initializeConceptOwnershipUi(_t: WebsiteTranslate) {
+export function initializeConceptOwnershipUi(t: WebsiteTranslate) {
+  void t;
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   void loadOwnershipNotice().then((notice) => {

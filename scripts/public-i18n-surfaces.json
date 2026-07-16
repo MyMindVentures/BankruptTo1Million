@@ -51,5 +51,9 @@
     "src/lib/journalMetadataUi.ts",
     "src/lib/latestThreeUi.ts",
     "src/lib/siteMediaUi.ts"
-  ]
+  ],
+  "publicExportsOnly": {
+    "src/pages/JournalPages.tsx": ["JournalPage", "JournalArticlePage", "ShareBlock", "CommentsBlock"],
+    "src/pages/BreakTheCirclePages.tsx": ["BreakTheCirclePage", "BreakTheCircleArticlePage", "StoryArticle", "PublicCard"]
+  }
 }

@@ -123,7 +123,8 @@ export const SITE_MEDIA_UI_I18N_MANIFEST = {
   entityContent: { tables: [] },
 } as const satisfies I18nManifest;
 
-export function initializeSiteMediaUi(_t: WebsiteTranslate) {
+export function initializeSiteMediaUi(t: WebsiteTranslate) {
+  void t;
   let slots: Map<string, WebsiteMediaSlot> | null = null;
   let scheduled = false;
 

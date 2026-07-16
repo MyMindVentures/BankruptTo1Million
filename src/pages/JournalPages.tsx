@@ -47,6 +47,7 @@ import {
   type SharePlatform,
 } from '../lib/journal';
 import { supabase } from '../lib/supabase';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 type JournalLoadStatus = 'loading' | 'ready' | 'error';
 type JournalSort = 'newest' | 'updated' | 'short' | 'long';
@@ -527,6 +528,7 @@ function StorySubmissionForm() {
 }
 
 export function ShareBlock({ post, basePath = '/journal' }: { post: PublicJournalPost; basePath?: string }) {
+  const { t } = useWebsiteI18n();
   const [copied, setCopied] = useState(false);
   const url = canonicalJournalPostUrl(post.slug, window.location.origin, basePath);
   const title = post.displayTitle;
@@ -534,7 +536,7 @@ export function ShareBlock({ post, basePath = '/journal' }: { post: PublicJourna
   async function nativeShare() { if (navigator.share) { track('native'); try { await navigator.share({ title, url, text: title }); } catch { return; } } }
   async function copy() { try { await navigator.clipboard.writeText(url); setCopied(true); track('copy_link'); window.setTimeout(() => setCopied(false), 2200); } catch { setCopied(false); } }
   const links: [Exclude<SharePlatform, 'native' | 'copy_link' | 'other'>, string, typeof Share2][] = [['x', 'X', Share2], ['facebook', 'Facebook', Facebook], ['linkedin', 'LinkedIn', Linkedin], ['whatsapp', 'WhatsApp', MessageCircle], ['telegram', 'Telegram', Send], ['email', 'Email', Mail]];
-  return <section className="section journal-share" aria-labelledby="share-story-title"><div className="story-panel"><p className="eyebrow">Share this story</p><h2 id="share-story-title">Help this story reach the right reader.</h2><div className="share-actions">{typeof navigator.share === 'function' ? <button className="button" onClick={nativeShare} type="button"><Share2 size={18} /> Native share</button> : null}<button className="button button--ghost" onClick={copy} type="button" aria-live="polite">{copied ? <Check size={18} /> : <Copy size={18} />} {copied ? 'Link copied' : 'Copy link'}</button>{links.map(([platform, label, Icon]) => <a className="button button--ghost" key={platform} href={buildShareUrl(platform, url, title)} target={platform === 'email' ? undefined : '_blank'} rel="noopener noreferrer" onClick={() => track(platform)} aria-label={`Share on ${label}`}><Icon size={18} />{label}</a>)}</div>{copied ? <p className="form-status" role="status">Copied the canonical story link.</p> : null}</div></section>;
+  return <section className="section journal-share" aria-labelledby="share-story-title"><div className="story-panel"><p className="eyebrow">{t('journal.share.eyebrow', 'Share this story')}</p><h2 id="share-story-title">{t('journal.share.title', 'Help this story reach the right reader.')}</h2><div className="share-actions">{typeof navigator.share === 'function' ? <button className="button" onClick={nativeShare} type="button"><Share2 size={18} /> {t('journal.share.native', 'Native share')}</button> : null}<button className="button button--ghost" onClick={copy} type="button" aria-live="polite">{copied ? <Check size={18} /> : <Copy size={18} />} {copied ? t('journal.share.copied', 'Link copied') : t('journal.share.copy', 'Copy link')}</button>{links.map(([platform, label, Icon]) => <a className="button button--ghost" key={platform} href={buildShareUrl(platform, url, title)} target={platform === 'email' ? undefined : '_blank'} rel="noopener noreferrer" onClick={() => track(platform)} aria-label={t('journal.share.platform_aria', 'Share on {platform}', { platform: label })}><Icon size={18} />{label}</a>)}</div>{copied ? <p className="form-status" role="status">{t('journal.share.copied_status', 'Copied the canonical story link.')}</p> : null}</div></section>;
 }
 
 function CommentForm({ post, parent, onDone, onCancel }: { post: PublicJournalPost; parent?: JournalComment; onDone: () => void; onCancel?: () => void }) {

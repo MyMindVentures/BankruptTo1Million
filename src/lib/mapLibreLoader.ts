@@ -3,14 +3,22 @@ export type MapLibreGlobal = {
   Marker: new (options?: Record<string, unknown>) => MapLibreMarker;
   Popup: new (options?: Record<string, unknown>) => MapLibrePopup;
   NavigationControl: new (options?: Record<string, unknown>) => unknown;
+  FullscreenControl: new () => unknown;
   AttributionControl: new (options?: Record<string, unknown>) => unknown;
+  ScaleControl: new (options?: Record<string, unknown>) => unknown;
 };
 
 export type MapLibreMap = {
   addControl: (control: unknown, position?: string) => void;
+  addSource: (id: string, options: Record<string, unknown>) => void;
+  addLayer: (options: Record<string, unknown>) => void;
   fitBounds: (bounds: [[number, number], [number, number]], options?: Record<string, unknown>) => void;
+  flyTo: (options: Record<string, unknown>) => void;
+  getSource: (id: string) => { setData?: (data: unknown) => void } | undefined;
+  getZoom: () => number;
   project: (lngLat: [number, number]) => { x: number; y: number };
   remove: () => void;
+  resize: () => void;
   on: (event: string, handler: () => void) => void;
   off: (event: string, handler: () => void) => void;
 };
@@ -24,6 +32,7 @@ export type MapLibreMarker = {
 
 export type MapLibrePopup = {
   setHTML: (html: string) => MapLibrePopup;
+  setDOMContent: (element: HTMLElement) => MapLibrePopup;
 };
 
 type MapLibreWindow = Window & { maplibregl?: MapLibreGlobal };

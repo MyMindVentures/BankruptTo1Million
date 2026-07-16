@@ -150,7 +150,8 @@ export const JOURNAL_MAP_MARKER_MEDIA_UI_I18N_MANIFEST = {
   entityContent: { tables: [] },
 } as const satisfies I18nManifest;
 
-export function initializeJournalMapMarkerMediaUi(_t: WebsiteTranslate) {
+export function initializeJournalMapMarkerMediaUi(t: WebsiteTranslate) {
+  void t;
   if (observer) return;
   void enhanceVisibleMarkers();
   observer = new MutationObserver(() => { void enhanceVisibleMarkers(); });

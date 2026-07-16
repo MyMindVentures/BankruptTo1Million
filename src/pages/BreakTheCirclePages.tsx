@@ -7,24 +7,82 @@ import { deleteBreakTheCirclePost, emptyBreakTheCircleForm, filterAdminBreakTheC
 import { formatAuthorByline, getPostAuthors, sanitizeMarkdown, type JournalAuthor } from '../lib/journal';
 import { CommentsBlock, ShareBlock } from './JournalPages';
 import { supabase } from '../lib/supabase';
-import '../styles/breakTheCircle.css';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 function fmt(value?: string) { return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value)) : 'Not set'; }
 function setMeta(title: string, description: string, image?: string) { document.title=title; const set=(n:string,c:string,p=false)=>{let el=document.head.querySelector(p?`meta[property="${n}"]`:`meta[name="${n}"]`) as HTMLMetaElement|null; if(!el){el=document.createElement('meta'); el.setAttribute(p?'property':'name',n); document.head.appendChild(el);} el.content=c;}; set('description',description); set('og:title',title,true); set('og:description',description,true); if(image)set('og:image',image,true); }
 function StatusBadge({status}:{status:string}) { return <span className={`status-badge status-badge--${status}`}>{status}</span>; }
 function Tags({post}:{post:BreakTheCirclePost}) { const tags=(post.journal_post_tags||[]).map((t)=>t.journal_tags).filter(Boolean); return tags.length?<div className="label-row">{tags.map((t)=><span key={t!.id}>{t!.name}</span>)}</div>:null; }
-function PublicCard({post}:{post:BreakTheCirclePost}) { const a=getPostAuthors(post)[0]; return <AceternityContentCard href={`/break-the-circle/${post.slug}`} title={post.displayTitle} description={post.displayExcerpt || post.displaySubtitle} authorName={a?.display_name || formatAuthorByline(post).replace(/^By /,'') || 'Bankrupt to 1 Million'} avatarSrc={a?.avatar_url || '/og-image.png'} imageSrc={post.cover_image_url || undefined} imageAlt={post.cover_image_alt || post.displayTitle} readTime={`${post.reading_time_minutes || 4} min read`} category="Break the Circle" publishedDate={post.published_at}>{fmt(post.published_at)}</AceternityContentCard>; }
+function PublicCard({post}:{post:BreakTheCirclePost}) {
+  const { t } = useWebsiteI18n();
+  const a=getPostAuthors(post)[0];
+  return <AceternityContentCard href={`/break-the-circle/${post.slug}`} title={post.displayTitle} description={post.displayExcerpt || post.displaySubtitle} authorName={a?.display_name || formatAuthorByline(post).replace(/^By /,'') || 'Bankrupt to 1 Million'} avatarSrc={a?.avatar_url || '/og-image.png'} imageSrc={post.cover_image_url || undefined} imageAlt={post.cover_image_alt || post.displayTitle} readTime={t('break_the_circle.card.read_time', '{minutes} min read', { minutes: post.reading_time_minutes || 4 })} category={t('break_the_circle.card.category', 'Break the Circle')} publishedDate={post.published_at}>{fmt(post.published_at)}</AceternityContentCard>;
+}
 
 export const BREAK_THE_CIRCLE_PAGES_I18N_MANIFEST = {
   componentKey: 'pages.break.the.circle.pages',
-  namespace: 'ui',
+  namespace: 'break_the_circle',
   translationKeys: [
+    'break_the_circle.page.hero.eyebrow',
+    'break_the_circle.page.hero.title',
+    'break_the_circle.page.hero.description',
+    'break_the_circle.page.hero.read_cta',
+    'break_the_circle.page.hero.share_cta',
+    'break_the_circle.page.hero.story_count',
+    'break_the_circle.page.hero.story_note',
+    'break_the_circle.page.loading',
+    'break_the_circle.page.featured.eyebrow',
+    'break_the_circle.page.featured.title',
+    'break_the_circle.page.featured.description',
+    'break_the_circle.page.featured.empty',
+    'break_the_circle.page.latest.eyebrow',
+    'break_the_circle.page.latest.title',
+    'break_the_circle.page.latest.description',
+    'break_the_circle.page.latest.empty',
+    'break_the_circle.article.loading',
+    'break_the_circle.article.not_found',
+    'break_the_circle.article.back',
+    'break_the_circle.article.eyebrow',
+    'break_the_circle.article.cta.eyebrow',
+    'break_the_circle.article.cta.title',
+    'break_the_circle.card.category',
+    'break_the_circle.card.read_time',
   ] as const,
 } as const satisfies I18nManifest;
 
-export function BreakTheCirclePage() { const [state,setState]=useState('loading'),[posts,setPosts]=useState<BreakTheCirclePost[]>([]),[error,setError]=useState(''); useEffect(()=>{setMeta('Help Us Break The Circle | Bankrupt to 1 Million','Honest stories about trapped potential, building without the right environment, and the people or opportunities that can help break the cycle.'); getBreakTheCirclePublicIndex().then((d)=>{setPosts(d.posts);setState('ready');}).catch(()=>{setError('Break the Circle stories are temporarily unavailable.');setState('error');});},[]); const featured=sortFeaturedBreakTheCircle(posts.filter((p)=>p.btcMeta?.is_featured)); return <main className="journal-page btc-page"><section className="hero journal-hero section-grid"><div><p className="eyebrow">Help Us Break The Circle</p><h1>Stories about trapped potential and finding momentum.</h1><p className="hero__lede">Honest stories about trapped potential, building without the right environment, and the people or opportunities that can help break the cycle.</p><div className="hero__actions"><a className="button" href="#latest">Read the stories <ArrowRight size={18}/></a><a className="button button--ghost" href="/journal#submit-story">Share a story</a></div></div><aside className="hero-card"><CalendarDays/><blockquote>{posts.length} published stories</blockquote><p>Only published, due Supabase posts linked to Break the Circle appear here.</p></aside></section>{state==='loading'?<section className="section"><div className="impact-state">Loading Break the Circle stories…</div></section>:null}{state==='error'?<section className="section"><div className="impact-state impact-state--error">{error}</div></section>:null}{state==='ready'?<><section className="section"><SectionHeading eyebrow="Featured stories" title="Signals that can break the cycle." titleId="btc-featured">Featured order is managed by administrators for this collection.</SectionHeading>{featured.length?<div className="journal-grid">{featured.map((p)=><PublicCard post={p} key={p.id}/>)}</div>:<div className="impact-state">No featured Break the Circle stories are published yet.</div>}</section><section className="section" id="latest"><SectionHeading eyebrow="Latest stories" title="A living collection, not a static page." titleId="btc-latest">Each story is an individual Supabase journal post with its own slug, authors, tags and CTA.</SectionHeading>{posts.length?<div className="journal-grid">{posts.map((p)=><PublicCard post={p} key={p.id}/>)}</div>:<div className="impact-state">The first Break the Circle stories are being prepared.</div>}</section></>:null}</main>; }
-export function BreakTheCircleArticlePage({slug}:{slug:string}) { const [post,setPost]=useState<BreakTheCirclePost|null>(null),[state,setState]=useState('loading'); useEffect(()=>{getBreakTheCirclePublicPost(slug).then((p)=>{setPost(p);setState('ready'); if(p)setMeta(`${p.seo_title || p.displayTitle} | Break the Circle`, p.seo_description || p.displayExcerpt || 'A Help Us Break The Circle story.', p.og_image_url || p.cover_image_url);}).catch(()=>setState('error'));},[slug]); if(state==='loading')return <main className="section"><div className="impact-state">Loading story…</div></main>; if(state==='error'||!post)return <main className="section"><div className="impact-state impact-state--error">Story not found or not public.</div><a className="button" href="/break-the-circle">Back to collection</a></main>; return <StoryArticle post={post} preview={false}/>; }
-function StoryArticle({post,preview}:{post:BreakTheCirclePost;preview:boolean}) { const meta=post.btcMeta; return <main className="journal-article btc-article"><article className="section"><header className="journal-article__header">{preview?<p className="eyebrow">Administrator preview · not public</p>:<p className="eyebrow">Help Us Break The Circle</p>}<h1>{post.displayTitle}</h1>{post.displaySubtitle?<p className="hero__lede">{post.displaySubtitle}</p>:null}<div className="journal-meta"><span>{formatAuthorByline(post) || 'Editorial story'}</span><time dateTime={post.published_at}>{fmt(post.published_at)}</time><span>{post.reading_time_minutes || 4} min read</span></div>{post.cover_image_url?<img className="btc-cover" src={post.cover_image_url} alt={post.cover_image_alt || post.displayTitle}/>:null}<Tags post={post}/></header><div className="markdown-body journal-body" dangerouslySetInnerHTML={{__html:sanitizeMarkdown(post.displayBody || post.body || '')}} /></article>{!preview?<ShareBlock post={post} basePath="/break-the-circle"/>:null}{!preview?<CommentsBlock post={post}/>:null}{meta?.cta_label&&meta.cta_url?<section className="section"><div className="story-panel btc-cta"><p className="eyebrow">Break the cycle</p><h2>Know the right person, partner or opening?</h2><a className="button" href={meta.cta_url}>{meta.cta_label}</a></div></section>:null}</main>; }
+export function BreakTheCirclePage() {
+  const { t, formatNumber } = useWebsiteI18n();
+  const [state, setState] = useState('loading');
+  const [posts, setPosts] = useState<BreakTheCirclePost[]>([]);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    setMeta(
+      t('break_the_circle.page.seo.title', 'Help Us Break The Circle | Bankrupt to 1 Million'),
+      t('break_the_circle.page.seo.description', 'Honest stories about trapped potential, building without the right environment, and the people or opportunities that can help break the cycle.'),
+    );
+    getBreakTheCirclePublicIndex()
+      .then((d) => { setPosts(d.posts); setState('ready'); })
+      .catch(() => {
+        setError(t('break_the_circle.page.error', 'Break the Circle stories are temporarily unavailable.'));
+        setState('error');
+      });
+  }, [t]);
+  const featured = sortFeaturedBreakTheCircle(posts.filter((p) => p.btcMeta?.is_featured));
+  return <main className="journal-page btc-page"><section className="hero journal-hero section-grid"><div><p className="eyebrow">{t('break_the_circle.page.hero.eyebrow', 'Help Us Break The Circle')}</p><h1>{t('break_the_circle.page.hero.title', 'Stories about trapped potential and finding momentum.')}</h1><p className="hero__lede">{t('break_the_circle.page.hero.description', 'Honest stories about trapped potential, building without the right environment, and the people or opportunities that can help break the cycle.')}</p><div className="hero__actions"><a className="button" href="#latest">{t('break_the_circle.page.hero.read_cta', 'Read the stories')} <ArrowRight size={18}/></a><a className="button button--ghost" href="/journal#submit-story">{t('break_the_circle.page.hero.share_cta', 'Share a story')}</a></div></div><aside className="hero-card"><CalendarDays/><blockquote>{t('break_the_circle.page.hero.story_count', '{count} published stories', { count: formatNumber(posts.length) })}</blockquote><p>{t('break_the_circle.page.hero.story_note', 'Only published, due Supabase posts linked to Break the Circle appear here.')}</p></aside></section>{state==='loading'?<section className="section"><div className="impact-state">{t('break_the_circle.page.loading', 'Loading Break the Circle stories…')}</div></section>:null}{state==='error'?<section className="section"><div className="impact-state impact-state--error">{error}</div></section>:null}{state==='ready'?<><section className="section"><SectionHeading eyebrow={t('break_the_circle.page.featured.eyebrow', 'Featured stories')} title={t('break_the_circle.page.featured.title', 'Signals that can break the cycle.')} titleId="btc-featured">{t('break_the_circle.page.featured.description', 'Featured order is managed by administrators for this collection.')}</SectionHeading>{featured.length?<div className="journal-grid">{featured.map((p)=><PublicCard post={p} key={p.id}/>)}</div>:<div className="impact-state">{t('break_the_circle.page.featured.empty', 'No featured Break the Circle stories are published yet.')}</div>}</section><section className="section" id="latest"><SectionHeading eyebrow={t('break_the_circle.page.latest.eyebrow', 'Latest stories')} title={t('break_the_circle.page.latest.title', 'A living collection, not a static page.')} titleId="btc-latest">{t('break_the_circle.page.latest.description', 'Each story is an individual Supabase journal post with its own slug, authors, tags and CTA.')}</SectionHeading>{posts.length?<div className="journal-grid">{posts.map((p)=><PublicCard post={p} key={p.id}/>)}</div>:<div className="impact-state">{t('break_the_circle.page.latest.empty', 'The first Break the Circle stories are being prepared.')}</div>}</section></>:null}</main>;
+}
+export function BreakTheCircleArticlePage({slug}:{slug:string}) {
+  const { t } = useWebsiteI18n();
+  const [post,setPost]=useState<BreakTheCirclePost|null>(null),[state,setState]=useState('loading');
+  useEffect(()=>{getBreakTheCirclePublicPost(slug).then((p)=>{setPost(p);setState('ready'); if(p)setMeta(`${p.seo_title || p.displayTitle} | Break the Circle`, p.seo_description || p.displayExcerpt || t('break_the_circle.article.seo_fallback', 'A Help Us Break The Circle story.'), p.og_image_url || p.cover_image_url);}).catch(()=>setState('error'));},[slug,t]);
+  if(state==='loading')return <main className="section"><div className="impact-state">{t('break_the_circle.article.loading', 'Loading story…')}</div></main>;
+  if(state==='error'||!post)return <main className="section"><div className="impact-state impact-state--error">{t('break_the_circle.article.not_found', 'Story not found or not public.')}</div><a className="button" href="/break-the-circle">{t('break_the_circle.article.back', 'Back to collection')}</a></main>;
+  return <StoryArticle post={post} preview={false}/>;
+}
+function StoryArticle({post,preview}:{post:BreakTheCirclePost;preview:boolean}) {
+  const { t } = useWebsiteI18n();
+  const meta=post.btcMeta;
+  return <main className="journal-article btc-article"><article className="section"><header className="journal-article__header">{preview?<p className="eyebrow">{t('break_the_circle.article.preview_eyebrow', 'Administrator preview · not public')}</p>:<p className="eyebrow">{t('break_the_circle.article.eyebrow', 'Help Us Break The Circle')}</p>}<h1>{post.displayTitle}</h1>{post.displaySubtitle?<p className="hero__lede">{post.displaySubtitle}</p>:null}<div className="journal-meta"><span>{formatAuthorByline(post) || t('break_the_circle.article.editorial', 'Editorial story')}</span><time dateTime={post.published_at}>{fmt(post.published_at)}</time><span>{t('break_the_circle.card.read_time', '{minutes} min read', { minutes: post.reading_time_minutes || 4 })}</span></div>{post.cover_image_url?<img className="btc-cover" src={post.cover_image_url} alt={post.cover_image_alt || post.displayTitle}/>:null}<Tags post={post}/></header><div className="markdown-body journal-body" dangerouslySetInnerHTML={{__html:sanitizeMarkdown(post.displayBody || post.body || '')}} /></article>{!preview?<ShareBlock post={post} basePath="/break-the-circle"/>:null}{!preview?<CommentsBlock post={post}/>:null}{meta?.cta_label&&meta.cta_url?<section className="section"><div className="story-panel btc-cta"><p className="eyebrow">{t('break_the_circle.article.cta.eyebrow', 'Break the cycle')}</p><h2>{t('break_the_circle.article.cta.title', 'Know the right person, partner or opening?')}</h2><a className="button" href={meta.cta_url}>{meta.cta_label}</a></div></section>:null}</main>;
+}
 
 function AdminGate({children}:{children:ReactNode}) { const session=supabase.auth.getSession(); if(!session)return <main className="section"><h1>Admin sign in required.</h1><p className="hero__lede">Sign in with an administrator account before managing Break the Circle posts.</p><a className="button" href="/profile">Sign in</a></main>; if(!isAdminSession(session))return <main className="section"><div className="impact-state impact-state--error">Administrator access is required.</div></main>; return children; }
 export function AdminBreakTheCirclePage() { return <AdminGate><AdminBreakTheCircleList/></AdminGate>; }

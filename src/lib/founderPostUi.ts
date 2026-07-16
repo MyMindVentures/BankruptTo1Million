@@ -77,7 +77,8 @@ export const FOUNDER_POST_UI_I18N_MANIFEST = {
   entityContent: { tables: [] },
 } as const satisfies I18nManifest;
 
-export function initializeFounderPostUi(_t: WebsiteTranslate) {
+export function initializeFounderPostUi(t: WebsiteTranslate) {
+  void t;
   let renderedSlug = '';
   let loadingSlug = '';
   const enhance = async () => {

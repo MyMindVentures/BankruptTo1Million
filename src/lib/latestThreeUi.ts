@@ -86,7 +86,8 @@ export const LATEST_THREE_UI_I18N_MANIFEST = {
   entityContent: { tables: [] },
 } as const satisfies I18nManifest;
 
-export function initializeLatestThreeUi(_t: WebsiteTranslate) {
+export function initializeLatestThreeUi(t: WebsiteTranslate) {
+  void t;
   let mountedPath = '';
   let pendingPath = '';
   let requestVersion = 0;
