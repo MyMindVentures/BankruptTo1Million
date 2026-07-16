@@ -5,7 +5,7 @@ insert into public.website_translation_keys
 values
   ('journal.footage.eyebrow', 'journal', 'Eyebrow label for journal footage section', 'Footage from the journey', 'text', true, true, '{}', false),
   ('journal.footage.title', 'journal', 'Heading for journal footage section', 'See the moment as it happened.', 'text', true, true, '{}', false),
-  ('journal.footage.open', 'journal', 'Open footage tile button label', 'Open footage', 'text', true, true, '{}', false),
+  ('journal.footage.open', 'journal', 'Open footage tile button label', 'Open footage {number}', 'text', true, true, '{"number"}', false),
   ('journal.footage.close', 'journal', 'Close footage viewer button label', 'Close viewer', 'text', true, true, '{}', false),
   ('journal.footage.previous', 'journal', 'Previous footage in viewer', 'Previous', 'text', true, true, '{}', false),
   ('journal.footage.next', 'journal', 'Next footage in viewer', 'Next', 'text', true, true, '{}', false),
@@ -41,7 +41,7 @@ with catalog(translation_key, language_code, translated_text) as (
   values
     ('journal.footage.eyebrow','es','Imágenes del viaje'),
     ('journal.footage.title','es','Vive el momento tal como ocurrió.'),
-    ('journal.footage.open','es','Abrir imagen'),
+    ('journal.footage.open','es','Abrir imagen {number}'),
     ('journal.footage.close','es','Cerrar visor'),
     ('journal.footage.previous','es','Anterior'),
     ('journal.footage.next','es','Siguiente'),
@@ -70,7 +70,7 @@ with catalog(translation_key, language_code, translated_text) as (
   values
     ('journal.footage.eyebrow','de','Aufnahmen von der Reise'),
     ('journal.footage.title','de','Erlebe den Moment, wie er war.'),
-    ('journal.footage.open','de','Aufnahme öffnen'),
+    ('journal.footage.open','de','Aufnahme {number} öffnen'),
     ('journal.footage.close','de','Viewer schließen'),
     ('journal.footage.previous','de','Zurück'),
     ('journal.footage.next','de','Weiter'),

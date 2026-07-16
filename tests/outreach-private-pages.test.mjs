@@ -23,11 +23,33 @@ test('migration stores only token hashes and exposes public/admin outreach RPCs'
   assert.match(migration, /create or replace function public\.admin_get_outreach_overview/);
 });
 
+test('admin completion migration fixes partnership import and adds picker RPCs', () => {
+  const completion = readFileSync(new URL('../supabase/migrations/20260717120000_outreach_admin_ui_completion.sql', import.meta.url), 'utf8');
+  assert.match(completion, /organization_name/);
+  assert.match(completion, /admin_list_partnership_contacts_for_outreach/);
+  assert.match(completion, /admin_search_media_assets_for_outreach/);
+  assert.match(completion, /admin\.outreach\.import\.title/);
+});
+
 test('admin outreach api uses RPCs instead of direct table reads', () => {
   assert.match(adminApi, /admin_get_outreach_overview/);
   assert.match(adminApi, /admin_upsert_outreach_campaign/);
   assert.match(adminApi, /admin_generate_outreach_token/);
+  assert.match(adminApi, /admin_list_partnership_contacts_for_outreach/);
+  assert.match(adminApi, /admin_search_media_assets_for_outreach/);
+  assert.match(adminApi, /admin_set_outreach_page_media/);
+  assert.match(adminApi, /admin_import_outreach_from_partnership/);
   assert.doesNotMatch(adminApi, /outreach_campaigns\?select=/);
+});
+
+test('admin page wires partnership import, media picker and translated copy', () => {
+  assert.match(adminPage, /importOutreachFromPartnership/);
+  assert.match(adminPage, /listPartnershipContactsForOutreach/);
+  assert.match(adminPage, /searchMediaAssetsForOutreach/);
+  assert.match(adminPage, /setOutreachPageMedia/);
+  assert.match(adminPage, /t\('admin\.outreach\.import\.title'/);
+  assert.match(adminPage, /t\('admin\.outreach\.section\.media'/);
+  assert.match(adminPage, /t\('admin\.outreach\.save'/);
 });
 
 test('public outreach api uses token-gated RPCs', () => {

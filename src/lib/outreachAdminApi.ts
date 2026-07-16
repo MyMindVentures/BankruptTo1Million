@@ -167,3 +167,71 @@ export async function importOutreachFromPartnership(partnershipContactId: string
     cache: 'no-store',
   }));
 }
+
+export type PartnershipContactRow = {
+  id: string;
+  full_name: string | null;
+  organization_name: string | null;
+  email: string | null;
+  country: string | null;
+  outreach_angle: string | null;
+};
+
+export type OutreachMediaAssetRow = {
+  id: string;
+  title: string | null;
+  asset_type: string | null;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  external_url: string | null;
+  thumbnail_url: string | null;
+  status: string | null;
+};
+
+export type OutreachPageMediaItem = {
+  media_asset_id: string;
+  sort_order: number;
+  caption: string;
+  title?: string | null;
+  asset_type?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  external_url?: string | null;
+  thumbnail_url?: string | null;
+};
+
+export async function listPartnershipContactsForOutreach(query?: string): Promise<PartnershipContactRow[]> {
+  const payload = await parse<unknown>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_list_partnership_contacts_for_outreach`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ p_query: query ?? null, p_limit: 50 }),
+    cache: 'no-store',
+  }));
+  return Array.isArray(payload) ? payload as PartnershipContactRow[] : [];
+}
+
+export async function searchMediaAssetsForOutreach(query?: string): Promise<OutreachMediaAssetRow[]> {
+  const payload = await parse<unknown>(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_search_media_assets_for_outreach`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({ p_query: query ?? null, p_limit: 40 }),
+    cache: 'no-store',
+  }));
+  return Array.isArray(payload) ? payload as OutreachMediaAssetRow[] : [];
+}
+
+export async function setOutreachPageMedia(pageId: string, media: OutreachPageMediaItem[]): Promise<void> {
+  await parse(await fetch(`${supabaseUrl}/rest/v1/rpc/admin_set_outreach_page_media`, {
+    method: 'POST',
+    headers: headers(),
+    body: JSON.stringify({
+      p_page_id: pageId,
+      p_media: media.map((item, index) => ({
+        media_asset_id: item.media_asset_id,
+        sort_order: item.sort_order ?? index,
+        caption: item.caption ?? '',
+      })),
+    }),
+    cache: 'no-store',
+  }));
+}
