@@ -54,7 +54,7 @@ export function JournalVenueThankYouSection({ slug }: { slug: string }) {
 
   if (loadState === 'loading') {
     return (
-      <section className="journal-venue-thank-you section" aria-busy="true" aria-live="polite">
+      <section className="journal-venue-thank-you section" aria-busy="true" aria-live="polite" data-i18n-ignore="true">
         <p className="journal-venue-thank-you__loading">
           <LoaderCircle className="spin" size={16} aria-hidden="true" />
           {t('journal.place_context.thank_you.loading', 'Loading thank-you message…')}
@@ -65,7 +65,7 @@ export function JournalVenueThankYouSection({ slug }: { slug: string }) {
 
   if (loadState === 'error') {
     return (
-      <section className="journal-venue-thank-you section" aria-live="polite">
+      <section className="journal-venue-thank-you section" aria-live="polite" data-i18n-ignore="true">
         <p className="journal-venue-thank-you__error" role="status">
           {t('journal.place_context.thank_you.error', 'Thank-you message is temporarily unavailable.')}
         </p>
@@ -81,6 +81,7 @@ export function JournalVenueThankYouSection({ slug }: { slug: string }) {
     <section
       className="journal-venue-thank-you section"
       aria-label={t('journal.place_context.thank_you.aria_label', 'Thank-you message to the venue team')}
+      data-i18n-ignore="true"
     >
       <div className="journal-venue-thank-you__card">
         <header className="journal-venue-thank-you__header">

@@ -10,12 +10,10 @@ export type WebsiteLanguage = {
   display_order: number;
 };
 
-type TranslationRow = { translation_key: string; translated_text: string };
-type TranslationKeyRow = { id: string; translation_key: string; default_text: string };
-type TranslationValueRow = { translation_key_id: string; translated_text: string };
 type TranslationVariables = Record<string, string | number>;
 export type WebsiteTranslate = (key: string, fallback: string, variables?: TranslationVariables) => string;
 type TranslationBundle = { byKey: Record<string, string>; bySource: Record<string, string> };
+type TranslationBundlePayload = { byKey?: Record<string, string>; bySource?: Record<string, string> };
 
 type WebsiteI18nContextValue = {
   language: string;
@@ -29,7 +27,7 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v16.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v17.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 const PUBLIC_SITE_ROOT_SELECTOR = '#root';
@@ -37,8 +35,6 @@ const WebsiteI18nContext = createContext<WebsiteI18nContextValue | null>(null);
 const bundleCache = new Map<string, TranslationBundle>();
 const originalText = new WeakMap<Text, string>();
 const originalAttributes = new WeakMap<Element, Map<string, string>>();
-let translationKeysPromise: Promise<TranslationKeyRow[]> | null = null;
-
 async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
   const resolved = await response;
   if (!resolved.ok) throw new Error(await resolved.text());
@@ -136,34 +132,19 @@ function cacheBundle(language: string, bundle: TranslationBundle) {
   try { window.sessionStorage.setItem(`${BUNDLE_CACHE_PREFIX}${language}`, JSON.stringify(bundle)); } catch { /* in-memory cache remains available */ }
 }
 
-function getTranslationKeys() {
-  if (!translationKeysPromise) {
-    translationKeysPromise = readJson<TranslationKeyRow[]>(supabase.from('website_translation_keys').request({ query: 'select=id,translation_key,default_text&order=translation_key.asc' })).catch((error) => {
-      translationKeysPromise = null;
-      throw error;
-    });
-  }
-  return translationKeysPromise;
+function parseTranslationBundle(payload: unknown): TranslationBundle {
+  const record = payload as TranslationBundlePayload;
+  return {
+    byKey: record?.byKey && typeof record.byKey === 'object' ? record.byKey : {},
+    bySource: record?.bySource && typeof record.bySource === 'object' ? record.bySource : {},
+  };
 }
 
 async function loadBundle(language: string): Promise<TranslationBundle> {
   const cached = readCachedBundle(language);
   if (cached) return cached;
-  const [resolvedRows, keyRows, valueRows] = await Promise.all([
-    readJson<TranslationRow[]>(supabase.rpc('get_website_translations', { p_language_code: language })),
-    getTranslationKeys(),
-    language === DEFAULT_LANGUAGE ? Promise.resolve([] as TranslationValueRow[]) : readJson<TranslationValueRow[]>(supabase.from('website_translations').request({ query: `select=translation_key_id,translated_text&language_code=eq.${encodeURIComponent(language)}` })),
-  ]);
-  const byKey = Object.fromEntries(resolvedRows.map((row) => [row.translation_key, row.translated_text]));
-  const valuesByKeyId = new Map(valueRows.map((row) => [row.translation_key_id, row.translated_text]));
-  const bySource: Record<string, string> = {};
-  for (const keyRow of keyRows) {
-    const source = normalizeText(keyRow.default_text || '');
-    if (!source) continue;
-    const translated = language === DEFAULT_LANGUAGE ? keyRow.default_text : valuesByKeyId.get(keyRow.id);
-    if (translated) bySource[source] = translated;
-  }
-  const bundle = { byKey, bySource };
+  const payload = await readJson<unknown>(supabase.rpc('get_website_i18n_bundle', { p_language_code: language }));
+  const bundle = parseTranslationBundle(payload);
   cacheBundle(language, bundle);
   return bundle;
 }
