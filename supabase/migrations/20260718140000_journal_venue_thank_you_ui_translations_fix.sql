@@ -45,6 +45,21 @@ begin
   end loop;
 
   if to_regprocedure('private.dispatch_pending_translation_jobs(integer)') is not null then
+    update public.translation_jobs
+    set status = 'pending',
+        updated_at = now()
+    where entity_type = 'website_key'
+      and status = 'partially_completed'
+      and entity_id in (
+        select id
+        from public.website_translation_keys
+        where translation_key in (
+          'journal.place_context.thank_you.eyebrow',
+          'journal.place_context.thank_you.heading',
+          'journal.place_context.thank_you.aria_label'
+        )
+      );
+
     v_dispatched := private.dispatch_pending_translation_jobs(10);
     raise notice 'Dispatched % venue thank-you UI translation jobs', v_dispatched;
   end if;
