@@ -1,9 +1,9 @@
 import type { I18nManifest } from '../../lib/i18nManifest';
 import { Archive, ArrowRight, ChevronDown, Filter, Gift, HandHeart, MapPin, Search, SlidersHorizontal } from 'lucide-react';
-import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
 import { SectionHeading } from '../SectionHeading';
 import { JourneyFootageCarousel, type JourneyFootageItem } from './JourneyFootageCarousel';
+import { JournalPostCard } from './JournalPostCard';
 import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
 import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
@@ -187,20 +187,12 @@ function ExchangeGroup({ type, items }: { type: 'need' | 'offer'; items: Timelin
   </details>;
 }
 
-export function JournalArticleCard({ post }: { post: PublicJournalPost }) {
-  const people = getJournalDisplayPeople(post);
-  return <AceternityContentCard
-    href={`/journal/${post.slug}`}
-    title={post.displayTitle}
-    description={post.displayExcerpt || post.displaySubtitle}
-    authorName={formatJournalPeople(people)}
-    people={people.map((person) => ({ id: person.id, name: person.display_name, avatarSrc: person.avatar_url }))}
-    imageSrc={post.cover_image_url || undefined}
-    imageAlt={post.cover_image_alt || post.displayTitle}
-    readTime={`${post.reading_time_minutes || 4} min read`}
-    category={post.journal_categories?.name || 'Journal'}
-    publishedDate={post.published_at}
-  >{formatJournalDate(post.published_at)}</AceternityContentCard>;
+export function JournalLatestSection({ posts }: { posts: PublicJournalPost[] }) {
+  const { t } = useWebsiteI18n();
+  return <section className="journal-latest-section" id="latest" aria-labelledby="journal-latest-title">
+    <SectionHeading eyebrow={t('journal.timeline.latest_eyebrow', 'Latest stories')} title={t('journal.timeline.latest_title', 'The three newest chapters.')} titleId="journal-latest-title">{t('journal.timeline.latest_description', 'Only the latest three stories stay visible here, so the page remains focused and easy to scan.')}</SectionHeading>
+    {posts.length ? <div className="journal-grid journal-grid--latest-three">{posts.map((post) => <JournalPostCard key={post.id} post={post} />)}</div> : <div className="impact-state">No published stories yet.</div>}
+  </section>;
 }
 
 export function JournalIntroSection() {
@@ -292,14 +284,6 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
   </section>;
 }
 
-export function JournalLatestSection({ posts }: { posts: PublicJournalPost[] }) {
-  const { t } = useWebsiteI18n();
-  return <section className="journal-latest-section" id="latest" aria-labelledby="journal-latest-title">
-    <SectionHeading eyebrow={t('journal.timeline.latest_eyebrow', 'Latest stories')} title={t('journal.timeline.latest_title', 'The three newest chapters.')} titleId="journal-latest-title">{t('journal.timeline.latest_description', 'Only the latest three stories stay visible here, so the page remains focused and easy to scan.')}</SectionHeading>
-    {posts.length ? <div className="journal-grid journal-grid--latest-three">{posts.map((post) => <JournalArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No published stories yet.</div>}
-  </section>;
-}
-
 export function JournalArchiveSection({ journal, posts, open, category, search, sort, onToggle, onCategoryChange, onSearchChange, onSortChange, onReset }: {
   journal: JournalIndexData;
   posts: PublicJournalPost[];
@@ -328,7 +312,7 @@ export function JournalArchiveSection({ journal, posts, open, category, search, 
       <div className="chip-group" role="group" aria-label={t('journal.timeline.archive_categories', 'Archive categories')}>
         {chips.map((chip) => <button key={chip.slug} type="button" className={`chip ${category === chip.slug ? 'chip--active' : ''}`} onClick={() => onCategoryChange(chip.slug)}>{chip.name}<span>({chip.slug === 'all' ? journal.posts.length : journal.posts.filter((post) => post.journal_categories?.slug === chip.slug).length})</span></button>)}
       </div>
-      {posts.length ? <div className="journal-grid">{posts.map((post) => <JournalArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No archive stories match these filters.</div>}
+      {posts.length ? <div className="journal-grid">{posts.map((post) => <JournalPostCard key={post.id} post={post} />)}</div> : <div className="impact-state">No archive stories match these filters.</div>}
     </div> : null}
   </section>;
 }

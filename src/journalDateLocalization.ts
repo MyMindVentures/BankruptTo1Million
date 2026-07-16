@@ -8,7 +8,7 @@ function activeLocale() {
 
 function localizeDates() {
   const locale = activeLocale();
-  document.querySelectorAll(`${LOCALIZED_ROOT_SELECTOR} time[datetime]`).forEach((node) => {
+  document.querySelectorAll(`${LOCALIZED_ROOT_SELECTOR} time[datetime]:not(.aceternity-hover-card__date)`).forEach((node) => {
     const time = node as HTMLTimeElement;
     const raw = time.dateTime || time.getAttribute('datetime') || '';
     const date = new Date(raw);

@@ -1,13 +1,24 @@
 .aceternity-hover-card {
   position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 100%;
+  height: 100%;
   padding: 0.55rem;
   border-radius: 1.9rem;
   color: inherit;
   text-decoration: none;
   isolation: isolate;
+}
+
+.aceternity-hover-card__stretched-link {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: 1.9rem;
+  color: inherit;
+  text-decoration: none;
 }
 
 .aceternity-hover-card__background {
@@ -25,15 +36,17 @@
 
 .aceternity-hover-card__surface {
   position: relative;
-  display: grid;
-  min-height: 30rem;
+  z-index: 0;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 28rem;
   overflow: hidden;
   border: 1px solid rgba(255, 247, 237, 0.12);
   border-radius: 1.45rem;
-  background:
-    linear-gradient(180deg, rgba(20, 16, 12, 0.2), rgba(13, 10, 8, 0.96)),
-    #17120d;
+  background: linear-gradient(180deg, rgba(24, 19, 14, 0.98), rgba(12, 10, 8, 0.98));
   box-shadow: 0 1.4rem 3.8rem rgba(0, 0, 0, 0.26);
+  pointer-events: none;
   transition:
     transform 220ms ease,
     border-color 220ms ease,
@@ -41,53 +54,138 @@
 }
 
 .aceternity-hover-card:hover .aceternity-hover-card__surface,
-.aceternity-hover-card:focus-visible .aceternity-hover-card__surface {
+.aceternity-hover-card:focus-within .aceternity-hover-card__surface {
   transform: translateY(-0.45rem);
   border-color: rgba(215, 168, 79, 0.48);
   box-shadow: 0 2.2rem 5rem rgba(0, 0, 0, 0.38);
 }
 
-.aceternity-hover-card__media,
-.aceternity-hover-card__media img,
+.aceternity-hover-card__media-band {
+  position: relative;
+  flex: 0 0 auto;
+  min-height: clamp(9.5rem, 24vw, 12rem);
+  overflow: hidden;
+  border-bottom: 1px solid rgba(255, 247, 237, 0.08);
+  background:
+    radial-gradient(circle at 18% 0%, rgba(215, 168, 79, 0.16), transparent 38%),
+    linear-gradient(145deg, rgba(34, 27, 20, 0.98), rgba(14, 11, 8, 0.98));
+}
+
+.aceternity-hover-card__media-band--brand {
+  background:
+    radial-gradient(circle at 50% 18%, rgba(215, 168, 79, 0.24), transparent 48%),
+    linear-gradient(160deg, rgba(42, 33, 24, 0.98), rgba(15, 12, 9, 0.98));
+}
+
+.aceternity-hover-card__cover,
 .aceternity-hover-card__media-overlay {
   position: absolute;
   inset: 0;
 }
 
-.aceternity-hover-card__media img {
+.aceternity-hover-card__cover {
   width: 100%;
   height: 100%;
   object-fit: cover;
   transform: scale(1.01);
-  transition: transform 650ms cubic-bezier(.2,.8,.2,1), filter 350ms ease;
+  transition: transform 650ms cubic-bezier(.2, .8, .2, 1), filter 350ms ease;
 }
 
-.aceternity-hover-card:hover .aceternity-hover-card__media img,
-.aceternity-hover-card:focus-visible .aceternity-hover-card__media img {
-  transform: scale(1.075);
+.aceternity-hover-card:hover .aceternity-hover-card__cover,
+.aceternity-hover-card:focus-within .aceternity-hover-card__cover {
+  transform: scale(1.06);
   filter: saturate(1.08) contrast(1.03);
 }
 
 .aceternity-hover-card__media-overlay {
   background:
-    linear-gradient(180deg, rgba(7, 6, 5, 0.12) 0%, rgba(7, 6, 5, 0.44) 42%, rgba(7, 6, 5, 0.98) 100%),
+    linear-gradient(180deg, rgba(7, 6, 5, 0.08) 0%, rgba(7, 6, 5, 0.42) 58%, rgba(7, 6, 5, 0.92) 100%),
     linear-gradient(120deg, rgba(215, 168, 79, 0.08), transparent 45%);
 }
 
-.aceternity-hover-card__surface--text-only {
+.aceternity-hover-card__media-band--footage {
+  display: flex;
+  flex-direction: column;
+  background: #090d12;
+}
+
+.aceternity-hover-card__media-overlay--footage {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  inset: auto;
   background:
-    radial-gradient(circle at 15% 0%, rgba(215, 168, 79, 0.18), transparent 34%),
-    linear-gradient(145deg, rgba(40, 32, 24, 0.98), rgba(15, 12, 9, 0.98));
+    linear-gradient(180deg, rgba(7, 6, 5, 0.08) 0%, rgba(7, 6, 5, 0.34) 58%, rgba(7, 6, 5, 0.82) 100%),
+    linear-gradient(120deg, rgba(215, 168, 79, 0.08), transparent 45%);
+  pointer-events: none;
+}
+
+.aceternity-hover-card__media-overlay--footage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(7, 6, 5, 0.04) 0%, rgba(7, 6, 5, 0.28) 100%);
+  pointer-events: none;
+}
+
+.aceternity-hover-card__media-overlay--footage .journey-footage {
+  position: relative;
+  z-index: 1;
+}
+
+.aceternity-hover-card__media-overlay--footage .journey-footage__controls {
+  position: relative;
+  z-index: 3;
+  pointer-events: auto;
+}
+
+.aceternity-hover-card__brand-stage {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 1.5rem;
+}
+
+.aceternity-hover-card__brand-logo {
+  width: min(42%, 7.5rem);
+  height: auto;
+  max-height: 5.5rem;
+  object-fit: contain;
+  filter: drop-shadow(0 0.75rem 1.75rem rgba(0, 0, 0, 0.45));
+}
+
+.aceternity-hover-card__brand-mark {
+  position: absolute;
+  top: 0.85rem;
+  inset-inline-end: 0.85rem;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  border: 1px solid rgba(215, 168, 79, 0.42);
+  border-radius: 0.8rem;
+  background: rgba(8, 7, 6, 0.72);
+  box-shadow: 0 0.5rem 1.25rem rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+}
+
+.aceternity-hover-card__brand-mark-logo {
+  width: 1.45rem;
+  height: 1.45rem;
+  object-fit: contain;
 }
 
 .aceternity-hover-card__body {
-  position: relative;
-  z-index: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
-  justify-content: space-between;
-  min-height: 30rem;
-  padding: clamp(1.25rem, 3vw, 1.75rem);
+  gap: 0.85rem;
+  min-height: 0;
+  padding: clamp(1rem, 2.5vw, 1.35rem);
 }
 
 .aceternity-hover-card__topline,
@@ -99,48 +197,64 @@
 
 .aceternity-hover-card__topline {
   justify-content: space-between;
-  gap: 1rem;
+  gap: 0.75rem;
   color: rgba(255, 247, 237, 0.72);
-  font-size: 0.78rem;
+  font-size: 0.74rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .aceternity-hover-card__category {
+  min-width: 0;
+  overflow: hidden;
   color: #f0c56f;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aceternity-hover-card__read-time {
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .aceternity-hover-card__copy {
-  margin-top: auto;
-  padding: 6rem 0 2rem;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 0;
 }
 
 .aceternity-hover-card__copy h2 {
-  max-width: 14ch;
   margin: 0;
   color: #fff7ed;
   font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(2rem, 3.6vw, 3.15rem);
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+  font-size: clamp(1.45rem, 2.4vw, 2rem);
+  line-height: 1.08;
+  letter-spacing: -0.04em;
   text-wrap: balance;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
 }
 
 .aceternity-hover-card__copy p {
   display: -webkit-box;
-  max-width: 34rem;
-  margin: 1rem 0 0;
+  margin: 0;
   overflow: hidden;
   color: rgba(255, 247, 237, 0.72);
-  line-height: 1.65;
+  line-height: 1.6;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
 
 .aceternity-hover-card__footer {
-  gap: 0.85rem;
-  padding-top: 1rem;
+  flex-wrap: wrap;
+  gap: 0.65rem 0.85rem;
+  margin-top: auto;
+  padding-top: 0.85rem;
   border-top: 1px solid rgba(255, 247, 237, 0.12);
   color: rgba(255, 247, 237, 0.72);
   font-size: 0.82rem;
@@ -148,13 +262,20 @@
 
 .aceternity-hover-card__author {
   min-width: 0;
+  flex: 1 1 12rem;
   gap: 0.6rem;
-  margin-right: auto;
   color: #fff7ed;
   font-weight: 800;
 }
 
-.aceternity-hover-card__author img {
+.aceternity-hover-card__avatars {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.aceternity-hover-card__avatar,
+.aceternity-hover-card__avatar-fallback {
   width: 2.2rem;
   height: 2.2rem;
   flex: 0 0 auto;
@@ -163,9 +284,38 @@
   object-fit: cover;
 }
 
-.aceternity-hover-card__author span {
+.aceternity-hover-card__avatar + .aceternity-hover-card__avatar,
+.aceternity-hover-card__avatar + .aceternity-hover-card__avatar-fallback,
+.aceternity-hover-card__avatar-fallback + .aceternity-hover-card__avatar,
+.aceternity-hover-card__avatar-fallback + .aceternity-hover-card__avatar-fallback {
+  margin-inline-start: -0.65rem;
+}
+
+.aceternity-hover-card__avatar-fallback {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(12, 10, 8, 0.92);
+}
+
+.aceternity-hover-card__avatar-logo {
+  width: 1.35rem;
+  height: 1.35rem;
+  object-fit: contain;
+}
+
+.aceternity-hover-card__author-name {
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.aceternity-hover-card__date {
+  flex: 0 0 auto;
+  color: rgba(255, 247, 237, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
@@ -175,6 +325,7 @@
   width: 2.4rem;
   height: 2.4rem;
   flex: 0 0 auto;
+  margin-inline-start: auto;
   border: 1px solid rgba(215, 168, 79, 0.4);
   border-radius: 50%;
   color: #f0c56f;
@@ -182,16 +333,20 @@
   transition: transform 220ms ease, background 220ms ease, color 220ms ease;
 }
 
+.aceternity-hover-card:focus-within .aceternity-hover-card__stretched-link {
+  outline: 3px solid #d7a84f;
+  outline-offset: 4px;
+}
+
 .aceternity-hover-card:hover .aceternity-hover-card__arrow,
-.aceternity-hover-card:focus-visible .aceternity-hover-card__arrow {
+.aceternity-hover-card:focus-within .aceternity-hover-card__arrow {
   transform: translate(0.18rem, -0.18rem);
   background: #d7a84f;
   color: #171008;
 }
 
-.aceternity-hover-card:focus-visible {
-  outline: 3px solid #d7a84f;
-  outline-offset: 4px;
+.journal-grid > .aceternity-hover-card {
+  align-self: stretch;
 }
 
 @media (max-width: 640px) {
@@ -199,35 +354,34 @@
     padding: 0.35rem;
   }
 
-  .aceternity-hover-card__surface,
-  .aceternity-hover-card__body {
-    min-height: 25rem;
-  }
-
-  .aceternity-hover-card__copy {
-    padding-top: 4rem;
+  .aceternity-hover-card__surface {
+    min-height: 24rem;
   }
 
   .aceternity-hover-card__copy h2 {
-    font-size: clamp(1.8rem, 10vw, 2.5rem);
+    font-size: clamp(1.35rem, 6.5vw, 1.85rem);
   }
 
-  .aceternity-hover-card__footer time {
-    display: none;
+  .aceternity-hover-card__footer {
+    align-items: flex-start;
+  }
+
+  .aceternity-hover-card__arrow {
+    margin-inline-start: 0;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .aceternity-hover-card__surface,
-  .aceternity-hover-card__media img,
+  .aceternity-hover-card__cover,
   .aceternity-hover-card__arrow {
     transition: none;
   }
 
   .aceternity-hover-card:hover .aceternity-hover-card__surface,
-  .aceternity-hover-card:focus-visible .aceternity-hover-card__surface,
-  .aceternity-hover-card:hover .aceternity-hover-card__media img,
-  .aceternity-hover-card:focus-visible .aceternity-hover-card__media img {
+  .aceternity-hover-card:focus-within .aceternity-hover-card__surface,
+  .aceternity-hover-card:hover .aceternity-hover-card__cover,
+  .aceternity-hover-card:focus-within .aceternity-hover-card__cover {
     transform: none;
   }
 }

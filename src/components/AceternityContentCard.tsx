@@ -1,14 +1,22 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { AnimatePresence, motion } from 'motion/react';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import { JourneyFootageCarousel, type JourneyFootageItem } from './journal/JourneyFootageCarousel';
+import { MissionLogo } from './MissionLogo';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import './AceternityContentCard.css';
 
 export const ACETERNITY_CONTENT_CARD_I18N_MANIFEST = {
   componentKey: 'components.aceternity.content.card',
-  namespace: 'ui',
-  translationKeys: [] as const,
-  keyPatterns: ['content_card.*'] as const,
+  namespace: 'content_card',
+  translationKeys: [
+    'content_card.author.default',
+    'content_card.category.journal',
+    'content_card.read',
+    'content_card.read_time',
+    'content_card.read_time.default',
+  ] as const,
+  keyPatterns: ['journal.footage.*'] as const,
 } as const satisfies I18nManifest;
 
 export type ContentCardPerson = {
@@ -22,46 +30,68 @@ export type AceternityContentCardProps = {
   title: string;
   description?: string;
   authorName?: string;
-  avatarSrc?: string;
   people?: ContentCardPerson[];
   imageSrc?: string;
   imageAlt?: string;
+  footage?: JourneyFootageItem[];
   readTime?: string;
   category?: string;
   publishedDate?: string;
-  children?: ReactNode;
+  formattedDate?: string;
 };
+
+function PersonAvatar({ person, className }: { person: ContentCardPerson; className: string }) {
+  if (person.avatarSrc) {
+    return <img className={className} src={person.avatarSrc} alt="" loading="lazy" decoding="async" />;
+  }
+
+  return (
+    <span className={`${className} aceternity-hover-card__avatar-fallback`} aria-hidden="true">
+      <MissionLogo className="aceternity-hover-card__avatar-logo" decorative />
+    </span>
+  );
+}
 
 export function AceternityContentCard({
   href,
   title,
   description,
   authorName,
-  avatarSrc = '/og-image.png',
   people,
   imageSrc,
   imageAlt = '',
+  footage,
   readTime,
   category,
   publishedDate,
-  children,
+  formattedDate,
 }: AceternityContentCardProps) {
   const { t } = useWebsiteI18n();
   const [hovered, setHovered] = useState(false);
   const resolvedAuthorName = authorName || t('content_card.author.default', 'Bankrupt to 1 Million');
-  const visiblePeople = people?.length ? people : [{ name: resolvedAuthorName, avatarSrc }];
+  const visiblePeople = people?.length ? people : [{ name: resolvedAuthorName }];
   const peopleLabel = visiblePeople.map((person) => person.name).join(' & ');
+  const resolvedReadTime = readTime || t('content_card.read_time.default', '4 min read');
+  const resolvedCategory = category || t('content_card.category.journal', 'Journal');
+  const dateLabel = formattedDate || '';
+  const hasFootage = Boolean(footage?.length);
+  const showCoverImage = !hasFootage && Boolean(imageSrc);
 
   return (
-    <a
+    <div
       className="aceternity-hover-card"
-      href={href}
-      aria-label={t('content_card.read', 'Read {title}', { title })}
+      data-i18n-ignore="true"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onFocus={() => setHovered(true)}
-      onBlur={() => setHovered(false)}
+      onFocusCapture={() => setHovered(true)}
+      onBlurCapture={() => setHovered(false)}
     >
+      <a
+        className="aceternity-hover-card__stretched-link"
+        href={href}
+        aria-label={t('content_card.read', 'Read {title}', { title })}
+      />
+
       <AnimatePresence>
         {hovered ? (
           <motion.span
@@ -74,18 +104,31 @@ export function AceternityContentCard({
         ) : null}
       </AnimatePresence>
 
-      <article className={`aceternity-hover-card__surface${imageSrc ? '' : ' aceternity-hover-card__surface--text-only'}`}>
-        {imageSrc ? (
-          <div className="aceternity-hover-card__media">
-            <img src={imageSrc} alt={imageAlt} loading="lazy" />
-            <div className="aceternity-hover-card__media-overlay" />
+      <article className="aceternity-hover-card__surface">
+        <div className={`aceternity-hover-card__media-band${hasFootage ? ' aceternity-hover-card__media-band--footage' : showCoverImage ? '' : ' aceternity-hover-card__media-band--brand'}`}>
+          {hasFootage ? (
+            <div className="aceternity-hover-card__media-overlay aceternity-hover-card__media-overlay--footage">
+              <JourneyFootageCarousel items={footage} title={title} embedInCard />
+            </div>
+          ) : showCoverImage ? (
+            <>
+              <img className="aceternity-hover-card__cover" src={imageSrc} alt={imageAlt} loading="lazy" decoding="async" />
+              <div className="aceternity-hover-card__media-overlay" aria-hidden="true" />
+            </>
+          ) : (
+            <div className="aceternity-hover-card__brand-stage" aria-hidden="true">
+              <MissionLogo className="aceternity-hover-card__brand-logo" decorative />
+            </div>
+          )}
+          <div className="aceternity-hover-card__brand-mark" aria-hidden="true">
+            <MissionLogo className="aceternity-hover-card__brand-mark-logo" decorative />
           </div>
-        ) : null}
+        </div>
 
         <div className="aceternity-hover-card__body">
           <div className="aceternity-hover-card__topline">
-            <span className="aceternity-hover-card__category">{category || t('content_card.category.journal', 'Journal')}</span>
-            <span>{readTime || t('content_card.read_time.default', '4 min read')}</span>
+            <span className="aceternity-hover-card__category">{resolvedCategory}</span>
+            <span className="aceternity-hover-card__read-time">{resolvedReadTime}</span>
           </div>
 
           <div className="aceternity-hover-card__copy">
@@ -97,21 +140,22 @@ export function AceternityContentCard({
             <div className="aceternity-hover-card__author">
               <span className="aceternity-hover-card__avatars" aria-hidden="true">
                 {visiblePeople.slice(0, 3).map((person, index) => (
-                  <img
+                  <PersonAvatar
                     key={person.id || `${person.name}-${index}`}
-                    src={person.avatarSrc || '/og-image.png'}
-                    alt=""
-                    loading="lazy"
+                    person={person}
+                    className="aceternity-hover-card__avatar"
                   />
                 ))}
               </span>
-              <span>{peopleLabel}</span>
+              <span className="aceternity-hover-card__author-name">{peopleLabel}</span>
             </div>
-            {publishedDate ? <time dateTime={publishedDate}>{children}</time> : null}
+            {publishedDate && dateLabel ? (
+              <time className="aceternity-hover-card__date" dateTime={publishedDate}>{dateLabel}</time>
+            ) : null}
             <span className="aceternity-hover-card__arrow" aria-hidden="true">↗</span>
           </div>
         </div>
       </article>
-    </a>
+    </div>
   );
 }

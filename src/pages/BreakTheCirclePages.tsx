@@ -1,10 +1,10 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, CalendarDays, Edit, Eye, Plus, Trash2 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { AceternityContentCard } from '../components/AceternityContentCard';
+import { JournalPostCard } from '../components/journal/JournalPostCard';
 import { SectionHeading } from '../components/SectionHeading';
 import { deleteBreakTheCirclePost, emptyBreakTheCircleForm, filterAdminBreakTheCirclePosts, formFromPost, getAdminBreakTheCirclePost, getAdminBreakTheCirclePosts, getBreakTheCirclePublicIndex, getBreakTheCirclePublicPost, getEditorOptions, isAdminSession, normalizeSlug, saveBreakTheCirclePost, sortFeaturedBreakTheCircle, transitionBreakTheCirclePost, validateBreakTheCircleForm, type BreakTheCircleForm, type BreakTheCirclePost } from '../lib/breakTheCircle';
-import { formatAuthorByline, getPostAuthors, sanitizeMarkdown, type JournalAuthor } from '../lib/journal';
+import { formatAuthorByline, sanitizeMarkdown, type JournalAuthor } from '../lib/journal';
 import { CommentsBlock, ShareBlock } from './JournalPages';
 import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -15,8 +15,12 @@ function StatusBadge({status}:{status:string}) { return <span className={`status
 function Tags({post}:{post:BreakTheCirclePost}) { const tags=(post.journal_post_tags||[]).map((t)=>t.journal_tags).filter(Boolean); return tags.length?<div className="label-row">{tags.map((t)=><span key={t!.id}>{t!.name}</span>)}</div>:null; }
 function PublicCard({post}:{post:BreakTheCirclePost}) {
   const { t } = useWebsiteI18n();
-  const a=getPostAuthors(post)[0];
-  return <AceternityContentCard href={`/break-the-circle/${post.slug}`} title={post.displayTitle} description={post.displayExcerpt || post.displaySubtitle} authorName={a?.display_name || formatAuthorByline(post).replace(/^By /,'') || 'Bankrupt to 1 Million'} avatarSrc={a?.avatar_url || '/og-image.png'} imageSrc={post.cover_image_url || undefined} imageAlt={post.cover_image_alt || post.displayTitle} readTime={t('break_the_circle.card.read_time', '{minutes} min read', { minutes: post.reading_time_minutes || 4 })} category={t('break_the_circle.card.category', 'Break the Circle')} publishedDate={post.published_at}>{fmt(post.published_at)}</AceternityContentCard>;
+  return <JournalPostCard
+    post={post}
+    href={`/break-the-circle/${post.slug}`}
+    categoryLabel={t('break_the_circle.card.category', 'Break the Circle')}
+    readTimeLabel={t('break_the_circle.card.read_time', '{minutes} min read', { minutes: post.reading_time_minutes || 4 })}
+  />;
 }
 
 export const BREAK_THE_CIRCLE_PAGES_I18N_MANIFEST = {

@@ -9,7 +9,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { AceternityContentCard } from '../components/AceternityContentCard';
+import { JournalPostCard } from '../components/journal/JournalPostCard';
 import { JournalDonationsBlock } from '../components/journal/JournalDonationsBlock';
 import { JournalFootageSection } from '../components/journal/JournalFootageSection';
 import { JournalPlaceContextSection } from '../components/journal/JournalPlaceContextSection';
@@ -204,25 +204,7 @@ function JournalFeaturedSection({ featured }: { featured?: PublicJournalPost }) 
 }
 
 function ArticleCard({ post }: { post: PublicJournalPost }) {
-  const authors = getPostAuthors(post);
-  const primaryAuthor = authors[0];
-
-  return (
-    <AceternityContentCard
-      href={`/journal/${post.slug}`}
-      title={post.displayTitle}
-      description={post.displayExcerpt || post.displaySubtitle}
-      authorName={primaryAuthor?.display_name || 'Bankrupt to 1 Million'}
-      avatarSrc={primaryAuthor?.avatar_url || '/og-image.png'}
-      imageSrc={post.cover_image_url || undefined}
-      imageAlt={post.cover_image_alt || post.displayTitle}
-      readTime={`${post.reading_time_minutes || 4} min read`}
-      category={post.journal_categories?.name || 'Journal'}
-      publishedDate={post.published_at}
-    >
-      {fmt(post.published_at)}
-    </AceternityContentCard>
-  );
+  return <JournalPostCard post={post} />;
 }
 
 function JournalFilterToolbar({ search, sort, onSearchChange, onSortChange, onReset }: {

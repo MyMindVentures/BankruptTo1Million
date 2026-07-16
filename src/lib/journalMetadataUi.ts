@@ -23,7 +23,9 @@ function formatJournalTimestamp(value: string) {
 function enhanceJournalMetadata() {
   if (!window.location.pathname.startsWith('/journal')) return;
 
-  document.querySelectorAll<HTMLTimeElement>('time[datetime]').forEach((element) => {
+  document.querySelectorAll<HTMLTimeElement>(
+    '.journal-article__header time[datetime], .journal-meta time[datetime], .journal-card__date[datetime]',
+  ).forEach((element) => {
     const value = element.getAttribute('datetime');
     if (!value || element.dataset.fullTimestamp === 'true') return;
     const formatted = formatJournalTimestamp(value);
