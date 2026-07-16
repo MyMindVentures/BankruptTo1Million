@@ -3,16 +3,9 @@ import {
   ArrowRight,
   BookOpen,
   CalendarDays,
-  Check,
-  Copy,
   ExternalLink,
-  Facebook,
-  Linkedin,
-  Mail,
-  MessageCircle,
   Pin,
   Send,
-  Share2,
   ShieldCheck,
 } from 'lucide-react';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
@@ -21,8 +14,8 @@ import { JournalDonationsBlock } from '../components/journal/JournalDonationsBlo
 import { JournalFootageSection } from '../components/journal/JournalFootageSection';
 import { JournalPlaceContextSection } from '../components/journal/JournalPlaceContextSection';
 import { SectionHeading } from '../components/SectionHeading';
+import { ShareActions } from '../components/ShareActions';
 import {
-  buildShareUrl,
   canonicalJournalPostUrl,
   filterPosts,
   formatAuthorByline,
@@ -44,7 +37,6 @@ import {
   type JournalCommentStatus,
   type JournalIndexData,
   type PublicJournalPost,
-  type SharePlatform,
 } from '../lib/journal';
 import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -392,6 +384,7 @@ export const JOURNAL_PAGES_I18N_MANIFEST = {
   namespace: 'ui',
   translationKeys: [
   ] as const,
+  keyPatterns: ['journal.*'] as const,
 } as const satisfies I18nManifest;
 
 export function JournalPage() {
@@ -529,14 +522,25 @@ function StorySubmissionForm() {
 
 export function ShareBlock({ post, basePath = '/journal' }: { post: PublicJournalPost; basePath?: string }) {
   const { t } = useWebsiteI18n();
-  const [copied, setCopied] = useState(false);
   const url = canonicalJournalPostUrl(post.slug, window.location.origin, basePath);
-  const title = post.displayTitle;
-  async function track(platform: SharePlatform) { void recordJournalShare(post.id, platform); }
-  async function nativeShare() { if (navigator.share) { track('native'); try { await navigator.share({ title, url, text: title }); } catch { return; } } }
-  async function copy() { try { await navigator.clipboard.writeText(url); setCopied(true); track('copy_link'); window.setTimeout(() => setCopied(false), 2200); } catch { setCopied(false); } }
-  const links: [Exclude<SharePlatform, 'native' | 'copy_link' | 'other'>, string, typeof Share2][] = [['x', 'X', Share2], ['facebook', 'Facebook', Facebook], ['linkedin', 'LinkedIn', Linkedin], ['whatsapp', 'WhatsApp', MessageCircle], ['telegram', 'Telegram', Send], ['email', 'Email', Mail]];
-  return <section className="section journal-share" aria-labelledby="share-story-title"><div className="story-panel"><p className="eyebrow">{t('journal.share.eyebrow', 'Share this story')}</p><h2 id="share-story-title">{t('journal.share.title', 'Help this story reach the right reader.')}</h2><div className="share-actions">{typeof navigator.share === 'function' ? <button className="button" onClick={nativeShare} type="button"><Share2 size={18} /> {t('journal.share.native', 'Native share')}</button> : null}<button className="button button--ghost" onClick={copy} type="button" aria-live="polite">{copied ? <Check size={18} /> : <Copy size={18} />} {copied ? t('journal.share.copied', 'Link copied') : t('journal.share.copy', 'Copy link')}</button>{links.map(([platform, label, Icon]) => <a className="button button--ghost" key={platform} href={buildShareUrl(platform, url, title)} target={platform === 'email' ? undefined : '_blank'} rel="noopener noreferrer" onClick={() => track(platform)} aria-label={t('journal.share.platform_aria', 'Share on {platform}', { platform: label })}><Icon size={18} />{label}</a>)}</div>{copied ? <p className="form-status" role="status">{t('journal.share.copied_status', 'Copied the canonical story link.')}</p> : null}</div></section>;
+
+  return (
+    <section className="section journal-share" aria-labelledby="share-story-title">
+      <div className="story-panel">
+        <p className="eyebrow">{t('journal.share.eyebrow', 'Share this story')}</p>
+        <h2 id="share-story-title">{t('journal.share.title', 'Help this story reach the right reader.')}</h2>
+        <div className="share-actions">
+          <ShareActions
+            entityType="journal_post"
+            entityId={post.id}
+            url={url}
+            title={post.displayTitle}
+            onShare={(platform) => void recordJournalShare(post.id, platform)}
+          />
+        </div>
+      </div>
+    </section>
+  );
 }
 
 function CommentForm({ post, parent, onDone, onCancel }: { post: PublicJournalPost; parent?: JournalComment; onDone: () => void; onCancel?: () => void }) {

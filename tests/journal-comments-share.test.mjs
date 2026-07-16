@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 
 const journalLib = readFileSync(new URL('../src/lib/journal.ts', import.meta.url), 'utf8');
 const journalPage = readFileSync(new URL('../src/pages/JournalPages.tsx', import.meta.url), 'utf8');
+const shareActions = readFileSync(new URL('../src/components/ShareActions.tsx', import.meta.url), 'utf8');
 const breakPage = readFileSync(new URL('../src/pages/BreakTheCirclePages.tsx', import.meta.url), 'utf8');
 
 describe('journal comments and sharing implementation', () => {
@@ -22,11 +23,13 @@ describe('journal comments and sharing implementation', () => {
   });
 
   it('share block supports native, copy link and fallback social platforms', () => {
+    assert.match(journalPage, /<ShareActions[\s\S]*entityType="journal_post"/);
+    assert.match(journalPage, /onShare=\{\(platform\) => void recordJournalShare\(post\.id, platform\)\}/);
     for (const platform of ['native', 'copy_link', 'x', 'facebook', 'linkedin', 'whatsapp', 'telegram', 'email']) {
-      assert.match(journalLib + journalPage, new RegExp(platform));
+      assert.match(journalLib + shareActions, new RegExp(platform));
     }
-    assert.match(journalPage, /navigator\.share/);
-    assert.match(journalPage, /navigator\.clipboard\.writeText/);
+    assert.match(shareActions, /navigator\.share/);
+    assert.match(shareActions, /navigator\.clipboard\.writeText/);
   });
 
   it('break the circle stories use their canonical public route for sharing', () => {

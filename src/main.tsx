@@ -11,7 +11,6 @@ import { initializeFounderPostOpportunitiesUi } from './lib/founderPostOpportuni
 import { initializeJournalArticleEnhancements } from './lib/journalArticleEnhancements';
 import { initializeJournalMapMarkerMediaUi } from './lib/journalMapMarkerMediaUi';
 import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
-import { initializeJournalPostQrMount } from './lib/journalPostQrMount';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
@@ -66,7 +65,6 @@ import { OutreachPrivatePage } from './pages/OutreachPrivatePage';
 import './styles/outreachPrivate.css';
 
 initializeJournalArticleEnhancements();
-initializeJournalPostQrMount();
 initializePlatformUpdatesUi();
 
 function PublicUiInitializers() {
