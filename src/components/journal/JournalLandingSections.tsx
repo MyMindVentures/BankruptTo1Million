@@ -147,17 +147,19 @@ function ExchangeBullet({ item }: { item: TimelineExchangeItem }) {
   </li>;
 }
 
-function TimelineCardContent({ point, pointPeriod, people, location }: {
+function TimelineCardHeader({ point, pointPeriod }: { point: JourneyPoint; pointPeriod: ExchangePeriod }) {
+  return <div className="journal-timeline-card__topline">
+    <time>{formatJournalDate(point.occurred_at)}</time>
+    <em className={`journal-timeline-card__status is-${pointPeriod}`}>{exchangePeriodLabel(pointPeriod)}</em>
+  </div>;
+}
+
+function TimelineCardContent({ point, people, location }: {
   point: JourneyPoint;
-  pointPeriod: ExchangePeriod;
   people: JourneyInvolvedPerson[];
   location?: string;
 }) {
   return <>
-    <div className="journal-timeline-card__topline">
-      <time>{formatJournalDate(point.occurred_at)}</time>
-      <em className={`journal-timeline-card__status is-${pointPeriod}`}>{exchangePeriodLabel(pointPeriod)}</em>
-    </div>
     {people.length ? <div className="journal-timeline-card__people">
       <span className="journal-timeline-card__avatars">{people.slice(0, 3).map((person) => person.avatar_url
         ? <img key={person.id} src={person.avatar_url} alt={person.display_name} />
@@ -265,10 +267,13 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
             className="journal-priority-timeline__card-link"
             aria-label={t('journal.timeline.open_chapter', 'Open chapter: {title}', { title: point.title })}
           /> : null}
+          <div className="journal-timeline-card__header">
+            <TimelineCardHeader point={point} pointPeriod={pointPeriod} />
+          </div>
           <JourneyFootageCarousel items={point.footage} title={point.title} />
           {point.slug
-            ? <div className="journal-timeline-card__select journal-timeline-card__select--linked"><TimelineCardContent point={point} pointPeriod={pointPeriod} people={people} location={location} /></div>
-            : <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}><TimelineCardContent point={point} pointPeriod={pointPeriod} people={people} location={location} /></button>}
+            ? <div className="journal-timeline-card__select journal-timeline-card__select--linked"><TimelineCardContent point={point} people={people} location={location} /></div>
+            : <button className="journal-timeline-card__select" type="button" onClick={() => onSelect(point.journey_entry_id)} aria-pressed={isActive}><TimelineCardContent point={point} people={people} location={location} /></button>}
 
           {linkedItems.length ? <details className="journal-timeline-card__exchange">
             <summary className="journal-timeline-card__exchange-summary">

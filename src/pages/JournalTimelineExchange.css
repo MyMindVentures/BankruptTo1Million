@@ -9,5 +9,12 @@
 .journal-priority-timeline__card-link{position:absolute;inset:0;z-index:1;border-radius:inherit;text-decoration:none;color:inherit}
 .journal-priority-timeline__card-link:focus-visible{outline:2px solid #ddb05f;outline-offset:2px}
 .journal-priority-timeline__card.is-linkable .journal-timeline-card__select--linked{pointer-events:none;cursor:pointer}
+.journal-priority-timeline{align-items:flex-start}
+.journal-priority-timeline__card{flex:0 0 auto;align-self:flex-start;overflow-x:clip;min-width:0}
+.journal-timeline-card__header{position:relative;z-index:2;margin-bottom:.65rem}
+.journal-timeline-card__header time{display:block;color:#f0c979;font-size:.75rem;text-transform:uppercase;letter-spacing:.08em}
+.journal-priority-timeline__card .journey-footage{max-width:100%;margin-bottom:.45rem}
+.journal-priority-timeline .journey-footage__controls button{width:7px;height:7px;min-width:7px;max-width:20px;padding:0;border:0;border-top:0;background:rgba(255,255,255,.25);flex:0 0 auto;cursor:pointer}
+.journal-priority-timeline .journey-footage__controls button.is-active{width:14px;max-width:14px;border-radius:999px;background:#ddb05f}
 .journal-priority-timeline__card.is-linkable .journey-footage{position:relative;z-index:0}
 .journal-priority-timeline__card.is-linkable .journey-footage__controls{position:relative;z-index:2}

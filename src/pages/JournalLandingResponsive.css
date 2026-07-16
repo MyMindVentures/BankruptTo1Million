@@ -113,7 +113,7 @@
   .journal-timeline-section,
   .journal-latest-section{padding:1.1rem;border-radius:22px}
   .journal-priority-timeline{margin-inline:-1.1rem;padding:1.75rem 1.1rem .35rem;scroll-padding-inline:1.1rem;gap:.75rem}
-  .journal-priority-timeline button{min-width:min(82vw,280px);max-width:min(82vw,280px);padding-right:.25rem;overflow-wrap:anywhere}
+  .journal-timeline-card__select{min-width:min(82vw,280px);max-width:min(82vw,280px);padding-right:.25rem;overflow-wrap:anywhere}
   .journal-grid--latest-three{grid-template-columns:1fr}
   .journal-grid--latest-three>*:last-child:nth-child(odd){grid-column:auto;max-width:none}
   .journal-archive-toggle{padding:1rem;align-items:flex-start}
@@ -142,7 +142,7 @@
   .journal-map-first .premium-map-legend{gap:.45rem}
   .journal-map-first .premium-map-legend span{font-size:.66rem}
   .journal-founder-switch button{font-size:.82rem;padding:.65rem .35rem}
-  .journal-priority-timeline button{min-width:86vw;max-width:86vw}
+  .journal-timeline-card__select{min-width:86vw;max-width:86vw}
   .journal-archive-toggle>span>svg{display:none}
   .journal-map-first .premium-map-popup{max-width:min(240px,calc(100% - 4rem))}
 }
@@ -157,7 +157,7 @@
   .journal-map-first .premium-map-top-actions{grid-template-columns:1fr}
   .journal-map-first .premium-map-detail-card__nav{grid-template-columns:1fr}
   .journal-priority-timeline{margin-inline:-.85rem;padding-inline:.85rem;scroll-padding-inline:.85rem}
-  .journal-priority-timeline button{min-width:88vw;max-width:88vw}
+  .journal-timeline-card__select{min-width:88vw;max-width:88vw}
   .journal-archive-toggle{gap:.5rem}
 }
 
@@ -169,7 +169,7 @@
 
 @media (hover:none) and (pointer:coarse){
   .journal-founder-switch button,
-  .journal-priority-timeline button,
+  .journal-timeline-card__select,
   .journal-archive-toggle,
   .journal-archive-content .chip{touch-action:manipulation}
   .journal-priority-timeline{overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
