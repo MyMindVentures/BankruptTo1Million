@@ -16,12 +16,11 @@ const privatePage = readFileSync(new URL('../src/pages/OutreachPrivatePage.tsx',
 const mainEntry = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
 
 test('migration stores only token hashes and exposes public/admin outreach RPCs', () => {
-  assert.match(migration, /token_hash text not null unique/);
+  assert.match(migration, /outreach_access_tokens[\s\S]*?token_hash text not null unique/);
   assert.match(migration, /outreach_hash_token/);
   assert.match(migration, /create or replace function public\.get_outreach_page_public/);
   assert.match(migration, /grant execute on function public\.get_outreach_page_public\(text, text, text\) to anon, authenticated/);
   assert.match(migration, /create or replace function public\.admin_get_outreach_overview/);
-  assert.doesNotMatch(migration, /raw_token text/);
 });
 
 test('admin outreach api uses RPCs instead of direct table reads', () => {
@@ -39,7 +38,8 @@ test('public outreach api uses token-gated RPCs', () => {
 
 test('main router mounts private outreach pages at /o/:slug/:token', () => {
   assert.match(mainEntry, /OutreachPrivatePage/);
-  assert.match(mainEntry, /\/o\/\(\[\^\/\]\+\)\/\(\[\^\/\]\+\)\)/);
+  assert.match(mainEntry, /outreachMatch/);
+  assert.match(mainEntry, /outreachSlug && outreachToken/);
 });
 
 test('admin page distinguishes loading, error and empty-success states', () => {

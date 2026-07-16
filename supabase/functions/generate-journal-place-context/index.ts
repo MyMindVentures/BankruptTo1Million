@@ -5,6 +5,8 @@ const U = Deno.env.get("SUPABASE_URL")!;
 const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const A = Deno.env.get("SUPABASE_ANON_KEY")!;
 const K = Deno.env.get("OPENROUTER_API_KEY") ?? Deno.env.get("OPENAI_API_KEY");
+const SLUG = "generate-journal-place-context";
+
 const db = createClient(U, S, { auth: { persistSession: false } });
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +18,7 @@ const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), 
   headers: { ...cors, "Content-Type": "application/json" },
 });
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const parse = (text: string) => {
   const t = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
   const a = t.indexOf("{");
@@ -32,18 +35,13 @@ async function fetchActiveLanguages() {
     .order("display_order", { ascending: true })
     .order("code", { ascending: true });
 
-  if (error) {
-    throw new Error(`Active languages could not be loaded: ${error.message}`);
-  }
+  if (error) throw new Error(`Active languages could not be loaded: ${error.message}`);
 
   const languages = (data ?? [])
     .map((row) => String(row.code || "").trim())
     .filter(Boolean);
 
-  if (languages.length === 0) {
-    throw new Error("No active languages are configured.");
-  }
-
+  if (languages.length === 0) throw new Error("No active languages are configured.");
   return languages;
 }
 
@@ -58,12 +56,58 @@ async function loadContext(postId: string) {
   throw new Error(`Journal AI context unavailable: ${lastError}`);
 }
 
+function journeyHasPlaceContext(context: Record<string, unknown>) {
+  const event = (context.event ?? {}) as Record<string, unknown>;
+  const hasBusiness = Boolean(String(event.featured_business_name ?? "").trim());
+  const hasCoords = event.latitude != null && event.longitude != null;
+  return hasBusiness || hasCoords;
+}
+
+function validatePlaceContext(placeContext: Record<string, unknown>, langs: string[]) {
+  if (!placeContext || typeof placeContext !== "object") {
+    throw new Error("Missing place_context object");
+  }
+
+  const translations = placeContext.translations as Record<string, Record<string, string>> | undefined;
+  if (!translations || typeof translations !== "object") {
+    throw new Error("Missing place_context.translations");
+  }
+
+  for (const lang of langs) {
+    const item = translations[lang];
+    if (!item?.place_title?.trim()) throw new Error(`Missing place_context place_title for ${lang}`);
+    if (!item?.place_history?.trim()) throw new Error(`Missing place_context place_history for ${lang}`);
+    if (!item?.area_title?.trim()) throw new Error(`Missing place_context area_title for ${lang}`);
+    if (!item?.area_history?.trim()) throw new Error(`Missing place_context area_history for ${lang}`);
+    if (item.place_history.length > 4000) throw new Error(`place_history too long for ${lang}`);
+    if (item.area_history.length > 6000) throw new Error(`area_history too long for ${lang}`);
+  }
+
+  const pois = placeContext.pois as Array<Record<string, unknown>> | undefined;
+  if (!Array.isArray(pois) || pois.length !== 5) {
+    throw new Error("place_context must include exactly 5 POIs");
+  }
+
+  for (let i = 0; i < pois.length; i++) {
+    const poi = pois[i];
+    const poiTranslations = poi.translations as Record<string, Record<string, string>> | undefined;
+    if (!poiTranslations) throw new Error(`Missing POI translations for item ${i + 1}`);
+    for (const lang of langs) {
+      const row = poiTranslations[lang];
+      if (!row?.title?.trim()) throw new Error(`Missing POI title for ${lang} item ${i + 1}`);
+      if (!row?.description?.trim()) throw new Error(`Missing POI description for ${lang} item ${i + 1}`);
+      if (row.description.length > 1200) throw new Error(`POI description too long for ${lang} item ${i + 1}`);
+    }
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
 
   let postId = "";
   let runId: string | null = null;
+
   try {
     if (!K) throw new Error("Missing AI provider key");
     const auth = req.headers.get("Authorization");
@@ -81,15 +125,20 @@ Deno.serve(async (req: Request) => {
     if (!postId) return out({ error: "post_id required" }, 400);
 
     const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
-      p_edge_function_slug: "generate-journal-ai-post",
+      p_edge_function_slug: SLUG,
     });
     if (cfgResult.error) throw new Error(`AI runtime config unavailable: ${cfgResult.error.message}`);
     const cfg = cfgResult.data;
     if (!cfg) throw new Error("AI runtime config unavailable: empty response");
 
+    const context = await loadContext(postId);
+    if (!journeyHasPlaceContext(context as Record<string, unknown>)) {
+      return out({ ok: true, skipped: true, post_id: postId, reason: "no_location_context" });
+    }
+
     if (cfg.enable_run_logging) {
       const r = await db.rpc("start_ai_edge_function_run", {
-        p_edge_function_slug: "generate-journal-ai-post",
+        p_edge_function_slug: SLUG,
         p_entity_type: "journal_post",
         p_entity_id: postId,
         p_metadata: { source: "edge_function", config_version: cfg.config_version, prompt_version: cfg.prompt_version },
@@ -98,22 +147,33 @@ Deno.serve(async (req: Request) => {
       runId = r.data;
     }
 
-    const context = await loadContext(postId);
     const now = new Date().toISOString();
-    await db.from("journal_posts").update({ ai_generation_status: "processing", updated_at: now }).eq("id", postId);
-    await db.from("journal_ai_sources").update({ generation_status: "processing", last_error: null, updated_at: now }).eq("journal_post_id", postId);
+    await db.from("journal_post_place_context").upsert(
+      { journal_post_id: postId, generation_status: "processing", updated_at: now },
+      { onConflict: "journal_post_id" },
+    );
 
-    const settings = cfg.generation_settings ?? {};
     const langs = await fetchActiveLanguages();
-    const defaults = settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 };
-    const byLanguage = settings.body_characters_by_language ?? {};
-    const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
-    const rangeInstructions = langs.map((lang) => {
-      const r = ranges[lang];
-      return `${lang}: target ${r.preferred_min}-${r.preferred_max} characters; accepted ${r.min}-${r.max}`;
-    }).join("\n");
+    const settings = cfg.generation_settings ?? {};
+    const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
+    const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
+    const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
 
-    const prompt = `${cfg.user_prompt_template}\n\nReturn exactly one valid JSON object with a translations object for ${langs.join(", ")}. Every language requires title, subtitle, excerpt, body, seo_title and seo_description. Preserve equivalent factual completeness in every language, but follow its own character range because languages have different character density.\n\nLanguage-specific body ranges:\n${rangeInstructions}\n\nExcerpt maximum ${settings.excerpt_max_characters ?? 220} characters. SEO title maximum ${settings.seo_title_max_characters ?? 60}. SEO description maximum ${settings.seo_description_max_characters ?? 155}.\n\nVerified context: ${JSON.stringify(context)}`;
+    const prompt = `${cfg.user_prompt_template}
+
+Return exactly one valid JSON object with a top-level place_context object for ${langs.join(", ")}.
+
+place_context requires:
+- place_type: restaurant|bar|cafe|hotel|shop|venue|other
+- area_type: city|village|town|region
+- optional area_name
+- links: { google_maps_url, website_url, instagram_url } (null when unknown)
+- translations: every language needs place_title, place_history (${placeHistory.min}-${placeHistory.max} chars), area_title, area_history (${areaHistory.min}-${areaHistory.max} chars)
+- exactly 5 pois with display_order 1-5, poi_type landmark|museum|nature|food|culture|other, and translations per language with title and description (${poiDescription.min}-${poiDescription.max} chars)
+
+Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
+
+Verified context: ${JSON.stringify(context)}`;
 
     const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -121,13 +181,13 @@ Deno.serve(async (req: Request) => {
         Authorization: `Bearer ${K}`,
         "Content-Type": "application/json",
         "HTTP-Referer": "https://bankruptto1million.com",
-        "X-Title": "Bankrupt to 1 Million Journal AI",
+        "X-Title": "Bankrupt to 1 Million Journal Place Context AI",
       },
       body: JSON.stringify({
         model: cfg.model,
         temperature: Number(cfg.temperature),
         top_p: cfg.top_p == null ? undefined : Number(cfg.top_p),
-        max_tokens: Number(cfg.max_output_tokens ?? 30000),
+        max_tokens: Number(cfg.max_output_tokens ?? 16000),
         response_format: cfg.response_format,
         messages: [
           { role: "system", content: cfg.system_prompt },
@@ -139,38 +199,20 @@ Deno.serve(async (req: Request) => {
 
     const payload = await ai.json();
     const finishReason = payload?.choices?.[0]?.finish_reason;
-    if (finishReason && finishReason !== "stop") throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
-    const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
-    const translations = parsed.translations;
-
-    for (const lang of langs) {
-      const item = translations?.[lang];
-      const body = String(item?.body ?? "")
-        .replace(/\r\n/g, "\n")
-        .replace(/\n{3,}/g, "\n\n")
-        .trim();
-      const range = ranges[lang];
-      if (!item?.title) throw new Error(`Missing title for ${lang}`);
-      if (body.length < Number(range.min) || body.length > Number(range.max)) {
-        throw new Error(`Invalid ${lang} body length: ${body.length}; expected ${range.min}-${range.max}`);
-      }
-      const headingCount = (body.match(/^### /gm) ?? []).length;
-      const minHeadings = Number(settings.markdown_headings?.min ?? 3);
-      const maxHeadings = Number(settings.markdown_headings?.max ?? 5);
-      if (headingCount < minHeadings || headingCount > maxHeadings) {
-        throw new Error(`Invalid ${lang} heading count: ${headingCount}; expected ${minHeadings}-${maxHeadings}`);
-      }
-      translations[lang].body = body;
+    if (finishReason && finishReason !== "stop") {
+      throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
     }
 
-    const saved = await db.rpc("save_journal_ai_generation_result", {
+    const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
+    const placeContext = (parsed.place_context ?? parsed) as Record<string, unknown>;
+    validatePlaceContext(placeContext, langs);
+
+    const saved = await db.rpc("save_journal_place_context_result", {
       p_post_id: postId,
-      p_translations: translations,
+      p_place_context: placeContext,
       p_model: cfg.model,
-      p_config_version: cfg.config_version,
-      p_prompt_version: cfg.prompt_version,
     });
-    if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
+    if (saved.error) throw new Error(`Could not save place context: ${saved.error.message}`);
 
     if (runId) {
       await db.rpc("finish_ai_edge_function_run", {
@@ -179,10 +221,12 @@ Deno.serve(async (req: Request) => {
         p_input_tokens: payload?.usage?.prompt_tokens ?? null,
         p_output_tokens: payload?.usage?.completion_tokens ?? null,
         p_response_status: 200,
-        p_metadata: { translation_count: langs.length, finish_reason: finishReason ?? null },
+        p_metadata: { poi_count: 5, language_count: langs.length, finish_reason: finishReason ?? null },
       });
     }
+
     return out({
+      ok: true,
       ...saved.data,
       languages: langs,
       model: cfg.model,
@@ -192,9 +236,11 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (postId) {
-      const now = new Date().toISOString();
-      await db.from("journal_posts").update({ ai_generation_status: "failed", updated_at: now }).eq("id", postId);
-      await db.from("journal_ai_sources").update({ generation_status: "failed", last_error: message.slice(0, 4000), updated_at: now }).eq("journal_post_id", postId);
+      const failedAt = new Date().toISOString();
+      await db.from("journal_post_place_context").upsert(
+        { journal_post_id: postId, generation_status: "failed", updated_at: failedAt },
+        { onConflict: "journal_post_id" },
+      );
     }
     if (runId) {
       await db.rpc("finish_ai_edge_function_run", {
@@ -204,7 +250,7 @@ Deno.serve(async (req: Request) => {
         p_error_message: message,
       });
     }
-    console.error("generate-journal-ai-post failed", { postId, message });
+    console.error(`${SLUG} failed`, { postId, message });
     return out({ error: message }, 500);
   }
 });

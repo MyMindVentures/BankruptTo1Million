@@ -201,6 +201,40 @@ export async function generateJournalAiPost(
   throw new Error('AI generation timed out before publication was confirmed. The editor remains open so you can retry safely.');
 }
 
+export function journalEventHasPlaceContext(event: Pick<JournalEventPayload, 'featured_business_name' | 'latitude' | 'longitude'>) {
+  const hasBusiness = Boolean(String(event.featured_business_name ?? '').trim());
+  const hasCoords = Boolean(String(event.latitude ?? '').trim() && String(event.longitude ?? '').trim());
+  return hasBusiness || hasCoords;
+}
+
+export async function generateJournalPlaceContext(postId: string) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-place-context`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ post_id: postId }),
+  });
+
+  const result = await response.json().catch(() => null) as {
+    ok?: boolean;
+    skipped?: boolean;
+    error?: string;
+    message?: string;
+    translation_count?: number;
+  } | null;
+
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || result?.message || `Place context generation failed (${response.status}).`);
+  }
+
+  return result;
+}
+
 export async function createJourneyPerson(payload: Record<string, unknown>) {
   return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
 }

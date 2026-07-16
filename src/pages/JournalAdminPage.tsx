@@ -6,9 +6,11 @@ import {
   createJournalPost,
   deleteJournalPost,
   generateJournalAiPost,
+  generateJournalPlaceContext,
   getJournalAiSource,
   getJournalEventContext,
   getJournalOptions,
+  journalEventHasPlaceContext,
   listJournalPosts,
   prepareJournalAi,
   updateJournalPost,
@@ -220,6 +222,18 @@ export function JournalAdminPage() {
           setSaveStage('Generating story…');
         }
       });
+
+      if (journalEventHasPlaceContext(eventForm)) {
+        setSaveStage(t('journal.admin.generating_place_context', 'Generating place & area context…'));
+        const placeResult = await generateJournalPlaceContext(saved.id);
+        if (placeResult?.skipped) {
+          setSaveStage(t('journal.admin.place_context_skipped', 'Place context skipped — no location or business was captured.'));
+        } else {
+          setSaveStage(t('journal.admin.place_context_success', 'Place & area context published in {count} languages.', {
+            count: Number(placeResult?.translation_count) || languageCount,
+          }));
+        }
+      }
 
       setSaveStage(t('journal.admin.publish_success', 'Published successfully in {count} languages.', { count: languageCount }));
       setEditorOpen(false);

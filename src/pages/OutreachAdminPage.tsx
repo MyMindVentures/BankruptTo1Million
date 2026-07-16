@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle2, Clock3, Copy, Filter, Link2, LoaderCircle, Mail, RefreshCw, Search, Send, XCircle } from 'lucide-react';
 import {
   generateOutreachMessages,
@@ -102,6 +102,7 @@ export function OutreachAdminPage() {
   const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<Awaited<ReturnType<typeof generateOutreachMessages>> | null>(null);
   const [copied, setCopied] = useState(false);
+  const filterInitialized = useRef(false);
 
   async function load(options?: { preserveFilter?: boolean }) {
     setLoading(true);
@@ -125,7 +126,10 @@ export function OutreachAdminPage() {
     }
   }
 
-  useEffect(() => { void load(); }, [status, query]);
+  useEffect(() => {
+    void load({ preserveFilter: filterInitialized.current });
+    filterInitialized.current = true;
+  }, [status, query]);
 
   const filtered = useMemo(() => rows || [], [rows]);
 

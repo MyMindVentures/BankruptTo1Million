@@ -1,0 +1,159 @@
+.journal-place-context {
+  margin-top: clamp(2rem, 4vw, 3rem);
+  padding-top: clamp(1.5rem, 3vw, 2.5rem);
+  border-top: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.journal-place-context__header h2 {
+  margin: 0.35rem 0 1.25rem;
+}
+
+.journal-place-context__grid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+@media (min-width: 960px) {
+  .journal-place-context__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+.journal-place-context__panel {
+  padding: 1.25rem;
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--surface) 92%, var(--text) 8%);
+  border: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.journal-place-context__eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.journal-place-context__panel h3 {
+  margin: 0 0 0.75rem;
+}
+
+.journal-place-context__panel h4 {
+  margin: 1rem 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.journal-place-context__prose {
+  white-space: pre-wrap;
+  line-height: 1.65;
+}
+
+.journal-place-context__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+}
+
+.journal-place-context__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--text) 14%, transparent);
+  text-decoration: none;
+}
+
+.journal-place-context__poi-list {
+  margin: 0;
+  padding-inline-start: 1.2rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.journal-place-context__poi-list p {
+  margin: 0.25rem 0 0;
+  opacity: 0.88;
+}
+
+.journal-place-context__weather {
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent);
+}
+
+.journal-place-context__weather-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.journal-place-context__weather-note {
+  margin: 0.5rem 0 0;
+  opacity: 0.8;
+}
+
+.journal-place-context__weather-note--error {
+  color: var(--danger, #b42318);
+}
+
+.journal-place-context__weather-card {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.journal-place-context__weather-icon {
+  display: grid;
+  place-items: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 16%, transparent);
+}
+
+.journal-place-context__weather-condition {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.journal-place-context__weather-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1rem;
+  margin: 0;
+}
+
+.journal-place-context__weather-stats div {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.journal-place-context__weather-stats dt {
+  font-size: 0.78rem;
+  opacity: 0.72;
+}
+
+.journal-place-context__weather-stats dd {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-weight: 600;
+}
+
+.journal-place-context .spin {
+  animation: journal-place-context-spin 1s linear infinite;
+}
+
+@keyframes journal-place-context-spin {
+  to { transform: rotate(360deg); }
+}
+
+[dir='rtl'] .journal-place-context__poi-list {
+  padding-inline-start: 0;
+  padding-inline-end: 1.2rem;
+}
