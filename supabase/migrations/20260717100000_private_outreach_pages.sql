@@ -182,7 +182,7 @@ returns text
 language sql
 immutable
 as $$
-  select extensions.digest(trim(coalesce(p_raw_token, '')), 'sha256'), 'hex');
+  select encode(extensions.digest(trim(coalesce(p_raw_token, '')), 'sha256'), 'hex');
 $$;
 
 create or replace function public.outreach_generate_raw_token()

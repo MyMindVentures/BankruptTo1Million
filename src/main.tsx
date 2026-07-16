@@ -62,6 +62,8 @@ import './styles/adminSections.css';
 import './styles/journalAdmin.css';
 import './styles/journalAi.css';
 import './styles/adminAiControlCenter.css';
+import { OutreachPrivatePage } from './pages/OutreachPrivatePage';
+import './styles/outreachPrivate.css';
 
 initializeConceptOwnershipUi();
 initializeConceptMessageUi();
@@ -78,12 +80,17 @@ initializeSiteMediaUi();
 const path = window.location.pathname.replace(/\/$/, '') || '/';
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
 const offerSlug = path.startsWith('/offers/') ? decodeURIComponent(path.split('/')[2] || '') : '';
+const outreachMatch = path.match(/^\/o\/([^/]+)\/([^/]+)$/);
+const outreachSlug = outreachMatch ? decodeURIComponent(outreachMatch[1]) : '';
+const outreachToken = outreachMatch ? decodeURIComponent(outreachMatch[2]) : '';
 const mediaPage = path === '/media' || path === '/media-vault';
 const adminPage = path === '/admin' || path.startsWith('/admin/');
 const withSiteShell = (page: ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
 const rootPage = adminPage
   ? <AdminAuthGate />
-  : path === '/'
+  : outreachSlug && outreachToken
+    ? <OutreachPrivatePage slug={outreachSlug} token={outreachToken} />
+    : path === '/'
     ? withSiteShell(<HomePage />)
     : path === '/legal'
       ? <LegalTransparencyPage />
