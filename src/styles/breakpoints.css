@@ -1,0 +1,6 @@
+:root {
+  --bp-laptop: 1280px;
+  --bp-laptop-sm: 1024px;
+  --bp-tablet: 900px;
+  --bp-mobile: 760px;
+}

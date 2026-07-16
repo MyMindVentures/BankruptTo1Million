@@ -158,6 +158,12 @@
   font-size: clamp(1.7rem, 3vw, 2.5rem);
 }
 
+@media (max-width: 1180px) {
+  .legal-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 900px) {
   .legal-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));

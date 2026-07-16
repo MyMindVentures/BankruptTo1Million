@@ -261,7 +261,7 @@
   color: var(--text);
 }
 
-@media (max-width: 1050px) {
+@media (max-width: 1280px) {
   .site-footer__inner {
     grid-template-columns: 1fr;
   }

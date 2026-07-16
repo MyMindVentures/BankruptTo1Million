@@ -160,6 +160,13 @@
   color: var(--gold);
 }
 
+@media (max-width: 1024px) {
+  .build-request-section__heading {
+    grid-template-columns: 1fr;
+    align-items: flex-start;
+  }
+}
+
 @media (max-width: 760px) {
   .build-request-section__heading {
     grid-template-columns: 1fr;

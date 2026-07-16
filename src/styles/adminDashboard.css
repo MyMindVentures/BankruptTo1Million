@@ -100,6 +100,16 @@
 .admin-quick-actions small { color:var(--admin-muted); margin-top:3px; font-size:9px; }
 .admin-backdrop { display:none; }
 
+@media (max-width: 1180px) {
+  .admin-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 1050px) {
   .admin-sidebar { transform:translateX(-100%); transition:transform .22s ease; box-shadow:28px 0 70px rgba(0,0,0,.35); }
   .admin-sidebar.is-open { transform:translateX(0); }

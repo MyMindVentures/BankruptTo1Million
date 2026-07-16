@@ -27,6 +27,7 @@ import { MediaVaultPage } from './pages/MediaVaultPage';
 import { OfferDetailPage } from './pages/OfferDetailPage';
 import { OffersPage } from './pages/OffersPage';
 import { PublicBuildRequestsPage } from './pages/PublicBuildRequestsPage';
+import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/discovery-responsive.css';

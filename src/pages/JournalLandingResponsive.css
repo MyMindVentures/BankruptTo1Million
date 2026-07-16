@@ -37,17 +37,14 @@
 }
 
 @media (max-width:1280px){
-  .journal-map-first .premium-map-layout{grid-template-columns:minmax(0,1fr) 340px}
-  .journal-map-first .premium-map-stage,
-  .journal-map-first .premium-map-detail-card{min-height:560px}
+  .journal-map-first .premium-map-layout{grid-template-columns:1fr !important}
+  .journal-map-first .premium-map-detail-card{min-height:auto !important}
+  .journal-map-first .premium-map-stage{min-height:clamp(420px,50vh,520px)}
   .journal-priority-intro h1{font-size:clamp(2.2rem,5vw,3.8rem)}
 }
 
 @media (max-width:1100px){
   .journal-priority-page{gap:1.5rem}
-  .journal-map-first .premium-map-layout{grid-template-columns:1fr}
-  .journal-map-first .premium-map-detail-card{min-height:auto}
-  .journal-map-first .premium-map-stage{min-height:clamp(430px,58vw,520px)}
   .journal-map-first .premium-map-detail-card{display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:1rem;align-items:start}
   .journal-map-first .premium-map-detail-card__meta,
   .journal-map-first .premium-map-detail-founder,
