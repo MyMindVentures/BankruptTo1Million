@@ -17,20 +17,24 @@ async function authenticate(req: Request) {
   return supplied;
 }
 
-async function invokePlaceContextBatch(secret: string, postId: string) {
-  const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-journal-place-context`, {
+function workerHeaders(secret: string) {
+  return {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+    apikey: SUPABASE_ANON_KEY ?? SERVICE_ROLE_KEY,
+    "x-journal-ai-worker-secret": secret,
+  };
+}
+
+async function invokeEdgeFunction(slug: string, secret: string, postId: string, worker: string) {
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/${slug}`, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-      apikey: SUPABASE_ANON_KEY ?? SERVICE_ROLE_KEY,
-      "x-journal-ai-worker-secret": secret,
-    },
+    headers: workerHeaders(secret),
     body: JSON.stringify({ post_id: postId }),
   });
   return {
     post_id: postId,
-    worker: "place_context",
+    worker,
     status: response.status,
     body: await response.json().catch(() => ({})),
   };
@@ -55,6 +59,12 @@ Deno.serve(async (req: Request) => {
     );
     if (placeRecoveryError) throw placeRecoveryError;
 
+    const { data: recoveredVenueThankYou, error: thankYouRecoveryError } = await supabase.rpc(
+      "recover_stale_journal_venue_thank_you_generation",
+      { p_stale_minutes: 5 },
+    );
+    if (thankYouRecoveryError) throw thankYouRecoveryError;
+
     const { data: posts, error } = await supabase.rpc("list_journal_ai_posts_needing_batch", {
       p_limit: limit,
     });
@@ -63,24 +73,7 @@ Deno.serve(async (req: Request) => {
     const results: unknown[] = [];
     for (const row of (posts ?? []) as Array<{ journal_post_id: string; translation_count: number; expected_count: number }>) {
       try {
-        const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-journal-ai-post`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-            apikey: SUPABASE_ANON_KEY ?? SERVICE_ROLE_KEY,
-            "x-journal-ai-worker-secret": secret,
-          },
-          body: JSON.stringify({ post_id: row.journal_post_id }),
-        });
-        results.push({
-          post_id: row.journal_post_id,
-          worker: "journal_ai_post",
-          translation_count: row.translation_count,
-          expected_count: row.expected_count,
-          status: response.status,
-          body: await response.json().catch(() => ({})),
-        });
+        results.push(await invokeEdgeFunction("generate-journal-ai-post", secret, row.journal_post_id, "journal_ai_post"));
       } catch (invokeError) {
         results.push({
           post_id: row.journal_post_id,
@@ -91,16 +84,16 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    const placeLimit = Math.max(1, Math.min(Number(body.place_context_limit ?? 2), 3));
+    const placeLimit = Math.max(1, Math.min(Number(body.place_context_limit ?? 1), 2));
     const { data: placePosts, error: placeError } = await supabase.rpc(
       "list_journal_place_context_needing_batch",
       { p_limit: placeLimit },
     );
     if (placeError) throw placeError;
 
-    for (const row of (placePosts ?? []) as Array<{ journal_post_id: string; translation_count: number; expected_count: number }>) {
+    for (const row of (placePosts ?? []) as Array<{ journal_post_id: string }>) {
       try {
-        results.push(await invokePlaceContextBatch(secret, row.journal_post_id));
+        results.push(await invokeEdgeFunction("generate-journal-place-context", secret, row.journal_post_id, "place_context"));
       } catch (invokeError) {
         results.push({
           post_id: row.journal_post_id,
@@ -111,10 +104,31 @@ Deno.serve(async (req: Request) => {
       }
     }
 
+    const thankYouLimit = Math.max(1, Math.min(Number(body.venue_thank_you_limit ?? 2), 3));
+    const { data: thankYouPosts, error: thankYouError } = await supabase.rpc(
+      "list_journal_venue_thank_you_needing_batch",
+      { p_limit: thankYouLimit },
+    );
+    if (thankYouError) throw thankYouError;
+
+    for (const row of (thankYouPosts ?? []) as Array<{ journal_post_id: string }>) {
+      try {
+        results.push(await invokeEdgeFunction("generate-journal-venue-thank-you", secret, row.journal_post_id, "venue_thank_you"));
+      } catch (invokeError) {
+        results.push({
+          post_id: row.journal_post_id,
+          worker: "venue_thank_you",
+          status: 500,
+          error: invokeError instanceof Error ? invokeError.message : String(invokeError),
+        });
+      }
+    }
+
     return json({
       ok: true,
       recovered: recoveredPosts ?? 0,
       recovered_place_context: recoveredPlaceContext ?? 0,
+      recovered_venue_thank_you: recoveredVenueThankYou ?? 0,
       processed: results.length,
       results,
     });

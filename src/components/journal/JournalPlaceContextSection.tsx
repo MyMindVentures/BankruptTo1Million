@@ -1,4 +1,4 @@
-import { Cloud, CloudRain, CloudSun, ExternalLink, Globe, Heart, Instagram, LoaderCircle, MapPin, Snowflake, Sun, Wind } from 'lucide-react';
+import { Cloud, CloudRain, CloudSun, ExternalLink, Globe, Instagram, LoaderCircle, MapPin, Snowflake, Sun, Wind } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getJournalCurrentWeather,
@@ -21,6 +21,8 @@ export const JOURNAL_PLACE_CONTEXT_I18N_MANIFEST = {
     'journal.place_context.links.instagram',
     'journal.place_context.links.website',
     'journal.place_context.section.title',
+    'journal.place_context.loading',
+    'journal.place_context.error',
     'journal.place_context.place.history_heading',
     'journal.place_context.area.history_heading',
     'journal.place_context.poi.heading',
@@ -31,9 +33,6 @@ export const JOURNAL_PLACE_CONTEXT_I18N_MANIFEST = {
     'journal.place_context.weather.feels_like',
     'journal.place_context.weather.wind',
     'journal.place_context.weather.humidity',
-    'journal.place_context.thank_you.eyebrow',
-    'journal.place_context.thank_you.heading',
-    'journal.place_context.thank_you.aria_label',
   ] as const,
   keyPatterns: [
     'journal.place_context.place_type.*',
@@ -42,7 +41,10 @@ export const JOURNAL_PLACE_CONTEXT_I18N_MANIFEST = {
   ] as const,
   entityContent: {
     rpc: 'get_localized_journal_place_context',
-    tables: ['journal_post_place_context_translations', 'journal_post_poi_translations'],
+    tables: [
+      'journal_post_place_context_translations',
+      'journal_post_poi_translations',
+    ],
   },
 } as const satisfies I18nManifest;
 
@@ -171,7 +173,28 @@ export function JournalPlaceContextSection({ slug }: { slug: string }) {
     return rows;
   }, [context, t]);
 
-  if (loadState === 'loading' || loadState === 'empty' || loadState === 'error' || !context) {
+  if (loadState === 'loading') {
+    return (
+      <section className="journal-place-context section" aria-busy="true" aria-live="polite">
+        <p className="journal-place-context__loading">
+          <LoaderCircle className="spin" size={16} aria-hidden="true" />
+          {t('journal.place_context.loading', 'Loading place information…')}
+        </p>
+      </section>
+    );
+  }
+
+  if (loadState === 'error') {
+    return (
+      <section className="journal-place-context section" aria-live="polite">
+        <p className="journal-place-context__error" role="status">
+          {t('journal.place_context.error', 'Place information is temporarily unavailable.')}
+        </p>
+      </section>
+    );
+  }
+
+  if (loadState === 'empty' || !context) {
     return null;
   }
 
@@ -201,25 +224,6 @@ export function JournalPlaceContextSection({ slug }: { slug: string }) {
                 <ExternalLinkButton key={link.href} href={link.href} label={link.label} icon={link.icon} />
               ))}
             </div>
-          ) : null}
-          {context.thank_you?.message ? (
-            <aside
-              className="journal-place-context__thank-you"
-              aria-label={t('journal.place_context.thank_you.aria_label', 'Thank-you message to the venue team')}
-            >
-              <div className="journal-place-context__thank-you-head">
-                <Heart size={18} aria-hidden="true" />
-                <div>
-                  <p className="journal-place-context__eyebrow">
-                    {t('journal.place_context.thank_you.eyebrow', 'With gratitude')}
-                  </p>
-                  <h4>{t('journal.place_context.thank_you.heading', 'Thank you')}</h4>
-                </div>
-              </div>
-              <div className="journal-place-context__prose journal-place-context__thank-you-body">
-                {context.thank_you.message}
-              </div>
-            </aside>
           ) : null}
         </article>
 

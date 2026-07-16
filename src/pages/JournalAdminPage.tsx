@@ -7,6 +7,7 @@ import {
   deleteJournalPost,
   generateJournalAiPost,
   generateJournalPlaceContext,
+  generateJournalVenueThankYou,
   getJournalAiSource,
   getJournalEventContext,
   getJournalOptions,
@@ -276,6 +277,16 @@ export function JournalAdminPage() {
           setSaveStage(t('journal.admin.place_context_success', 'Place & area context published in {count} languages.', {
             count: Number(placeResult?.translation_count) || languageCount,
           }));
+
+          setSaveStage(t('journal.admin.generating_venue_thank_you', 'Generating venue thank-you message…'));
+          const thankYouResult = await generateJournalVenueThankYou(saved.id);
+          if (thankYouResult?.skipped) {
+            setSaveStage(t('journal.admin.venue_thank_you_skipped', 'Venue thank-you skipped — place context is not ready.'));
+          } else {
+            setSaveStage(t('journal.admin.venue_thank_you_success', 'Venue thank-you published in {count} languages.', {
+              count: Number(thankYouResult?.translation_count) || languageCount,
+            }));
+          }
         }
       }
 

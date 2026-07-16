@@ -103,10 +103,7 @@ async function loadDraftPayload(postId: string) {
   return (data?.draft_payload as Record<string, unknown> | null) ?? null;
 }
 
-function batchLangHasCoreContent(
-  lang: string,
-  draft: Record<string, unknown>,
-) {
+function batchLangHasCoreContent(lang: string, draft: Record<string, unknown>) {
   const translations = draft.translations as Record<string, Record<string, string>> | undefined;
   const pois = draft.pois as Array<Record<string, unknown>> | undefined;
   const row = translations?.[lang];
@@ -232,24 +229,27 @@ function mergePlaceContextBatch(
 ) {
   const merged = existing ? structuredClone(existing) : {} as Record<string, unknown>;
   const batchTranslations = (batch.translations ?? {}) as Record<string, Record<string, string>>;
-  const mergedTranslations = {
+  const translations = {
     ...((merged.translations as Record<string, Record<string, string>> | undefined) ?? {}),
   };
 
-  for (const lang of batchLangs) {
-    const incoming = batchTranslations[lang];
-    if (!incoming) continue;
-    if (thankYouOnly && mergedTranslations[lang]) {
-      mergedTranslations[lang] = {
-        ...mergedTranslations[lang],
+  if (thankYouOnly) {
+    for (const lang of batchLangs) {
+      const incoming = batchTranslations[lang];
+      if (!incoming?.venue_thank_you_message?.trim()) continue;
+      translations[lang] = {
+        ...(translations[lang] ?? {}),
         venue_thank_you_message: incoming.venue_thank_you_message,
       };
-    } else {
-      mergedTranslations[lang] = incoming;
     }
+    merged.translations = translations;
+    return merged;
   }
 
-  merged.translations = mergedTranslations;
+  merged.translations = {
+    ...translations,
+    ...batchTranslations,
+  };
 
   if (!merged.place_type && batch.place_type) merged.place_type = batch.place_type;
   if (!merged.area_type && batch.area_type) merged.area_type = batch.area_type;
@@ -285,12 +285,12 @@ function mergePlaceContextBatch(
   return merged;
 }
 
-function validatePlaceContext(placeContext: Record<string, unknown>, langs: string[]) {
+function validatePlaceContext(placeContext: Record<string, unknown>, langs: string[], settings: Record<string, unknown>) {
   validateBatchPlaceContext(placeContext, langs, {
+    ...settings,
     place_history_characters: { min: 0, max: 4000 },
     area_history_characters: { min: 0, max: 6000 },
     poi_description_characters: { min: 0, max: 1200 },
-    thank_you_characters: { min: 0, max: 1200 },
   });
 }
 
@@ -509,10 +509,10 @@ function buildBatchPrompt(
   const structureNote = thankYouOnly
     ? `Return place_context with translations for ${batchLangs.join(", ")} only. Each translation object must contain venue_thank_you_message (${thankYou.min}-${thankYou.max} chars) and nothing else. Do not change place history, area history, or POI content.`
     : isFirstBatch
-    ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} only.`
-    : `Return place_context with translations and poi translations for ${batchLangs.join(", ")} only. Reuse the same 5 POI structure (display_order, poi_type, coordinates) from the verified context.`;
+      ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} only.`
+      : `Return place_context with translations and poi translations for ${batchLangs.join(", ")} only. Reuse the same 5 POI structure (display_order, poi_type, coordinates) from the verified context.`;
 
-  const translationFields = thankYouOnly
+  const contentNote = thankYouOnly
     ? `Every requested language needs venue_thank_you_message (${thankYou.min}-${thankYou.max} chars): a warm thank-you to the venue team, staff, and owner for hosting workspace for the website, mission, and projects, and for the happiness of featuring their place in the journal post and on the website. Never invent personal names.`
     : `Every requested language needs place_title, place_history, area_title, area_history, venue_thank_you_message (${thankYou.min}-${thankYou.max} chars), and each POI needs title and description (${poiDescription.min}-${poiDescription.max} chars). The thank-you must address the venue team, staff, and owner and mention hosting workspace and featuring their place on the journal and website.`;
 
@@ -522,9 +522,10 @@ Return exactly one valid JSON object with a top-level place_context object.
 
 ${structureNote}
 
-${translationFields}
+${contentNote}
+${thankYouOnly ? "" : `\nLanguage-specific history ranges:\n${languageRangeInstructions}`}
 
-${thankYouOnly ? "" : `Language-specific history ranges:\n${languageRangeInstructions}\n`}Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
+Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
 
 Verified context: ${JSON.stringify(context)}`;
 }
@@ -626,6 +627,42 @@ Deno.serve(async (req: Request) => {
       return out({ ok: true, skipped: true, post_id: postId, reason: "no_location_context" });
     }
 
+    const langs = await fetchActiveLanguages();
+    const { data: existingContext, error: existingContextError } = await db
+      .from("journal_post_place_context")
+      .select("id, generation_status")
+      .eq("journal_post_id", postId)
+      .maybeSingle();
+    if (existingContextError) {
+      throw new Error(`Place context status unavailable: ${existingContextError.message}`);
+    }
+
+    if (existingContext?.generation_status === "completed") {
+      return out({ ok: true, skipped: true, post_id: postId, reason: "already_completed" });
+    }
+
+    if (existingContext?.id) {
+      const { count: publishedCount, error: publishedCountError } = await db
+        .from("journal_post_place_context_translations")
+        .select("id", { count: "exact", head: true })
+        .eq("place_context_id", existingContext.id)
+        .eq("translation_status", "published");
+      if (publishedCountError) {
+        throw new Error(`Published place context count unavailable: ${publishedCountError.message}`);
+      }
+      if ((publishedCount ?? 0) >= langs.length) {
+        const restoredAt = new Date().toISOString();
+        await db.from("journal_post_place_context").upsert({
+          journal_post_id: postId,
+          generation_status: "completed",
+          draft_payload: null,
+          last_error: null,
+          updated_at: restoredAt,
+        }, { onConflict: "journal_post_id" });
+        return out({ ok: true, skipped: true, post_id: postId, reason: "already_published" });
+      }
+    }
+
     if (cfg.enable_run_logging) {
       const r = await db.rpc("start_ai_edge_function_run", {
         p_edge_function_slug: SLUG,
@@ -643,7 +680,6 @@ Deno.serve(async (req: Request) => {
       { onConflict: "journal_post_id" },
     );
 
-    const langs = await fetchActiveLanguages();
     const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
     const batchSize = Math.max(1, Number(settings.batch_size ?? 3));
     const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
@@ -723,7 +759,7 @@ Deno.serve(async (req: Request) => {
 
     if (!draftPayload) throw new Error("Place context draft payload missing after batching");
     normalizePlaceContextEnums(draftPayload);
-    validatePlaceContext(draftPayload, langs);
+    validatePlaceContext(draftPayload, langs, settings);
     await resolveAllPoiCoordinates(draftPayload, context as Record<string, unknown>, settings);
     validatePoiCoordinates(draftPayload);
 
@@ -763,7 +799,7 @@ Deno.serve(async (req: Request) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (message === "Unauthorized" || message === "Admin access required") {
+    if (message === "Unauthorized" || message === "Unauthorized worker" || message === "Admin access required") {
       return out({ error: message }, message === "Admin access required" ? 403 : 401);
     }
 

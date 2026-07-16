@@ -318,6 +318,58 @@ export async function generateJournalPlaceContext(postId: string) {
   throw new Error('Place context generation timed out before completion.');
 }
 
+export async function generateJournalVenueThankYou(postId: string) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  type VenueThankYouBatchResult = {
+    ok?: boolean;
+    complete?: boolean;
+    has_more?: boolean;
+    skipped?: boolean;
+    error?: string;
+    message?: string;
+    translation_count?: number;
+  };
+
+  let hasMore = true;
+  let invokeCount = 0;
+  const maxInvocations = 40;
+  let lastResult: VenueThankYouBatchResult | null = null;
+
+  while (hasMore && invokeCount < maxInvocations) {
+    invokeCount += 1;
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-venue-thank-you`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+
+    const result = await response.json().catch(() => null) as VenueThankYouBatchResult | null;
+
+    if (response.status === 504) {
+      lastResult = { ok: true, has_more: true };
+      await wait(1500);
+      continue;
+    }
+
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || result?.message || `Venue thank-you generation failed (${response.status}).`);
+    }
+
+    lastResult = result;
+    if (result?.skipped) return result;
+    hasMore = Boolean(result?.has_more) && result?.complete !== true;
+    if (result?.complete === true) return result;
+  }
+
+  if (lastResult?.complete === true || lastResult?.skipped) return lastResult;
+  throw new Error('Venue thank-you generation timed out before completion.');
+}
+
 export async function createJourneyPerson(payload: Record<string, unknown>) {
   return request<JourneyPerson>('/rest/v1/rpc/admin_create_journey_person', { method: 'POST', body: JSON.stringify({ payload }) });
 }
