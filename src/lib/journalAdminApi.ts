@@ -178,7 +178,7 @@ export async function generateJournalAiPost(
     throw new Error(result?.error || result?.message || `AI generation could not start (${response.status}).`);
   }
 
-  for (let attempt = 0; attempt < 180; attempt += 1) {
+  for (let attempt = 0; attempt < 420; attempt += 1) {
     const status = await getJournalAiStatus(postId);
     if (!status) throw new Error('The saved journal post could not be found.');
     onProgress?.(progressStage(status), status);

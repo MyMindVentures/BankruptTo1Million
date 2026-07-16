@@ -11,6 +11,9 @@ export type JournalPlaceContextPoi = {
   poi_type: string;
   title: string;
   description: string;
+  latitude: number | null;
+  longitude: number | null;
+  google_maps_url: string | null;
 };
 
 export type JournalPlaceContext = {
@@ -42,6 +45,31 @@ export type JournalCurrentWeather = {
 export function buildGoogleMapsUrl(latitude: number | null | undefined, longitude: number | null | undefined) {
   if (latitude == null || longitude == null) return null;
   return `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+}
+
+export function isValidMapCoordinate(latitude: unknown, longitude: unknown) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+export function poiHasMapCoordinate(poi: Pick<JournalPlaceContextPoi, 'latitude' | 'longitude'>) {
+  return isValidMapCoordinate(poi.latitude, poi.longitude);
+}
+
+export function haversineDistanceKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export function weatherConditionKey(code: number | null | undefined) {

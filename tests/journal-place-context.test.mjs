@@ -23,14 +23,31 @@ function weatherConditionKey(code) {
 function normalizePlaceContextPayload(payload) {
   if (!payload || typeof payload !== 'object') return null;
   const links = payload.links ?? {};
+  const pois = Array.isArray(payload.pois) ? payload.pois : [];
   return {
     place_type: payload.place_type,
     area_type: payload.area_type,
     place_title: payload.place?.title ?? null,
     area_title: payload.area?.title ?? null,
-    poi_count: Array.isArray(payload.pois) ? payload.pois.length : 0,
+    poi_count: pois.length,
+    poi_with_coords: pois.filter((poi) => isValidMapCoordinate(poi.latitude, poi.longitude)).length,
     google_maps_url: links.google_maps_url ?? null,
   };
+}
+
+function isValidMapCoordinate(latitude, longitude) {
+  const lat = Number(latitude);
+  const lng = Number(longitude);
+  return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function haversineDistanceKm(lat1, lng1, lat2, lng2) {
+  const toRad = (value) => (value * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 test('buildGoogleMapsUrl returns a maps search link from coordinates', () => {
@@ -55,7 +72,7 @@ test('normalizePlaceContextPayload extracts the public RPC shape', () => {
     links: { google_maps_url: 'https://maps.example' },
     place: { title: 'Cafeteria Cajiz', history: 'Local café.' },
     area: { title: 'Vélez-Málaga', history: 'Historic town.' },
-    pois: [{ display_order: 1 }, { display_order: 2 }],
+    pois: [{ display_order: 1, latitude: 36.78, longitude: -4.10 }, { display_order: 2 }],
   });
 
   assert.deepEqual(normalized, {
@@ -64,8 +81,21 @@ test('normalizePlaceContextPayload extracts the public RPC shape', () => {
     place_title: 'Cafeteria Cajiz',
     area_title: 'Vélez-Málaga',
     poi_count: 2,
+    poi_with_coords: 1,
     google_maps_url: 'https://maps.example',
   });
+});
+
+test('isValidMapCoordinate validates latitude and longitude ranges', () => {
+  assert.equal(isValidMapCoordinate(36.7, -4.1), true);
+  assert.equal(isValidMapCoordinate(null, -4.1), false);
+  assert.equal(isValidMapCoordinate(91, 0), false);
+  assert.equal(isValidMapCoordinate(0, 181), false);
+});
+
+test('haversineDistanceKm returns approximate distance between two points', () => {
+  const km = haversineDistanceKm(36.7213, -4.4214, 36.738739, -4.18202);
+  assert.ok(km > 15 && km < 35);
 });
 
 test('normalizePlaceContextPayload returns null for empty payloads', () => {

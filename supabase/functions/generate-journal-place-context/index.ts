@@ -101,6 +101,148 @@ function validatePlaceContext(placeContext: Record<string, unknown>, langs: stri
   }
 }
 
+function parseCoord(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function isValidCoord(lat: number, lng: number) {
+  return lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+}
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function coordsWithinRadius(
+  poiLat: number,
+  poiLng: number,
+  venueLat: number | null,
+  venueLng: number | null,
+  maxKm: number,
+) {
+  if (venueLat == null || venueLng == null) return true;
+  return haversineKm(poiLat, poiLng, venueLat, venueLng) <= maxKm;
+}
+
+function poiEnglishTitle(poi: Record<string, unknown>) {
+  const translations = poi.translations as Record<string, Record<string, string>> | undefined;
+  return translations?.en?.title?.trim()
+    || Object.values(translations ?? {}).map((row) => row?.title?.trim()).find(Boolean)
+    || "";
+}
+
+async function geocodePoi(title: string, areaName: string, countryCode?: string | null) {
+  const query = [title, areaName].filter(Boolean).join(", ");
+  if (!query.trim()) return null;
+
+  const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
+  url.searchParams.set("name", query);
+  url.searchParams.set("count", "1");
+  url.searchParams.set("language", "en");
+  if (countryCode) url.searchParams.set("country_code", countryCode);
+
+  const response = await fetch(url.toString(), { headers: { Accept: "application/json" } });
+  if (!response.ok) return null;
+
+  const payload = await response.json();
+  const result = payload?.results?.[0];
+  if (!result) return null;
+
+  const lat = parseCoord(result.latitude);
+  const lng = parseCoord(result.longitude);
+  if (lat == null || lng == null || !isValidCoord(lat, lng)) return null;
+
+  return { latitude: lat, longitude: lng };
+}
+
+async function resolvePoiCoordinates(
+  poi: Record<string, unknown>,
+  areaName: string,
+  venueLat: number | null,
+  venueLng: number | null,
+  maxRadiusKm: number,
+  countryCode?: string | null,
+) {
+  const aiLat = parseCoord(poi.latitude);
+  const aiLng = parseCoord(poi.longitude);
+
+  if (
+    aiLat != null && aiLng != null && isValidCoord(aiLat, aiLng)
+    && coordsWithinRadius(aiLat, aiLng, venueLat, venueLng, maxRadiusKm)
+  ) {
+    poi.latitude = aiLat;
+    poi.longitude = aiLng;
+    poi.coordinate_source = "ai";
+    return poi;
+  }
+
+  const title = poiEnglishTitle(poi);
+  const geocoded = await geocodePoi(title, areaName, countryCode);
+  if (
+    !geocoded
+    || !coordsWithinRadius(geocoded.latitude, geocoded.longitude, venueLat, venueLng, maxRadiusKm)
+  ) {
+    throw new Error(`Could not resolve coordinates for POI "${title || "unknown"}"`);
+  }
+
+  poi.latitude = geocoded.latitude;
+  poi.longitude = geocoded.longitude;
+  poi.coordinate_source = "geocoded";
+  return poi;
+}
+
+async function resolveAllPoiCoordinates(
+  placeContext: Record<string, unknown>,
+  context: Record<string, unknown>,
+  settings: Record<string, unknown>,
+) {
+  const event = (context.event ?? {}) as Record<string, unknown>;
+  const venueLat = parseCoord(event.latitude);
+  const venueLng = parseCoord(event.longitude);
+  const areaName = String(
+    placeContext.area_name
+      ?? event.city_name
+      ?? event.location_name
+      ?? event.region_name
+      ?? "",
+  ).trim();
+  const countryCode = String(event.country_code ?? "").trim() || null;
+  const maxRadiusKm = Number(settings.poi_max_radius_km ?? 50);
+  const pois = placeContext.pois as Array<Record<string, unknown>>;
+
+  for (let i = 0; i < pois.length; i++) {
+    pois[i] = await resolvePoiCoordinates(
+      pois[i],
+      areaName,
+      venueLat,
+      venueLng,
+      maxRadiusKm,
+      countryCode,
+    );
+  }
+}
+
+function validatePoiCoordinates(placeContext: Record<string, unknown>) {
+  const pois = placeContext.pois as Array<Record<string, unknown>>;
+  for (let i = 0; i < pois.length; i++) {
+    const lat = parseCoord(pois[i].latitude);
+    const lng = parseCoord(pois[i].longitude);
+    if (lat == null || lng == null || !isValidCoord(lat, lng)) {
+      throw new Error(`Missing resolved coordinates for POI item ${i + 1}`);
+    }
+    const source = String(pois[i].coordinate_source ?? "");
+    if (!["ai", "geocoded", "manual"].includes(source)) {
+      throw new Error(`Invalid coordinate_source for POI item ${i + 1}`);
+    }
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
@@ -169,7 +311,7 @@ place_context requires:
 - optional area_name
 - links: { google_maps_url, website_url, instagram_url } (null when unknown)
 - translations: every language needs place_title, place_history (${placeHistory.min}-${placeHistory.max} chars), area_title, area_history (${areaHistory.min}-${areaHistory.max} chars)
-- exactly 5 pois with display_order 1-5, poi_type landmark|museum|nature|food|culture|other, and translations per language with title and description (${poiDescription.min}-${poiDescription.max} chars)
+- exactly 5 pois with display_order 1-5, poi_type landmark|museum|nature|food|culture|other, latitude, longitude (decimal degrees near the venue), and translations per language with title and description (${poiDescription.min}-${poiDescription.max} chars)
 
 Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
 
@@ -206,6 +348,8 @@ Verified context: ${JSON.stringify(context)}`;
     const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
     const placeContext = (parsed.place_context ?? parsed) as Record<string, unknown>;
     validatePlaceContext(placeContext, langs);
+    await resolveAllPoiCoordinates(placeContext, context as Record<string, unknown>, settings);
+    validatePoiCoordinates(placeContext);
 
     const saved = await db.rpc("save_journal_place_context_result", {
       p_post_id: postId,

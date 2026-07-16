@@ -3,11 +3,13 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getJournalCurrentWeather,
   getJournalPlaceContext,
+  poiHasMapCoordinate,
   type JournalCurrentWeather,
   type JournalPlaceContext,
   weatherConditionKey,
 } from '../../lib/journalPlaceContext';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
+import { JournalPoiMap } from './JournalPoiMap';
 import './JournalPlaceContextSection.css';
 
 type LoadState = 'loading' | 'empty' | 'ready' | 'error';
@@ -187,6 +189,18 @@ export function JournalPlaceContextSection({ slug }: { slug: string }) {
                   </li>
                 ))}
               </ol>
+              {context.pois.some(poiHasMapCoordinate)
+                && context.latitude != null
+                && context.longitude != null ? (
+                <JournalPoiMap
+                  venue={{
+                    latitude: Number(context.latitude),
+                    longitude: Number(context.longitude),
+                    title: context.place.title,
+                  }}
+                  pois={context.pois}
+                />
+              ) : null}
             </div>
           ) : null}
 

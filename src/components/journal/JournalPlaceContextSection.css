@@ -157,3 +157,63 @@
   padding-inline-start: 0;
   padding-inline-end: 1.2rem;
 }
+
+.journal-poi-map {
+  margin-top: 1rem;
+}
+
+.journal-poi-map h4 {
+  margin: 0 0 0.65rem;
+  font-size: 0.95rem;
+}
+
+.journal-poi-map__canvas {
+  width: 100%;
+  min-height: 280px;
+  height: clamp(280px, 42vw, 360px);
+  border-radius: 0.85rem;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.journal-poi-map__error {
+  margin: 0 0 0.65rem;
+  color: var(--danger, #b42318);
+}
+
+.journal-poi-map__marker {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 22%);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0;
+}
+
+.journal-poi-map__marker--venue {
+  width: 2.25rem;
+  height: 2.25rem;
+  background: var(--accent, #c45c26);
+  color: #fff;
+}
+
+.journal-poi-map__marker--poi {
+  background: color-mix(in srgb, var(--surface) 88%, var(--text) 12%);
+  color: var(--text);
+}
+
+.journal-poi-map__popup-link {
+  margin: 0.45rem 0 0;
+  font-size: 0.85rem;
+}
+
+.journal-poi-map__popup-link a {
+  color: var(--accent, #c45c26);
+}

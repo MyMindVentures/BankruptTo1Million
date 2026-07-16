@@ -40,3 +40,12 @@ test('journal AI loads active languages from site_languages', () => {
   assert.doesNotMatch(edgeFunction, /"ja","ko"\]/);
   assert.doesNotMatch(edgeFunction, /Expected 15 translations/);
 });
+
+test('journal AI generates translations in configurable language batches', () => {
+  assert.match(edgeFunction, /chunkLanguages/);
+  assert.match(edgeFunction, /batch_size/);
+  assert.match(edgeFunction, /upsert_journal_ai_translation_batch/);
+  assert.match(edgeFunction, /generateBatchTranslations/);
+  assert.match(edgeFunction, /for \(let batchIndex = 0; batchIndex < batches\.length; batchIndex \+= 1\)/);
+  assert.doesNotMatch(edgeFunction, /translations object for \$\{langs\.join\(", "\)\}/);
+});
