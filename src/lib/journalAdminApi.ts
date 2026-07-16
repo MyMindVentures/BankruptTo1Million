@@ -1,6 +1,20 @@
-import { parseJournalOverviewPayload, type JournalPost, type JournalPostStatus, type JournalStatusCounts } from './journalAdminPayload';
+import { canUploadFootageOnly, parseJournalOverviewPayload, type JournalPost, type JournalPostStatus, type JournalStatusCounts } from './journalAdminPayload';
+import {
+  JOURNAL_PUBLICATION_PIPELINE_STEP_ORDER,
+  parseJournalPublicationStatus,
+  type JournalPublicationStatus,
+  type PublicationStep,
+  type PublicationStepStatus,
+} from './journalPublicationStatus';
 
 export type { JournalPost, JournalPostStatus, JournalStatusCounts };
+export { canUploadFootageOnly };
+export type {
+  JournalPublicationStatus,
+  PublicationStep,
+  PublicationStepStatus,
+};
+export { JOURNAL_PUBLICATION_PIPELINE_STEP_ORDER, parseJournalPublicationStatus };
 export type JournalOption = { id: string; label: string };
 export type JourneyPerson = { id: string; display_name: string; full_name: string | null; person_type: string; email: string | null };
 export type EventTypeOption = { key: string; label: string; description: string | null };
@@ -22,6 +36,19 @@ export type JournalAiStatus = {
   expected_translation_count: number;
 };
 export type JournalAiProgressStage = 'generating' | 'translating' | 'publishing';
+export type AdminJournalFootageItem = {
+  asset_id: string;
+  asset_type: 'image' | 'video';
+  storage_bucket: string;
+  storage_path: string;
+  thumbnail_url: string | null;
+  mime_type: string | null;
+  alt_text: string | null;
+  caption: string | null;
+  display_order: number;
+  created_at: string;
+  original_filename: string | null;
+};
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.replace(/\/$/, '');
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -414,3 +441,173 @@ export async function uploadJournalFootage(postId: string, file: File, event: Jo
   if (!payload?.asset_id) throw new Error('Footage upload did not return an asset id.');
   return payload.asset_id;
 }
+
+export async function getAdminJournalFootage(postId: string) {
+  const rows = await request<AdminJournalFootageItem[]>('/rest/v1/rpc/admin_get_journal_footage', {
+    method: 'POST',
+    body: JSON.stringify({ p_post_id: postId }),
+  });
+  return rows;
+}
+
+export async function appendJournalFootage(postId: string, files: File[], event: JournalEventPayload) {
+  const assetIds: string[] = [];
+  for (const file of files) {
+    assetIds.push(await uploadJournalFootage(postId, file, event));
+  }
+  return assetIds;
+}
+
+export async function getJournalPublicationStatus(postId: string) {
+  const payload = await request<unknown>('/rest/v1/rpc/admin_get_journal_publication_status', {
+    method: 'POST',
+    body: JSON.stringify({ p_post_id: postId }),
+  });
+  return parseJournalPublicationStatus(payload);
+}
+
+export async function startJournalPublication(postId: string, hasLocation: boolean) {
+  return request<Record<string, unknown>>('/rest/v1/rpc/admin_start_journal_publication', {
+    method: 'POST',
+    body: JSON.stringify({ p_post_id: postId, p_has_location: hasLocation }),
+  });
+}
+
+export async function finalizeJournalPublication(postId: string) {
+  return request<Record<string, unknown>>('/rest/v1/rpc/finalize_journal_publication', {
+    method: 'POST',
+    body: JSON.stringify({ p_post_id: postId }),
+  });
+}
+
+type EdgePhaseResult = {
+  ok?: boolean;
+  error?: string;
+  message?: string;
+  complete?: boolean;
+  skipped?: boolean;
+};
+
+async function invokeStoryEdge(postId: string, phase: 'english' | 'translate' | 'auto') {
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey!,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ post_id: postId, phase }),
+  });
+
+  const result = await response.json().catch(() => null) as EdgePhaseResult | null;
+  if (response.status === 504) return result;
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || result?.message || `Story AI ${phase} failed (${response.status}).`);
+  }
+  return result;
+}
+
+async function invokePlaceEdge(
+  postId: string,
+  phase: 'place_english' | 'area_english' | 'thank_you_english' | 'translate' | 'auto',
+) {
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-place-context`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey!,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ post_id: postId, phase }),
+  });
+
+  const result = await response.json().catch(() => null) as EdgePhaseResult | null;
+  if (response.status === 504) return result;
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || result?.message || `Place context ${phase} failed (${response.status}).`);
+  }
+  return result;
+}
+
+function publicationHasPendingTranslateSteps(status: JournalPublicationStatus) {
+  return status.steps.some((step) => (
+    step.step_key.startsWith('translate_batch_')
+    && step.status !== 'completed'
+    && step.status !== 'skipped'
+  ));
+}
+
+function failedPublicationStep(status: JournalPublicationStatus) {
+  return status.steps.find((step) => step.status === 'failed') ?? null;
+}
+
+export async function publishJournalPost(
+  postId: string,
+  eventHasPlaceContext: boolean,
+  onProgress?: (status: JournalPublicationStatus) => void,
+) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  await startJournalPublication(postId, eventHasPlaceContext);
+  let status = await getJournalPublicationStatus(postId);
+  onProgress?.(status);
+
+  await invokeStoryEdge(postId, 'english');
+  status = await getJournalPublicationStatus(postId);
+  onProgress?.(status);
+  const storyEnglishFailure = failedPublicationStep(status);
+  if (storyEnglishFailure) {
+    throw new Error(storyEnglishFailure.last_error || 'English story generation failed.');
+  }
+
+  if (eventHasPlaceContext) {
+    await invokePlaceEdge(postId, 'place_english');
+    status = await getJournalPublicationStatus(postId);
+    onProgress?.(status);
+    const placeFailure = failedPublicationStep(status);
+    if (placeFailure) throw new Error(placeFailure.last_error || 'Place English generation failed.');
+
+    await invokePlaceEdge(postId, 'area_english');
+    status = await getJournalPublicationStatus(postId);
+    onProgress?.(status);
+    const areaFailure = failedPublicationStep(status);
+    if (areaFailure) throw new Error(areaFailure.last_error || 'Area English generation failed.');
+
+    await invokePlaceEdge(postId, 'thank_you_english');
+    status = await getJournalPublicationStatus(postId);
+    onProgress?.(status);
+    const thankYouFailure = failedPublicationStep(status);
+    if (thankYouFailure) throw new Error(thankYouFailure.last_error || 'Thank-you English generation failed.');
+  }
+
+  let safety = 0;
+  while (publicationHasPendingTranslateSteps(status) && safety < 40) {
+    safety += 1;
+    await invokeStoryEdge(postId, 'translate');
+    if (eventHasPlaceContext) {
+      await invokePlaceEdge(postId, 'translate');
+    }
+    status = await getJournalPublicationStatus(postId);
+    onProgress?.(status);
+    const batchFailure = failedPublicationStep(status);
+    if (batchFailure) {
+      throw new Error(batchFailure.last_error || 'Translation batch failed.');
+    }
+    await wait(500);
+  }
+
+  if (publicationHasPendingTranslateSteps(status)) {
+    throw new Error('Translation batches did not complete before the safety limit.');
+  }
+
+  await finalizeJournalPublication(postId);
+  status = await getJournalPublicationStatus(postId);
+  onProgress?.(status);
+
+  if (status.run?.status !== 'completed') {
+    throw new Error(status.run?.last_error || 'Publication finalize did not complete.');
+  }
+
+  return status;
+}
+

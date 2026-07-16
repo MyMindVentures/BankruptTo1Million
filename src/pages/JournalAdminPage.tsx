@@ -1,21 +1,23 @@
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { Edit3, ExternalLink, FilePlus2, LoaderCircle, RefreshCw, Search, Sparkles, Trash2, X } from 'lucide-react';
+import { Edit3, ExternalLink, FilePlus2, LoaderCircle, RefreshCw, Search, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { JournalEventCapture } from '../components/JournalEventCapture';
+import { JournalPublicationProgressPanel } from '../components/JournalPublicationProgressPanel';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import {
+  appendJournalFootage,
   createJournalPost,
   deleteJournalPost,
-  generateJournalAiPost,
-  generateJournalPlaceContext,
-  generateJournalVenueThankYou,
+  getAdminJournalFootage,
   getJournalAiSource,
   getJournalEventContext,
   getJournalOptions,
   getJournalOverview,
   journalEventHasPlaceContext,
   prepareJournalAi,
+  publishJournalPost,
   updateJournalPost,
   uploadJournalFootage,
+  type AdminJournalFootageItem,
   type EventTypeOption,
   type FounderOption,
   type JournalEventPayload,
@@ -77,7 +79,9 @@ export function JournalAdminPage() {
   const [form, setForm] = useState<Partial<JournalPayload>>(emptyForm);
   const [eventForm, setEventForm] = useState<JournalEventPayload>(emptyEvent);
   const [footage, setFootage] = useState<File[]>([]);
+  const [existingFootage, setExistingFootage] = useState<AdminJournalFootageItem[]>([]);
   const [saveStage, setSaveStage] = useState('');
+  const [publishingPostId, setPublishingPostId] = useState<string | null>(null);
   const optionsLoaded = useRef(false);
 
   async function loadOverview() {
@@ -144,6 +148,7 @@ export function JournalAdminPage() {
       setForm({ ...emptyForm });
       setEventForm({ ...emptyEvent, occurred_at: localNow() });
       setFootage([]);
+      setExistingFootage([]);
       setEditorOpen(true);
     }
   }, []);
@@ -157,6 +162,7 @@ export function JournalAdminPage() {
     setForm({ ...emptyForm });
     setEventForm({ ...emptyEvent, occurred_at: localNow() });
     setFootage([]);
+    setExistingFootage([]);
     setEditorOpen(true);
     setError(null);
     window.history.replaceState({}, '', '/admin/journal?create=1');
@@ -166,13 +172,16 @@ export function JournalAdminPage() {
     setEditingId(post.id);
     setForm({ ...post });
     setFootage([]);
+    setExistingFootage([]);
     setEditorOpen(true);
     setError(null);
     try {
-      const [context, rawDescription] = await Promise.all([
+      const [context, rawDescription, linkedFootage] = await Promise.all([
         getJournalEventContext(post.id),
         getJournalAiSource(post.id),
+        getAdminJournalFootage(post.id),
       ]);
+      setExistingFootage(linkedFootage);
       setEventForm({
         ...emptyEvent,
         ...context,
@@ -184,7 +193,39 @@ export function JournalAdminPage() {
     }
   }
 
-  async function submit(event: FormEvent) {
+  const isPublishedEdit = Boolean(editingId && form.status === 'published');
+
+  async function submitFootageOnly() {
+    if (!editingId || form.status !== 'published') return;
+    if (footage.length === 0) {
+      setError(t('journal.admin.upload_footage_empty', 'Select at least one photo or video to upload.'));
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSaveStage(`Uploading media (${footage.length})…`);
+
+    try {
+      const occurredAt = new Date(eventForm.occurred_at).toISOString();
+      await appendJournalFootage(editingId, footage, {
+        ...eventForm,
+        occurred_at: occurredAt,
+      });
+
+      setSaveStage(t('journal.admin.upload_footage_success', 'Footage uploaded successfully ({count} new items).', { count: footage.length }));
+      setEditorOpen(false);
+      window.history.replaceState({}, '', '/admin/journal');
+      await loadOverview();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Footage upload failed. The editor remains open and you can retry safely.');
+    } finally {
+      setSaving(false);
+      setSaveStage('');
+    }
+  }
+
+  async function submitRegenerate(event: FormEvent) {
     event.preventDefault();
     if (!eventForm.description.trim()) {
       setError('Private field notes are required before AI generation.');
@@ -254,43 +295,13 @@ export function JournalAdminPage() {
       );
 
       setSaveStage('Generating story…');
-      await generateJournalAiPost(saved.id, (stage, aiStatus) => {
-        const expected = Number(aiStatus.expected_translation_count) || languageCount;
-        if (stage === 'translating') {
-          setSaveStage(t('journal.admin.translating_progress', 'Translating {count} languages… ({current}/{count})', {
-            count: expected,
-            current: Math.min(Number(aiStatus.translation_count), expected),
-          }));
-        } else if (stage === 'publishing') {
-          setSaveStage('Publishing…');
-        } else {
-          setSaveStage('Generating story…');
-        }
+      setPublishingPostId(saved.id);
+      await publishJournalPost(saved.id, journalEventHasPlaceContext(eventForm), () => {
+        // Progress panel polls publication status independently.
       });
 
-      if (journalEventHasPlaceContext(eventForm)) {
-        setSaveStage(t('journal.admin.generating_place_context', 'Generating place & area context…'));
-        const placeResult = await generateJournalPlaceContext(saved.id);
-        if (placeResult?.skipped) {
-          setSaveStage(t('journal.admin.place_context_skipped', 'Place context skipped — no location or business was captured.'));
-        } else {
-          setSaveStage(t('journal.admin.place_context_success', 'Place & area context published in {count} languages.', {
-            count: Number(placeResult?.translation_count) || languageCount,
-          }));
-
-          setSaveStage(t('journal.admin.generating_venue_thank_you', 'Generating venue thank-you message…'));
-          const thankYouResult = await generateJournalVenueThankYou(saved.id);
-          if (thankYouResult?.skipped) {
-            setSaveStage(t('journal.admin.venue_thank_you_skipped', 'Venue thank-you skipped — place context is not ready.'));
-          } else {
-            setSaveStage(t('journal.admin.venue_thank_you_success', 'Venue thank-you published in {count} languages.', {
-              count: Number(thankYouResult?.translation_count) || languageCount,
-            }));
-          }
-        }
-      }
-
       setSaveStage(t('journal.admin.publish_success', 'Published successfully in {count} languages.', { count: languageCount }));
+      setPublishingPostId(null);
       setEditorOpen(false);
       window.history.replaceState({}, '', '/admin/journal');
       await loadOverview();
@@ -299,6 +310,7 @@ export function JournalAdminPage() {
     } finally {
       setSaving(false);
       setSaveStage('');
+      setPublishingPostId(null);
     }
   }
 
@@ -331,12 +343,12 @@ export function JournalAdminPage() {
 
     {!loading && rows.length === 0 && <div className="admin-section-empty">No journal posts found.</div>}
 
-    {editorOpen && <div className="journal-editor-backdrop"><form className="journal-editor journal-editor-premium" onSubmit={submit}>
+    {editorOpen && <div className="journal-editor-backdrop"><form className="journal-editor journal-editor-premium" onSubmit={submitRegenerate}>
       <header><div><p>{editingId ? 'EDIT AI JOURNAL EVENT' : 'CREATE LIVE AI JOURNAL EVENT'}</p><h2>{editingId ? form.title || 'Untitled event' : 'Capture once. Publish everywhere.'}</h2><span>Your quick notes stay private. Only AI-polished content becomes public.</span></div><button type="button" onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}><X /></button></header>
 
       <div className="journal-premium-layout">
         <main>
-          <JournalEventCapture value={eventForm} onChange={setEventForm} founders={founders} people={people} eventTypes={eventTypes} files={footage} onFilesChange={setFootage} onPeopleRefresh={(person) => setPeople((current) => [...current, person].sort((a, b) => a.display_name.localeCompare(b.display_name)))} />
+          <JournalEventCapture value={eventForm} onChange={setEventForm} founders={founders} people={people} eventTypes={eventTypes} files={footage} onFilesChange={setFootage} existingFootage={existingFootage} existingFootageHeading={existingFootage.length > 0 ? t('journal.admin.existing_footage_heading', 'Already linked footage') : undefined} onPeopleRefresh={(person) => setPeople((current) => [...current, person].sort((a, b) => a.display_name.localeCompare(b.display_name)))} />
 
           <section className="event-panel ai-source-panel">
             <div className="event-panel-heading"><span>06</span><div><h3>Private field notes</h3><p>Write quickly in your own words. These notes are admin-only and are never shown publicly.</p></div><Sparkles size={20} /></div>
@@ -354,7 +366,27 @@ export function JournalAdminPage() {
         </aside>
       </div>
 
-      <footer><button type="button" disabled={saving} onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>{saving && <span className="journal-save-stage" role="status" aria-live="polite">{saveStage}</span>}<button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? t('journal.admin.publish_button_update', 'Regenerate and update public story') : t('journal.admin.publish_button_create', 'Generate and publish in {count} languages', { count: languageCount })}</button></footer>
+      <footer>
+        <button type="button" disabled={saving} onClick={() => { setEditorOpen(false); window.history.replaceState({}, '', '/admin/journal'); }}>Cancel</button>
+        {saving && publishingPostId && (
+          <JournalPublicationProgressPanel postId={publishingPostId} active={saving} />
+        )}
+        {saving && !publishingPostId && saveStage && (
+          <span className="journal-save-stage" role="status" aria-live="polite">{saveStage}</span>
+        )}
+        {isPublishedEdit && (
+          <button
+            type="button"
+            className="upload-footage-only"
+            disabled={saving || footage.length === 0}
+            onClick={() => void submitFootageOnly()}
+          >
+            {saving && !publishingPostId ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}
+            {t('journal.admin.upload_footage_button', 'Upload footage')}
+          </button>
+        )}
+        <button className="primary publish-now" disabled={saving}>{saving ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}{editingId ? t('journal.admin.publish_button_update', 'Regenerate and update public story') : t('journal.admin.publish_button_create', 'Generate and publish in {count} languages', { count: languageCount })}</button>
+      </footer>
     </form></div>}
   </div>;
 }

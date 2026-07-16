@@ -88,15 +88,53 @@ function journeyHasPlaceContext(context: Record<string, unknown>) {
   return hasBusiness || hasCoords;
 }
 
-async function loadDraftPayload(postId: string) {
+async function loadVenueThankYouRow(postId: string) {
   const { data, error } = await db
     .from("journal_post_venue_thank_you")
-    .select("draft_payload")
+    .select("id, generation_status, draft_payload")
     .eq("journal_post_id", postId)
     .maybeSingle();
 
-  if (error) throw new Error(`Draft venue thank-you could not be loaded: ${error.message}`);
-  return (data?.draft_payload as Record<string, unknown> | null) ?? null;
+  if (error) throw new Error(`Venue thank-you row could not be loaded: ${error.message}`);
+  return data;
+}
+
+async function loadDraftPayload(postId: string) {
+  const row = await loadVenueThankYouRow(postId);
+  return (row?.draft_payload as Record<string, unknown> | null) ?? null;
+}
+
+async function finalizeIfPublishedTranslationsComplete(postId: string, expectedCount: number) {
+  const row = await loadVenueThankYouRow(postId);
+  if (!row?.id) return false;
+
+  const { count, error: countError } = await db
+    .from("journal_post_venue_thank_you_translations")
+    .select("id", { count: "exact", head: true })
+    .eq("venue_thank_you_id", row.id)
+    .eq("translation_status", "published");
+  if (countError) {
+    throw new Error(`Published thank-you count unavailable: ${countError.message}`);
+  }
+  if ((count ?? 0) < expectedCount) return false;
+
+  const { data: englishRow, error: englishError } = await db
+    .from("journal_post_venue_thank_you_translations")
+    .select("message")
+    .eq("venue_thank_you_id", row.id)
+    .eq("language_code", "en")
+    .eq("translation_status", "published")
+    .maybeSingle();
+  if (englishError) {
+    throw new Error(`English thank-you message unavailable: ${englishError.message}`);
+  }
+  if (!englishRow?.message?.trim()) return false;
+
+  const finalized = await db.rpc("finalize_journal_venue_thank_you_if_complete", { p_post_id: postId });
+  if (finalized.error) {
+    throw new Error(`Could not finalize venue thank-you: ${finalized.error.message}`);
+  }
+  return (finalized.data ?? 0) > 0 || row.generation_status === "completed";
 }
 
 function batchLangsComplete(batchLangs: string[], draft: Record<string, unknown> | null) {
@@ -309,6 +347,27 @@ Deno.serve(async (req: Request) => {
 
     if (!placeContextReady) {
       return out({ ok: true, skipped: true, post_id: postId, reason: "place_context_not_completed" });
+    }
+
+    const existingThankYou = await loadVenueThankYouRow(postId);
+    if (existingThankYou?.generation_status === "completed") {
+      return out({
+        ok: true,
+        complete: true,
+        has_more: false,
+        post_id: postId,
+        reason: "already_completed",
+      });
+    }
+
+    if (await finalizeIfPublishedTranslationsComplete(postId, langs.length)) {
+      return out({
+        ok: true,
+        complete: true,
+        has_more: false,
+        post_id: postId,
+        reason: "finalized_existing_translations",
+      });
     }
 
     if (cfg.enable_run_logging) {

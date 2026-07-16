@@ -1,8 +1,8 @@
 const SUPABASE_URL = 'https://zlwwncmbxohnezotomcx.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const WORKER_SECRET = process.env.JOURNAL_AI_WORKER_SECRET;
 const postIds = [
-  '400736f3-9730-4183-bc29-1100b7337203',
-  '01bf802b-6b66-4487-a7c8-f2202094bb31',
+  '2993d0ee-b22b-42b2-a737-ff6c4217d527',
 ];
 
 if (!WORKER_SECRET) {
@@ -10,16 +10,26 @@ if (!WORKER_SECRET) {
   process.exit(1);
 }
 
+if (!SUPABASE_ANON_KEY) {
+  console.error('Set SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY');
+  process.exit(1);
+}
+
+function workerHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    apikey: SUPABASE_ANON_KEY,
+    'x-journal-ai-worker-secret': WORKER_SECRET,
+  };
+}
+
 async function invokePlace(postId) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-journal-place-context`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-journal-ai-worker-secret': WORKER_SECRET,
-    },
+    headers: workerHeaders(),
     body: JSON.stringify({ post_id: postId }),
-  });
-  return {
+  });  return {
     postId,
     status: response.status,
     body: await response.json().catch(() => null),

@@ -138,66 +138,222 @@ function batchLangsNeedThankYouOnly(batchLangs: string[], draft: Record<string, 
   });
 }
 
+type CharacterRange = {
+  min?: number;
+  max?: number;
+  preferred_min?: number;
+  preferred_max?: number;
+};
+
+function resolveCharacterRange(
+  defaults: CharacterRange,
+  byLanguage: Record<string, CharacterRange> | undefined,
+  lang: string,
+) {
+  const merged = { ...defaults, ...(byLanguage?.[lang] ?? {}) };
+  const min = Number(merged.min ?? 0);
+  const max = Number(merged.max ?? min);
+  const preferredMin = Number(merged.preferred_min ?? min);
+  const preferredMax = Number(merged.preferred_max ?? max);
+  return { min, max, preferredMin, preferredMax };
+}
+
+function clampLocalizedProse(text: string, min: number, max: number, softMargin = 50) {
+  const trimmed = String(text ?? "").trim();
+  if (trimmed.length >= min && trimmed.length <= max) return trimmed;
+  if (trimmed.length < min) {
+    throw new Error(`Text too short: ${trimmed.length}; minimum ${min}`);
+  }
+  if (trimmed.length > max + softMargin) {
+    throw new Error(`Text too long: ${trimmed.length}; maximum ${max}`);
+  }
+
+  const slice = trimmed.slice(0, max);
+  const sentenceEnd = Math.max(
+    slice.lastIndexOf(". "),
+    slice.lastIndexOf("! "),
+    slice.lastIndexOf("? "),
+    slice.endsWith(".") ? slice.length - 1 : -1,
+    slice.endsWith("!") ? slice.length - 1 : -1,
+    slice.endsWith("?") ? slice.length - 1 : -1,
+  );
+  if (sentenceEnd >= min - 1) {
+    return slice.slice(0, sentenceEnd + 1).trim();
+  }
+
+  const lastSpace = slice.lastIndexOf(" ");
+  if (lastSpace >= min) {
+    return slice.slice(0, lastSpace).trim();
+  }
+
+  return slice.trim();
+}
+
+function normalizeLocalizedField(
+  text: string,
+  min: number,
+  max: number,
+  field: string,
+  lang: string,
+  softMargin = 50,
+) {
+  try {
+    return clampLocalizedProse(text, min, max, softMargin);
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Invalid ${field} length for ${lang}: ${String(text ?? "").trim().length}; expected ${min}-${max} (${detail})`,
+    );
+  }
+}
+
 function validateBatchPlaceContext(
   placeContext: Record<string, unknown>,
   batchLangs: string[],
   settings: Record<string, unknown>,
   thankYouOnly = false,
+  phaseMode: "full" | "place_english" | "area_english" | "thank_you_english" | "translate" = "full",
 ) {
-  const thankYou = settings.thank_you_characters ?? { min: 180, max: 700 };
-  const thankYouMin = Number(thankYou.min ?? 180);
-  const thankYouMax = Number(thankYou.max ?? 700);
-
-  if (thankYouOnly) {
-    const translations = placeContext.translations as Record<string, Record<string, string>> | undefined;
-    if (!translations) throw new Error("Missing place_context.translations");
-    for (const lang of batchLangs) {
-      const message = translations[lang]?.venue_thank_you_message?.trim();
-      if (!message) throw new Error(`Missing venue_thank_you_message for ${lang}`);
-      if (message.length > 1200) throw new Error(`venue_thank_you_message too long for ${lang}`);
-      if (message.length < thankYouMin || message.length > thankYouMax) {
-        throw new Error(`Invalid venue_thank_you_message length for ${lang}: ${message.length}; expected ${thankYouMin}-${thankYouMax}`);
-      }
-    }
-    return;
-  }
-
-  const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
-  const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
-  const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
+  const thankYouDefaults = (settings.thank_you_characters ?? { min: 180, max: 700 }) as CharacterRange;
+  const placeDefaults = (settings.place_history_characters ?? {
+    min: 150,
+    max: 900,
+    preferred_min: 150,
+    preferred_max: 750,
+  }) as CharacterRange;
+  const areaDefaults = (settings.area_history_characters ?? {
+    min: 200,
+    max: 1400,
+    preferred_min: 200,
+    preferred_max: 1100,
+  }) as CharacterRange;
+  const poiDefaults = (settings.poi_description_characters ?? { min: 80, max: 400 }) as CharacterRange;
+  const placeByLanguage = settings.place_history_by_language as Record<string, CharacterRange> | undefined;
+  const areaByLanguage = settings.area_history_by_language as Record<string, CharacterRange> | undefined;
+  const softMargin = Number(settings.length_soft_margin ?? 50);
 
   const translations = placeContext.translations as Record<string, Record<string, string>> | undefined;
   if (!translations) throw new Error("Missing place_context.translations");
 
+  const areaEnglishOnly = phaseMode === "area_english";
+  const placeEnglishOnly = phaseMode === "place_english";
+  const effectiveThankYouOnly = thankYouOnly || phaseMode === "thank_you_english";
+
   for (const lang of batchLangs) {
-    const item = translations[lang];
-    if (!item?.place_title?.trim()) throw new Error(`Missing place_context place_title for ${lang}`);
-    if (!item?.place_history?.trim()) throw new Error(`Missing place_context place_history for ${lang}`);
-    if (!item?.area_title?.trim()) throw new Error(`Missing place_context area_title for ${lang}`);
-    if (!item?.area_history?.trim()) throw new Error(`Missing place_context area_history for ${lang}`);
-    if (!item?.venue_thank_you_message?.trim()) throw new Error(`Missing venue_thank_you_message for ${lang}`);
-    if (item.venue_thank_you_message.length > 1200) throw new Error(`venue_thank_you_message too long for ${lang}`);
-    if (item.venue_thank_you_message.length < thankYouMin || item.venue_thank_you_message.length > thankYouMax) {
-      throw new Error(`Invalid venue_thank_you_message length for ${lang}: ${item.venue_thank_you_message.length}; expected ${thankYouMin}-${thankYouMax}`);
+    const item = translations[lang] ?? {};
+    const thankYouRange = resolveCharacterRange(thankYouDefaults, undefined, lang);
+
+    if (areaEnglishOnly) {
+      if (!item.area_title?.trim()) throw new Error(`Missing place_context area_title for ${lang}`);
+      if (!item.area_history?.trim()) throw new Error(`Missing place_context area_history for ${lang}`);
+      const areaRange = resolveCharacterRange(areaDefaults, areaByLanguage, lang);
+      item.area_history = normalizeLocalizedField(
+        item.area_history,
+        areaRange.min,
+        areaRange.max,
+        "area_history",
+        lang,
+        softMargin,
+      );
+      translations[lang] = item;
+      continue;
     }
-    if (item.place_history.length > 4000) throw new Error(`place_history too long for ${lang}`);
-    if (item.area_history.length > 6000) throw new Error(`area_history too long for ${lang}`);
-    const placeMin = Number((settings.place_history_characters as { min?: number } | undefined)?.min ?? 150);
-    const placeMax = Number((settings.place_history_characters as { max?: number } | undefined)?.max ?? 800);
-    const areaMin = Number((settings.area_history_characters as { min?: number } | undefined)?.min ?? 200);
-    const areaMax = Number((settings.area_history_characters as { max?: number } | undefined)?.max ?? 1200);
-    const byLangPlace = (settings.place_history_by_language as Record<string, { min?: number; max?: number }> | undefined)?.[lang];
-    const byLangArea = (settings.area_history_by_language as Record<string, { min?: number; max?: number }> | undefined)?.[lang];
-    const effectivePlaceMin = Number(byLangPlace?.min ?? placeMin);
-    const effectivePlaceMax = Number(byLangPlace?.max ?? placeMax);
-    const effectiveAreaMin = Number(byLangArea?.min ?? areaMin);
-    const effectiveAreaMax = Number(byLangArea?.max ?? areaMax);
-    if (item.place_history.length < effectivePlaceMin || item.place_history.length > effectivePlaceMax) {
-      throw new Error(`Invalid place_history length for ${lang}: ${item.place_history.length}; expected ${effectivePlaceMin}-${effectivePlaceMax}`);
+
+    if (effectiveThankYouOnly) {
+      if (!item.venue_thank_you_message?.trim()) {
+        throw new Error(`Missing venue_thank_you_message for ${lang}`);
+      }
+      item.venue_thank_you_message = normalizeLocalizedField(
+        item.venue_thank_you_message,
+        thankYouRange.min,
+        thankYouRange.max,
+        "venue_thank_you_message",
+        lang,
+        softMargin,
+      );
+      translations[lang] = item;
+      continue;
     }
-    if (item.area_history.length < effectiveAreaMin || item.area_history.length > effectiveAreaMax) {
-      throw new Error(`Invalid area_history length for ${lang}: ${item.area_history.length}; expected ${effectiveAreaMin}-${effectiveAreaMax}`);
+
+    if (placeEnglishOnly) {
+      if (!item.place_title?.trim()) throw new Error(`Missing place_context place_title for ${lang}`);
+      if (!item.place_history?.trim()) throw new Error(`Missing place_context place_history for ${lang}`);
+      const placeRange = resolveCharacterRange(placeDefaults, placeByLanguage, lang);
+      item.place_history = normalizeLocalizedField(
+        item.place_history,
+        placeRange.min,
+        placeRange.max,
+        "place_history",
+        lang,
+        softMargin,
+      );
+      translations[lang] = item;
+      continue;
     }
+
+    if (!item.place_title?.trim()) throw new Error(`Missing place_context place_title for ${lang}`);
+    if (!item.place_history?.trim()) throw new Error(`Missing place_context place_history for ${lang}`);
+    if (!item.area_title?.trim()) throw new Error(`Missing place_context area_title for ${lang}`);
+    if (!item.area_history?.trim()) throw new Error(`Missing place_context area_history for ${lang}`);
+    if (!item.venue_thank_you_message?.trim()) throw new Error(`Missing venue_thank_you_message for ${lang}`);
+
+    const placeRange = resolveCharacterRange(placeDefaults, placeByLanguage, lang);
+    const areaRange = resolveCharacterRange(areaDefaults, areaByLanguage, lang);
+
+    item.place_history = normalizeLocalizedField(
+      item.place_history,
+      placeRange.min,
+      placeRange.max,
+      "place_history",
+      lang,
+      softMargin,
+    );
+    item.area_history = normalizeLocalizedField(
+      item.area_history,
+      areaRange.min,
+      areaRange.max,
+      "area_history",
+      lang,
+      softMargin,
+    );
+    item.venue_thank_you_message = normalizeLocalizedField(
+      item.venue_thank_you_message,
+      thankYouRange.min,
+      thankYouRange.max,
+      "venue_thank_you_message",
+      lang,
+      softMargin,
+    );
+    translations[lang] = item;
+  }
+
+  if (effectiveThankYouOnly || areaEnglishOnly) return;
+
+  if (placeEnglishOnly) {
+    const pois = placeContext.pois as Array<Record<string, unknown>> | undefined;
+    if (!Array.isArray(pois) || pois.length !== 5) {
+      throw new Error("place_context must include exactly 5 POIs");
+    }
+    for (let i = 0; i < pois.length; i++) {
+      const poi = pois[i];
+      const poiTranslations = poi.translations as Record<string, Record<string, string>> | undefined;
+      if (!poiTranslations) throw new Error(`Missing POI translations for item ${i + 1}`);
+      for (const lang of batchLangs) {
+        const row = poiTranslations[lang] ?? {};
+        if (!row.title?.trim()) throw new Error(`Missing POI title for ${lang} item ${i + 1}`);
+        if (!row.description?.trim()) throw new Error(`Missing POI description for ${lang} item ${i + 1}`);
+        row.description = normalizeLocalizedField(
+          row.description,
+          Number(poiDefaults.min ?? 80),
+          Number(poiDefaults.max ?? 400),
+          `POI description item ${i + 1}`,
+          lang,
+          softMargin,
+        );
+        poiTranslations[lang] = row;
+      }
+    }
+    return;
   }
 
   const pois = placeContext.pois as Array<Record<string, unknown>> | undefined;
@@ -210,13 +366,18 @@ function validateBatchPlaceContext(
     const poiTranslations = poi.translations as Record<string, Record<string, string>> | undefined;
     if (!poiTranslations) throw new Error(`Missing POI translations for item ${i + 1}`);
     for (const lang of batchLangs) {
-      const row = poiTranslations[lang];
-      if (!row?.title?.trim()) throw new Error(`Missing POI title for ${lang} item ${i + 1}`);
-      if (!row?.description?.trim()) throw new Error(`Missing POI description for ${lang} item ${i + 1}`);
-      if (row.description.length > 1200) throw new Error(`POI description too long for ${lang} item ${i + 1}`);
-      if (row.description.length < Number(poiDescription.min) || row.description.length > Number(poiDescription.max)) {
-        throw new Error(`Invalid POI description length for ${lang} item ${i + 1}`);
-      }
+      const row = poiTranslations[lang] ?? {};
+      if (!row.title?.trim()) throw new Error(`Missing POI title for ${lang} item ${i + 1}`);
+      if (!row.description?.trim()) throw new Error(`Missing POI description for ${lang} item ${i + 1}`);
+      row.description = normalizeLocalizedField(
+        row.description,
+        Number(poiDefaults.min ?? 80),
+        Number(poiDefaults.max ?? 400),
+        `POI description item ${i + 1}`,
+        lang,
+        softMargin,
+      );
+      poiTranslations[lang] = row;
     }
   }
 }
@@ -240,6 +401,25 @@ function mergePlaceContextBatch(
       translations[lang] = {
         ...(translations[lang] ?? {}),
         venue_thank_you_message: incoming.venue_thank_you_message,
+      };
+    }
+    merged.translations = translations;
+    return merged;
+  }
+
+  const areaOnly = batchLangs.every((lang) => {
+    const incoming = batchTranslations[lang];
+    return Boolean(incoming?.area_title?.trim() && incoming?.area_history?.trim())
+      && !incoming?.place_title?.trim();
+  });
+  if (areaOnly) {
+    for (const lang of batchLangs) {
+      const incoming = batchTranslations[lang];
+      if (!incoming?.area_title?.trim()) continue;
+      translations[lang] = {
+        ...(translations[lang] ?? {}),
+        area_title: incoming.area_title,
+        area_history: incoming.area_history,
       };
     }
     merged.translations = translations;
@@ -493,28 +673,48 @@ function buildBatchPrompt(
   context: unknown,
   isFirstBatch: boolean,
   thankYouOnly = false,
+  phaseMode: "full" | "place_english" | "area_english" | "thank_you_english" | "translate" = "full",
 ) {
-  const thankYou = settings.thank_you_characters ?? { min: 180, max: 700 };
-  const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
-  const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
-  const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
-  const placeByLanguage = settings.place_history_by_language as Record<string, { min?: number; max?: number }> | undefined;
-  const areaByLanguage = settings.area_history_by_language as Record<string, { min?: number; max?: number }> | undefined;
+  const thankYou = (settings.thank_you_characters ?? { min: 180, max: 700 }) as CharacterRange;
+  const placeHistory = (settings.place_history_characters ?? {
+    min: 150,
+    max: 900,
+    preferred_min: 150,
+    preferred_max: 750,
+  }) as CharacterRange;
+  const areaHistory = (settings.area_history_characters ?? {
+    min: 200,
+    max: 1400,
+    preferred_min: 200,
+    preferred_max: 1100,
+  }) as CharacterRange;
+  const poiDescription = (settings.poi_description_characters ?? { min: 80, max: 400 }) as CharacterRange;
+  const placeByLanguage = settings.place_history_by_language as Record<string, CharacterRange> | undefined;
+  const areaByLanguage = settings.area_history_by_language as Record<string, CharacterRange> | undefined;
   const languageRangeInstructions = batchLangs.map((lang) => {
-    const place = { ...placeHistory, ...(placeByLanguage?.[lang] ?? {}) };
-    const area = { ...areaHistory, ...(areaByLanguage?.[lang] ?? {}) };
-    return `${lang}: place_history ${place.min}-${place.max}, area_history ${area.min}-${area.max}`;
+    const place = resolveCharacterRange(placeHistory, placeByLanguage, lang);
+    const area = resolveCharacterRange(areaHistory, areaByLanguage, lang);
+    return `${lang}: place_history target ${place.preferredMin}-${place.preferredMax}, accepted ${place.min}-${place.max}; area_history target ${area.preferredMin}-${area.preferredMax}, accepted ${area.min}-${area.max}`;
   }).join("\n");
 
-  const structureNote = thankYouOnly
+  const effectiveThankYouOnly = thankYouOnly || phaseMode === "thank_you_english";
+  const structureNote = effectiveThankYouOnly
     ? `Return place_context with translations for ${batchLangs.join(", ")} only. Each translation object must contain venue_thank_you_message (${thankYou.min}-${thankYou.max} chars) and nothing else. Do not change place history, area history, or POI content.`
-    : isFirstBatch
-      ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} only.`
-      : `Return place_context with translations and poi translations for ${batchLangs.join(", ")} only. Reuse the same 5 POI structure (display_order, poi_type, coordinates) from the verified context.`;
+    : phaseMode === "area_english"
+      ? `Return place_context with translations for ${batchLangs.join(", ")} only. Each translation object must contain area_title and area_history only. Do not change place history, thank-you, or POI content.`
+      : phaseMode === "place_english"
+        ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} with place_title and place_history only (no area fields or thank-you yet).`
+        : isFirstBatch
+          ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} only.`
+          : `Return place_context with translations and poi translations for ${batchLangs.join(", ")} only. Reuse the same 5 POI structure (display_order, poi_type, coordinates) from the verified context.`;
 
-  const contentNote = thankYouOnly
+  const contentNote = effectiveThankYouOnly
     ? `Every requested language needs venue_thank_you_message (${thankYou.min}-${thankYou.max} chars): a warm thank-you to the venue team, staff, and owner for hosting workspace for the website, mission, and projects, and for the happiness of featuring their place in the journal post and on the website. Never invent personal names.`
-    : `Every requested language needs place_title, place_history, area_title, area_history, venue_thank_you_message (${thankYou.min}-${thankYou.max} chars), and each POI needs title and description (${poiDescription.min}-${poiDescription.max} chars). The thank-you must address the venue team, staff, and owner and mention hosting workspace and featuring their place on the journal and website.`;
+    : phaseMode === "area_english"
+      ? `Every requested language needs area_title and area_history within the accepted hard maximum ranges below.`
+      : phaseMode === "place_english"
+        ? `Every requested language needs place_title and place_history, and each POI needs title and description (${poiDescription.min}-${poiDescription.max} chars). Target the preferred place_history ranges below.`
+        : `Every requested language needs place_title, place_history, area_title, area_history, venue_thank_you_message (${thankYou.min}-${thankYou.max} chars), and each POI needs title and description (${poiDescription.min}-${poiDescription.max} chars). Target the preferred character ranges below; never exceed the accepted hard maximum. The thank-you must address the venue team, staff, and owner and mention hosting workspace and featuring their place on the journal and website.`;
 
   return `${userPromptTemplate}
 
@@ -523,7 +723,7 @@ Return exactly one valid JSON object with a top-level place_context object.
 ${structureNote}
 
 ${contentNote}
-${thankYouOnly ? "" : `\nLanguage-specific history ranges:\n${languageRangeInstructions}`}
+${effectiveThankYouOnly || phaseMode === "area_english" ? "" : `\nLanguage-specific history ranges:\n${languageRangeInstructions}`}
 
 Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
 
@@ -537,11 +737,15 @@ async function generatePlaceContextBatch(
   context: unknown,
   isFirstBatch: boolean,
   thankYouOnly = false,
+  phaseMode: "full" | "place_english" | "area_english" | "thank_you_english" | "translate" = "full",
 ) {
-  const maxAttempts = 3;
+  const maxAttempts = 5;
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const retryHint = attempt > 1 && lastError?.message
+      ? `\n\nPrevious attempt failed validation (${lastError.message}). Regenerate the full JSON response. Respect the accepted hard maximum for every field and language; shorter is acceptable when needed.`
+      : "";
     const prompt = `${buildBatchPrompt(
       batchLangs,
       settings,
@@ -549,7 +753,8 @@ async function generatePlaceContextBatch(
       context,
       isFirstBatch,
       thankYouOnly,
-    )}${attempt > 1 ? `\n\nPrevious attempt failed validation (${lastError?.message}). Regenerate the full JSON response.` : ""}`;
+      phaseMode,
+    )}${retryHint}`;
 
     const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -582,7 +787,7 @@ async function generatePlaceContextBatch(
     try {
       const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
       const placeContext = (parsed.place_context ?? parsed) as Record<string, unknown>;
-      validateBatchPlaceContext(placeContext, batchLangs, settings, thankYouOnly);
+      validateBatchPlaceContext(placeContext, batchLangs, settings, thankYouOnly, phaseMode);
       return {
         placeContext,
         usage: {
@@ -601,6 +806,130 @@ async function generatePlaceContextBatch(
   throw lastError ?? new Error(`Could not generate place context batch [${batchLangs.join(", ")}]`);
 }
 
+type PlaceContextPhase = "place_english" | "area_english" | "thank_you_english" | "translate" | "auto";
+
+async function updatePublicationStep(
+  postId: string,
+  stepKey: string,
+  status: string,
+  detail?: Record<string, unknown>,
+  error?: string,
+) {
+  const result = await db.rpc("admin_update_publication_step", {
+    p_post_id: postId,
+    p_step_key: stepKey,
+    p_status: status,
+    p_detail: detail ?? null,
+    p_error: error ?? null,
+  });
+  if (result.error) {
+    throw new Error(`Could not update publication step ${stepKey}: ${result.error.message}`);
+  }
+}
+
+async function hasActivePublicationRun(postId: string) {
+  const { data, error } = await db
+    .from("journal_post_publication_runs")
+    .select("id")
+    .eq("journal_post_id", postId)
+    .in("status", ["pending", "processing"])
+    .maybeSingle();
+  if (error) throw new Error(`Publication run lookup failed: ${error.message}`);
+  return Boolean(data?.id);
+}
+
+async function persistPlaceDraft(postId: string, draftPayload: Record<string, unknown>, model?: string) {
+  await db.from("journal_post_place_context").upsert({
+    journal_post_id: postId,
+    generation_status: "processing",
+    draft_payload: draftPayload,
+    ai_model: model ?? null,
+    last_error: null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "journal_post_id" });
+}
+
+async function runPipelinePlacePhase(
+  postId: string,
+  phase: PlaceContextPhase,
+  cfg: Record<string, unknown>,
+  settings: Record<string, unknown>,
+  context: Record<string, unknown>,
+) {
+  const stepKey = phase === "translate" ? null : phase;
+  let draftPayload = await loadDraftPayload(postId);
+  const enrichedContext = draftPayload
+    ? { ...context, existing_place_context: draftPayload }
+    : context;
+
+  if (phase === "translate") {
+    const batchResult = await db.rpc("get_publication_translate_batch", { p_post_id: postId });
+    if (batchResult.error) throw new Error(`Publication batch lookup failed: ${batchResult.error.message}`);
+    const batch = batchResult.data as Record<string, unknown>;
+    if (batch.complete === true) {
+      return { ok: true, complete: true, skipped: true, phase };
+    }
+    const batchLangs = ((batch.languages as string[]) ?? []).filter(Boolean);
+    if (batchLangs.length === 0) throw new Error("Publication translate batch is missing languages");
+    if (batchLangsComplete(batchLangs, draftPayload)) {
+      return { ok: true, complete: true, phase, languages: batchLangs, resumed: true };
+    }
+
+    const thankYouOnly = Boolean(draftPayload) && batchLangsNeedThankYouOnly(batchLangs, draftPayload);
+    const { placeContext } = await generatePlaceContextBatch(
+      batchLangs,
+      cfg,
+      settings,
+      enrichedContext,
+      !draftPayload,
+      thankYouOnly,
+      thankYouOnly ? "thank_you_english" : "translate",
+    );
+    draftPayload = mergePlaceContextBatch(draftPayload, placeContext, batchLangs, thankYouOnly);
+    await persistPlaceDraft(postId, draftPayload, String(cfg.model ?? ""));
+    return {
+      ok: true,
+      complete: true,
+      phase,
+      languages: batchLangs,
+      translation_count: Object.keys((draftPayload?.translations as Record<string, unknown>) ?? {}).length,
+    };
+  }
+
+  const phaseMode = phase as "place_english" | "area_english" | "thank_you_english";
+  await updatePublicationStep(postId, stepKey!, "running");
+
+  try {
+    const batchLangs = ["en"];
+    const thankYouOnly = phase === "thank_you_english";
+    const { placeContext } = await generatePlaceContextBatch(
+      batchLangs,
+      cfg,
+      settings,
+      enrichedContext,
+      phase === "place_english" && !draftPayload,
+      thankYouOnly,
+      phaseMode,
+    );
+
+    draftPayload = mergePlaceContextBatch(draftPayload, placeContext, batchLangs, thankYouOnly);
+
+    if (phase === "place_english") {
+      normalizePlaceContextEnums(draftPayload);
+      await resolveAllPoiCoordinates(draftPayload, context, settings);
+      validatePoiCoordinates(draftPayload);
+    }
+
+    await persistPlaceDraft(postId, draftPayload, String(cfg.model ?? ""));
+    await updatePublicationStep(postId, stepKey!, "completed", { language: "en" });
+    return { ok: true, complete: true, phase, post_id: postId };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    await updatePublicationStep(postId, stepKey!, "failed", { language: "en" }, message);
+    throw error;
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
@@ -612,7 +941,9 @@ Deno.serve(async (req: Request) => {
     if (!K) throw new Error("Missing AI provider key");
     const auth = await authenticate(req);
 
-    postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
+    const body = await req.json().catch(() => ({})) as { post_id?: string; phase?: PlaceContextPhase };
+    postId = String(body?.post_id ?? "");
+    const phase = (body?.phase ?? "auto") as PlaceContextPhase;
     if (!postId) return out({ error: "post_id required" }, 400);
 
     const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
@@ -681,6 +1012,26 @@ Deno.serve(async (req: Request) => {
     );
 
     const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
+
+    if (phase !== "auto") {
+      const pipelineResult = await runPipelinePlacePhase(
+        postId,
+        phase,
+        cfg,
+        settings,
+        context as Record<string, unknown>,
+      );
+      if (runId) {
+        await db.rpc("finish_ai_edge_function_run", {
+          p_run_id: runId,
+          p_status: "completed",
+          p_response_status: 200,
+          p_metadata: { phase, ...(pipelineResult as Record<string, unknown>) },
+        });
+      }
+      return out({ post_id: postId, ...pipelineResult });
+    }
+
     const batchSize = Math.max(1, Number(settings.batch_size ?? 3));
     const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
     const batches = chunkLanguages(langs, batchSize);
@@ -762,6 +1113,31 @@ Deno.serve(async (req: Request) => {
     validatePlaceContext(draftPayload, langs, settings);
     await resolveAllPoiCoordinates(draftPayload, context as Record<string, unknown>, settings);
     validatePoiCoordinates(draftPayload);
+
+    const pipelineActive = await hasActivePublicationRun(postId);
+    if (pipelineActive) {
+      await persistPlaceDraft(postId, draftPayload, String(cfg.model ?? ""));
+      if (runId) {
+        await db.rpc("finish_ai_edge_function_run", {
+          p_run_id: runId,
+          p_status: "completed",
+          p_input_tokens: totalInputTokens || null,
+          p_output_tokens: totalOutputTokens || null,
+          p_response_status: 200,
+          p_metadata: { partial: false, pipeline_draft: true, language_count: langs.length },
+        });
+      }
+      return out({
+        ok: true,
+        complete: true,
+        has_more: false,
+        phase: "auto",
+        post_id: postId,
+        draft_only: true,
+        translation_count: langs.length,
+        expected_translation_count: langs.length,
+      });
+    }
 
     const saved = await db.rpc("save_journal_place_context_result", {
       p_post_id: postId,

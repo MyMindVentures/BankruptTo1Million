@@ -1,19 +1,33 @@
 const SUPABASE_URL = 'https://zlwwncmbxohnezotomcx.supabase.co';
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY ?? process.env.VITE_SUPABASE_ANON_KEY ?? '';
 const WORKER_SECRET = process.env.JOURNAL_AI_WORKER_SECRET;
-const postIds = ['400736f3-9730-4183-bc29-1100b7337203'];
+const postIds = [
+  '2993d0ee-b22b-42b2-a737-ff6c4217d527',
+];
 
 if (!WORKER_SECRET) {
   console.error('Set JOURNAL_AI_WORKER_SECRET');
   process.exit(1);
 }
 
+if (!SUPABASE_ANON_KEY) {
+  console.error('Set SUPABASE_ANON_KEY or VITE_SUPABASE_ANON_KEY');
+  process.exit(1);
+}
+
+function workerHeaders() {
+  return {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+    apikey: SUPABASE_ANON_KEY,
+    'x-journal-ai-worker-secret': WORKER_SECRET,
+  };
+}
+
 async function invokeThankYou(postId) {
   const response = await fetch(`${SUPABASE_URL}/functions/v1/generate-journal-venue-thank-you`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-journal-ai-worker-secret': WORKER_SECRET,
-    },
+    headers: workerHeaders(),
     body: JSON.stringify({ post_id: postId }),
   });
   return {

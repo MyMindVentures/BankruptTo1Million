@@ -1,5 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {
+  clampLocalizedProse,
+  normalizeLocalizedField,
+  resolveCharacterRange,
+} from '../scripts/journal-place-context-text.mjs';
 
 function buildGoogleMapsUrl(latitude, longitude) {
   if (latitude == null || longitude == null) return null;
@@ -134,4 +139,63 @@ test('journalEventHasPlaceContext requires business name or coordinates', () => 
   assert.equal(journalEventHasPlaceContext({ featured_business_name: 'Cafeteria Cajiz', latitude: '', longitude: '' }), true);
   assert.equal(journalEventHasPlaceContext({ featured_business_name: '', latitude: '36.7', longitude: '-4.1' }), true);
   assert.equal(journalEventHasPlaceContext({ featured_business_name: '', latitude: '', longitude: '' }), false);
+});
+
+function spanishPlaceHistory832() {
+  const base = 'Balcon de Maro es un mirador y restaurante sobre el acantilado de Maro, cerca de Nerja, donde el Mediterraneo se abre con una calma que invita a pensar con claridad. ';
+  let text = base.repeat(6).trim();
+  while (text.length < 832) {
+    text += ' El lugar combina cocina local, hospitalidad y una vista que convierte cada pausa de trabajo en un recuerdo compartido.';
+  }
+  return text.slice(0, 832);
+}
+
+test('clampLocalizedProse keeps valid text unchanged', () => {
+  const text = 'A'.repeat(736);
+  assert.equal(clampLocalizedProse(text, 150, 900), text);
+});
+
+test('clampLocalizedProse accepts the failing es place_history length of 832 within max 900', () => {
+  const text = spanishPlaceHistory832();
+  assert.equal(text.length, 832);
+  const clamped = clampLocalizedProse(text, 150, 900);
+  assert.ok(clamped.length <= 900);
+  assert.ok(clamped.length >= 150);
+});
+
+test('clampLocalizedProse soft-truncates minor overshoot above legacy max 800', () => {
+  const text = spanishPlaceHistory832();
+  const clamped = clampLocalizedProse(text, 150, 800, 50);
+  assert.ok(clamped.length <= 800);
+  assert.ok(clamped.length >= 150);
+});
+
+test('clampLocalizedProse rejects materially over-limit text', () => {
+  const text = 'Word '.repeat(220).trim();
+  assert.throws(
+    () => clampLocalizedProse(text, 150, 900, 50),
+    /Text too long/,
+  );
+});
+
+test('normalizeLocalizedField throws field-specific validation errors', () => {
+  const text = 'Word '.repeat(220).trim();
+  assert.throws(
+    () => normalizeLocalizedField(text, 150, 900, 'place_history', 'es'),
+    /Invalid place_history length for es/,
+  );
+});
+
+test('resolveCharacterRange merges defaults with per-language overrides', () => {
+  const range = resolveCharacterRange(
+    { min: 150, max: 900, preferred_min: 150, preferred_max: 750 },
+    { es: { max: 900, preferred_max: 750 } },
+    'es',
+  );
+  assert.deepEqual(range, {
+    min: 150,
+    max: 900,
+    preferredMin: 150,
+    preferredMax: 750,
+  });
 });

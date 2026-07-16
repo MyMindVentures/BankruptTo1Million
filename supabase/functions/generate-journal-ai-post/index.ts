@@ -258,25 +258,305 @@ function buildFailureMetadata(
   };
 }
 
+type StoryPhase = "english" | "translate" | "auto";
+
+async function updatePublicationStep(
+  postId: string,
+  stepKey: string,
+  status: string,
+  detail?: Record<string, unknown>,
+  error?: string,
+) {
+  const result = await db.rpc("admin_update_publication_step", {
+    p_post_id: postId,
+    p_step_key: stepKey,
+    p_status: status,
+    p_detail: detail ?? null,
+    p_error: error ?? null,
+  });
+  if (result.error) {
+    throw new Error(`Could not update publication step ${stepKey}: ${result.error.message}`);
+  }
+}
+
+async function hasActivePublicationRun(postId: string) {
+  const { data, error } = await db
+    .from("journal_post_publication_runs")
+    .select("id")
+    .eq("journal_post_id", postId)
+    .in("status", ["pending", "processing"])
+    .maybeSingle();
+  if (error) throw new Error(`Publication run lookup failed: ${error.message}`);
+  return Boolean(data?.id);
+}
+
+async function runEnglishPhase(
+  postId: string,
+  cfg: Record<string, unknown>,
+  settings: Record<string, unknown>,
+  context: unknown,
+  langs: string[],
+) {
+  await updatePublicationStep(postId, "story_english", "running");
+  const defaults = (settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 }) as Record<string, number>;
+  const byLanguage = (settings.body_characters_by_language ?? {}) as Record<string, Record<string, number>>;
+  const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
+  const { translations, usage } = await generateBatchTranslations(["en"], cfg, settings, ranges, context);
+  const english = translations.en;
+  if (!english) throw new Error("Missing English translation in AI response");
+
+  const saved = await db.rpc("save_journal_ai_english_result", {
+    p_post_id: postId,
+    p_translation: english,
+    p_model: cfg.model,
+    p_config_version: cfg.config_version,
+    p_prompt_version: cfg.prompt_version,
+  });
+  if (saved.error) throw new Error(`Could not save English story: ${saved.error.message}`);
+
+  await updatePublicationStep(postId, "story_english", "completed", { language: "en" });
+  return { usage, saved: saved.data as Record<string, unknown> };
+}
+
+async function runTranslatePhase(
+  postId: string,
+  cfg: Record<string, unknown>,
+  settings: Record<string, unknown>,
+  context: unknown,
+  langs: string[],
+) {
+  const batchResult = await db.rpc("get_publication_translate_batch", { p_post_id: postId });
+  if (batchResult.error) throw new Error(`Publication batch lookup failed: ${batchResult.error.message}`);
+  const batch = batchResult.data as Record<string, unknown>;
+  if (batch.complete === true) {
+    return { complete: true, skipped: true };
+  }
+
+  const stepKey = String(batch.step_key ?? "");
+  const batchLangs = ((batch.languages as string[]) ?? []).filter((lang) => lang && lang !== "en");
+  if (!stepKey || batchLangs.length === 0) {
+    throw new Error("Publication translate batch is missing languages");
+  }
+
+  const mergedTranslations = await loadExistingBatchTranslations(postId);
+  if (batchAlreadyComplete(batchLangs, mergedTranslations)) {
+    await updatePublicationStep(postId, stepKey, "completed", {
+      languages: batchLangs,
+      translation_count: batchLangs.length,
+      resumed: true,
+    });
+    return { complete: true, step_key: stepKey, languages: batchLangs, resumed: true };
+  }
+
+  await updatePublicationStep(postId, stepKey, "running");
+  const defaults = (settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 }) as Record<string, number>;
+  const byLanguage = (settings.body_characters_by_language ?? {}) as Record<string, Record<string, number>>;
+  const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
+  const { translations, usage } = await generateBatchTranslations(batchLangs, cfg, settings, ranges, context);
+
+  const batchIndex = Number(batch.batch_index ?? 0);
+  const batchCount = Number(batch.batch_count ?? 0);
+  const batchSaved = await db.rpc("upsert_journal_ai_translation_batch", {
+    p_post_id: postId,
+    p_translations: translations,
+    p_batch_index: batchIndex,
+    p_total_batches: batchCount,
+  });
+  if (batchSaved.error) {
+    await updatePublicationStep(postId, stepKey, "failed", { languages: batchLangs }, batchSaved.error.message);
+    throw new Error(`Could not save translation batch [${batchLangs.join(", ")}]: ${batchSaved.error.message}`);
+  }
+
+  await updatePublicationStep(postId, stepKey, "completed", {
+    languages: batchLangs,
+    translation_count: batchLangs.length,
+  });
+
+  return {
+    complete: true,
+    step_key: stepKey,
+    languages: batchLangs,
+    usage,
+    ...(batchSaved.data as Record<string, unknown>),
+  };
+}
+
+async function runAutoPhase(
+  postId: string,
+  cfg: Record<string, unknown>,
+  authSource: string,
+  runId: string | null,
+) {
+  const context = await loadContext(postId);
+  const now = new Date().toISOString();
+  await db.from("journal_posts").update({ ai_generation_status: "processing", updated_at: now }).eq("id", postId);
+  await db.from("journal_ai_sources").update({ generation_status: "processing", last_error: null, updated_at: now }).eq("journal_post_id", postId);
+
+  const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
+  const langs = await fetchActiveLanguages();
+  const batchSize = Math.max(1, Number(settings.batch_size ?? 3));
+  const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
+  const batches = chunkLanguages(langs, batchSize);
+  const defaults = (settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 }) as Record<string, number>;
+  const byLanguage = (settings.body_characters_by_language ?? {}) as Record<string, Record<string, number>>;
+  const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
+
+  const mergedTranslations: Record<string, TranslationFields> = await loadExistingBatchTranslations(postId);
+  let totalInputTokens = 0;
+  let totalOutputTokens = 0;
+  const batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }> = [];
+  let processedThisInvocation = 0;
+  let lastBatchResult: Record<string, unknown> | null = null;
+
+  for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+    const batchLangs = batches[batchIndex];
+
+    if (batchAlreadyComplete(batchLangs, mergedTranslations)) {
+      batchSummaries.push({
+        batch_index: batchIndex + 1,
+        languages: batchLangs,
+        finish_reason: "skipped_resume",
+      });
+      continue;
+    }
+
+    if (processedThisInvocation >= batchesPerInvocation) break;
+
+    const { translations, usage, finishReason } = await generateBatchTranslations(
+      batchLangs,
+      cfg,
+      settings,
+      ranges,
+      context,
+    );
+
+    Object.assign(mergedTranslations, translations);
+
+    const batchSaved = await db.rpc("upsert_journal_ai_translation_batch", {
+      p_post_id: postId,
+      p_translations: translations,
+      p_batch_index: batchIndex + 1,
+      p_total_batches: batches.length,
+    });
+    if (batchSaved.error) {
+      throw new Error(`Could not save batch ${batchIndex + 1}/${batches.length} [${batchLangs.join(", ")}]: ${batchSaved.error.message}`);
+    }
+
+    lastBatchResult = batchSaved.data as Record<string, unknown>;
+    totalInputTokens += Number(usage.prompt_tokens ?? 0);
+    totalOutputTokens += Number(usage.completion_tokens ?? 0);
+    batchSummaries.push({
+      batch_index: batchIndex + 1,
+      languages: batchLangs,
+      finish_reason: finishReason,
+    });
+    processedThisInvocation += 1;
+  }
+
+  const allBatchesComplete = batches.every((batchLangs) => batchAlreadyComplete(batchLangs, mergedTranslations));
+  const runMetadata = {
+    translation_count: Object.keys(mergedTranslations).length,
+    expected_translation_count: langs.length,
+    batch_size: batchSize,
+    batch_count: batches.length,
+    batches: batchSummaries,
+    batches_per_invocation: batchesPerInvocation,
+    auth_source: authSource,
+  };
+
+  if (allBatchesComplete) {
+    const pipelineActive = await hasActivePublicationRun(postId);
+    const saved = await db.rpc(
+      pipelineActive ? "save_journal_ai_draft_result" : "save_journal_ai_generation_result",
+      {
+        p_post_id: postId,
+        p_translations: mergedTranslations,
+        p_model: cfg.model,
+        p_config_version: cfg.config_version,
+        p_prompt_version: cfg.prompt_version,
+      },
+    );
+    if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
+
+    if (runId) {
+      await db.rpc("finish_ai_edge_function_run", {
+        p_run_id: runId,
+        p_status: "completed",
+        p_input_tokens: totalInputTokens || null,
+        p_output_tokens: totalOutputTokens || null,
+        p_response_status: 200,
+        p_metadata: runMetadata,
+      });
+    }
+
+    return out({
+      ok: true,
+      complete: true,
+      has_more: false,
+      phase: "auto",
+      ...(saved.data as Record<string, unknown>),
+      languages: langs,
+      model: cfg.model,
+      config_version: cfg.config_version,
+      prompt_version: cfg.prompt_version,
+      batch_size: batchSize,
+      batch_count: batches.length,
+      translation_count: langs.length,
+      expected_translation_count: langs.length,
+    });
+  }
+
+  if (runId) {
+    await db.rpc("finish_ai_edge_function_run", {
+      p_run_id: runId,
+      p_status: "completed",
+      p_input_tokens: totalInputTokens || null,
+      p_output_tokens: totalOutputTokens || null,
+      p_response_status: 200,
+      p_metadata: { ...runMetadata, partial: true },
+    });
+  }
+
+  return out({
+    ok: true,
+    complete: false,
+    has_more: true,
+    phase: "auto",
+    post_id: postId,
+    batch_index: lastBatchResult?.batch_index ?? batchSummaries.at(-1)?.batch_index ?? null,
+    total_batches: batches.length,
+    translation_count: lastBatchResult?.translation_count ?? Object.keys(mergedTranslations).length,
+    expected_translation_count: langs.length,
+    batch_size: batchSize,
+    batches_per_invocation: batchesPerInvocation,
+    model: cfg.model,
+    config_version: cfg.config_version,
+    prompt_version: cfg.prompt_version,
+  });
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
 
   let postId = "";
   let runId: string | null = null;
-  let batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }> = [];
+  const batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }> = [];
   let currentBatchIndex: number | null = null;
   let currentBatchLangs: string[] = [];
   let batchSize = 3;
   let batchCount = 0;
   let authSource = "admin";
+  let phase: StoryPhase = "auto";
 
   try {
     if (!K) throw new Error("Missing AI provider key");
     const auth = await authenticate(req);
     authSource = auth.source;
 
-    postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
+    const body = await req.json().catch(() => ({})) as { post_id?: string; phase?: StoryPhase };
+    postId = String(body?.post_id ?? "");
+    phase = (body?.phase ?? "auto") as StoryPhase;
     if (!postId) return out({ error: "post_id required" }, 400);
 
     const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
@@ -293,6 +573,7 @@ Deno.serve(async (req: Request) => {
         p_entity_id: postId,
         p_metadata: {
           source: authSource,
+          phase,
           config_version: cfg.config_version,
           prompt_version: cfg.prompt_version,
         },
@@ -301,152 +582,48 @@ Deno.serve(async (req: Request) => {
       runId = r.data;
     }
 
-    const context = await loadContext(postId);
+    const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
+    const langs = await fetchActiveLanguages();
+    batchSize = Math.max(1, Number(settings.batch_size ?? 3));
+    batchCount = Math.ceil(Math.max(langs.length, 1) / batchSize);
+
     const now = new Date().toISOString();
     await db.from("journal_posts").update({ ai_generation_status: "processing", updated_at: now }).eq("id", postId);
     await db.from("journal_ai_sources").update({ generation_status: "processing", last_error: null, updated_at: now }).eq("journal_post_id", postId);
 
-    const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
-    const langs = await fetchActiveLanguages();
-    batchSize = Math.max(1, Number(settings.batch_size ?? 3));
-    const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
-    const batches = chunkLanguages(langs, batchSize);
-    batchCount = batches.length;
-    const defaults = (settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 }) as Record<string, number>;
-    const byLanguage = (settings.body_characters_by_language ?? {}) as Record<string, Record<string, number>>;
-    const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
-
-    const mergedTranslations: Record<string, TranslationFields> = await loadExistingBatchTranslations(postId);
-    let totalInputTokens = 0;
-    let totalOutputTokens = 0;
-    batchSummaries = [];
-    let processedThisInvocation = 0;
-    let lastBatchResult: Record<string, unknown> | null = null;
-
-    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
-      const batchLangs = batches[batchIndex];
-      currentBatchIndex = batchIndex + 1;
-      currentBatchLangs = batchLangs;
-
-      if (batchAlreadyComplete(batchLangs, mergedTranslations)) {
-        batchSummaries.push({
-          batch_index: batchIndex + 1,
-          languages: batchLangs,
-          finish_reason: "skipped_resume",
-        });
-        continue;
-      }
-
-      if (processedThisInvocation >= batchesPerInvocation) break;
-
-      const { translations, usage, finishReason } = await generateBatchTranslations(
-        batchLangs,
-        cfg,
-        settings,
-        ranges,
-        context,
-      );
-
-      Object.assign(mergedTranslations, translations);
-
-      const batchSaved = await db.rpc("upsert_journal_ai_translation_batch", {
-        p_post_id: postId,
-        p_translations: translations,
-        p_batch_index: batchIndex + 1,
-        p_total_batches: batches.length,
-      });
-      if (batchSaved.error) {
-        throw new Error(`Could not save batch ${batchIndex + 1}/${batches.length} [${batchLangs.join(", ")}]: ${batchSaved.error.message}`);
-      }
-
-      lastBatchResult = batchSaved.data as Record<string, unknown>;
-      totalInputTokens += Number(usage.prompt_tokens ?? 0);
-      totalOutputTokens += Number(usage.completion_tokens ?? 0);
-      batchSummaries.push({
-        batch_index: batchIndex + 1,
-        languages: batchLangs,
-        finish_reason: finishReason,
-      });
-      processedThisInvocation += 1;
-    }
-
-    currentBatchIndex = null;
-    currentBatchLangs = [];
-
-    const allBatchesComplete = batches.every((batchLangs) => batchAlreadyComplete(batchLangs, mergedTranslations));
-    const runMetadata = {
-      translation_count: Object.keys(mergedTranslations).length,
-      expected_translation_count: langs.length,
-      batch_size: batchSize,
-      batch_count: batches.length,
-      batches: batchSummaries,
-      batches_per_invocation: batchesPerInvocation,
-      auth_source: authSource,
-    };
-
-    if (allBatchesComplete) {
-      const saved = await db.rpc("save_journal_ai_generation_result", {
-        p_post_id: postId,
-        p_translations: mergedTranslations,
-        p_model: cfg.model,
-        p_config_version: cfg.config_version,
-        p_prompt_version: cfg.prompt_version,
-      });
-      if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
-
+    if (phase === "english") {
+      const context = await loadContext(postId);
+      const result = await runEnglishPhase(postId, cfg, settings, context, langs);
       if (runId) {
         await db.rpc("finish_ai_edge_function_run", {
           p_run_id: runId,
           p_status: "completed",
-          p_input_tokens: totalInputTokens || null,
-          p_output_tokens: totalOutputTokens || null,
+          p_input_tokens: Number(result.usage.prompt_tokens ?? 0) || null,
+          p_output_tokens: Number(result.usage.completion_tokens ?? 0) || null,
           p_response_status: 200,
-          p_metadata: runMetadata,
+          p_metadata: { phase: "english" },
         });
       }
-
-      return out({
-        ok: true,
-        complete: true,
-        has_more: false,
-        ...(saved.data as Record<string, unknown>),
-        languages: langs,
-        model: cfg.model,
-        config_version: cfg.config_version,
-        prompt_version: cfg.prompt_version,
-        batch_size: batchSize,
-        batch_count: batches.length,
-        translation_count: langs.length,
-        expected_translation_count: langs.length,
-      });
+      return out({ ok: true, complete: true, phase: "english", post_id: postId, ...result.saved });
     }
 
-    if (runId) {
-      await db.rpc("finish_ai_edge_function_run", {
-        p_run_id: runId,
-        p_status: "completed",
-        p_input_tokens: totalInputTokens || null,
-        p_output_tokens: totalOutputTokens || null,
-        p_response_status: 200,
-        p_metadata: { ...runMetadata, partial: true },
-      });
+    if (phase === "translate") {
+      const context = await loadContext(postId);
+      const result = await runTranslatePhase(postId, cfg, settings, context, langs);
+      if (runId) {
+        await db.rpc("finish_ai_edge_function_run", {
+          p_run_id: runId,
+          p_status: "completed",
+          p_input_tokens: Number(result.usage?.prompt_tokens ?? 0) || null,
+          p_output_tokens: Number(result.usage?.completion_tokens ?? 0) || null,
+          p_response_status: 200,
+          p_metadata: { phase: "translate", step_key: result.step_key ?? null },
+        });
+      }
+      return out({ ok: true, phase: "translate", post_id: postId, ...result });
     }
 
-    return out({
-      ok: true,
-      complete: false,
-      has_more: true,
-      post_id: postId,
-      batch_index: lastBatchResult?.batch_index ?? batchSummaries.at(-1)?.batch_index ?? null,
-      total_batches: batches.length,
-      translation_count: lastBatchResult?.translation_count ?? Object.keys(mergedTranslations).length,
-      expected_translation_count: langs.length,
-      batch_size: batchSize,
-      batches_per_invocation: batchesPerInvocation,
-      model: cfg.model,
-      config_version: cfg.config_version,
-      prompt_version: cfg.prompt_version,
-    });
+    return await runAutoPhase(postId, cfg, authSource, runId);
   } catch (error) {
     const baseMessage = error instanceof Error ? error.message : String(error);
     if (baseMessage === "Unauthorized" || baseMessage === "Admin access required") {
@@ -475,6 +652,7 @@ Deno.serve(async (req: Request) => {
         ...((sourceRow?.metadata as Record<string, unknown> | null) ?? {}),
         ...failureMetadata,
         last_failure_at: now,
+        phase,
       };
 
       await db.from("journal_posts").update({ ai_generation_status: "failed", updated_at: now }).eq("id", postId);
@@ -494,7 +672,7 @@ Deno.serve(async (req: Request) => {
         p_metadata: failureMetadata,
       });
     }
-    console.error("generate-journal-ai-post failed", { postId, message, failureMetadata });
+    console.error("generate-journal-ai-post failed", { postId, phase, message, failureMetadata });
     return out({ error: message }, 500);
   }
 });

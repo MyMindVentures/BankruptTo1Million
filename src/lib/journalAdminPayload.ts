@@ -112,3 +112,11 @@ export function parseJournalOverviewPayload(payload: unknown): {
     counts,
   };
 }
+
+export function canUploadFootageOnly(
+  editingId: string | null,
+  status: JournalPostStatus | undefined,
+  newFileCount: number,
+) {
+  return Boolean(editingId && status === 'published' && newFileCount > 0);
+}
