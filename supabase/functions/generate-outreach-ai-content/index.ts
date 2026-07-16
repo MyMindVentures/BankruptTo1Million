@@ -17,6 +17,7 @@ const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), 
   status,
   headers: { ...cors, "Content-Type": "application/json" },
 });
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const parse = (text: string) => {
   const t = text.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
@@ -36,6 +37,16 @@ type PageCopy = {
   mission_blurb?: string;
 };
 
+const COPY_FIELDS: Array<keyof PageCopy> = [
+  "personal_intro",
+  "why_them",
+  "what_we_offer",
+  "what_we_ask",
+  "win_win",
+  "personal_message",
+  "mission_blurb",
+];
+
 async function authenticate(req: Request) {
   const auth = req.headers.get("Authorization");
   if (!auth) throw new Error("Unauthorized");
@@ -48,74 +59,100 @@ async function authenticate(req: Request) {
   if (!access.data?.[0]?.is_active) throw new Error("Admin access required");
 }
 
-function validateCopy(copy: PageCopy, language: string) {
-  const fields: Array<keyof PageCopy> = [
-    "personal_intro", "why_them", "what_we_offer", "what_we_ask", "win_win", "personal_message", "mission_blurb",
-  ];
-  for (const field of fields) {
+function validateCopy(copy: PageCopy, language: string, maxCharacters: number) {
+  for (const field of COPY_FIELDS) {
     const value = String(copy[field] ?? "").trim();
     if (!value) throw new Error(`Missing ${field} in ${language} outreach copy`);
-    if (value.length > 4000) throw new Error(`${field} is too long`);
+    if (value.length > maxCharacters) throw new Error(`${field} is too long`);
   }
 }
 
-function buildPrompt(context: Record<string, unknown>, language: string) {
-  return `You are writing a private, personalized outreach page for Bankrupt to 1 Million — a living documentary and community platform about rebuilding honestly.
+function buildUserPrompt(
+  userPromptTemplate: string,
+  context: Record<string, unknown>,
+  language: string,
+) {
+  return `${userPromptTemplate}
 
 Write ALL copy in language code "${language}".
-
-Return exactly one JSON object with these string fields:
-- personal_intro (warm greeting, 2-4 sentences)
-- why_them (why this company/person is a fit, 3-5 sentences)
-- what_we_offer (what Bankrupt to 1 Million can offer them, 3-5 sentences)
-- what_we_ask (a clear, respectful ask, 2-4 sentences)
-- win_win (mutual benefit framing, 2-4 sentences)
-- personal_message (short closing note for the page, 2-3 sentences)
-- mission_blurb (1-2 sentences about the mission, honest and non-salesy)
-
-Tone: personal, credible, founder-to-founder. No hype. No markdown. Plain text only.
 
 Verified context:
 ${JSON.stringify(context)}`;
 }
 
-async function generateCopy(context: Record<string, unknown>, language: string): Promise<PageCopy> {
+async function loadContext(campaignId: string) {
+  const result = await db.rpc("get_outreach_ai_generation_context", { p_campaign_id: campaignId });
+  if (result.error || !result.data) {
+    throw new Error(result.error?.message || "Outreach AI context unavailable");
+  }
+  return result.data as Record<string, unknown>;
+}
+
+async function generateCopy(
+  context: Record<string, unknown>,
+  language: string,
+  cfg: Record<string, unknown>,
+): Promise<{ copy: PageCopy; usage: Record<string, number>; finishReason: string | null }> {
   if (!K) throw new Error("Missing AI provider key");
 
-  const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${K}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://bankruptto1million.com",
-      "X-Title": "Bankrupt to 1 Million Outreach AI",
-    },
-    body: JSON.stringify({
-      model: "openai/gpt-4o-mini",
-      temperature: 0.7,
-      max_tokens: 4096,
-      response_format: { type: "json_object" },
-      messages: [
-        {
-          role: "system",
-          content: "You generate concise, personalized outreach page copy as valid JSON only.",
-        },
-        { role: "user", content: buildPrompt(context, language) },
-      ],
-    }),
-  });
+  const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
+  const maxCharacters = Math.max(500, Number(settings.field_max_characters ?? 4000));
+  const maxAttempts = Math.max(1, Number(settings.max_attempts ?? 3));
+  let lastError: Error | null = null;
+  let totalUsage: Record<string, number> = {};
+  let finishReason: string | null = null;
 
-  if (!ai.ok) throw new Error(`AI provider ${ai.status}: ${(await ai.text()).slice(0, 900)}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const prompt = `${buildUserPrompt(String(cfg.user_prompt_template ?? ""), context, language)}${
+      attempt > 1 ? `\n\nPrevious attempt failed validation (${lastError?.message}). Regenerate the full JSON response.` : ""
+    }`;
 
-  const payload = await ai.json();
-  const finishReason = payload?.choices?.[0]?.finish_reason ?? null;
-  if (finishReason && finishReason !== "stop") {
-    throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
+    const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${K}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://bankruptto1million.com",
+        "X-Title": "Bankrupt to 1 Million Outreach AI",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        temperature: Number(cfg.temperature),
+        top_p: cfg.top_p == null ? undefined : Number(cfg.top_p),
+        max_tokens: Number(cfg.max_output_tokens ?? 4096),
+        response_format: cfg.response_format,
+        messages: [
+          { role: "system", content: String(cfg.system_prompt ?? "") },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!ai.ok) throw new Error(`AI provider ${ai.status}: ${(await ai.text()).slice(0, 900)}`);
+
+    const payload = await ai.json();
+    finishReason = payload?.choices?.[0]?.finish_reason ?? null;
+    if (finishReason && finishReason !== "stop") {
+      throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
+    }
+
+    totalUsage = {
+      prompt_tokens: Number(totalUsage.prompt_tokens ?? 0) + Number(payload?.usage?.prompt_tokens ?? 0),
+      completion_tokens: Number(totalUsage.completion_tokens ?? 0) + Number(payload?.usage?.completion_tokens ?? 0),
+    };
+
+    try {
+      const parsed = parse(payload?.choices?.[0]?.message?.content ?? "") as PageCopy;
+      validateCopy(parsed, language, maxCharacters);
+      return { copy: parsed, usage: totalUsage, finishReason };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt >= maxAttempts) throw lastError;
+      await sleep(400 * attempt);
+    }
   }
 
-  const parsed = parse(payload?.choices?.[0]?.message?.content ?? "") as PageCopy;
-  validateCopy(parsed, language);
-  return parsed;
+  throw lastError ?? new Error(`Could not generate outreach copy for ${language}`);
 }
 
 Deno.serve(async (req: Request) => {
@@ -123,18 +160,37 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
 
   let campaignId = "";
+  let runId: string | null = null;
 
   try {
+    if (!K) throw new Error("Missing AI provider key");
     await authenticate(req);
+
     campaignId = String((await req.json().catch(() => ({})))?.campaign_id ?? "");
     if (!campaignId) return out({ error: "campaign_id required" }, 400);
 
-    const contextResult = await db.rpc("get_outreach_ai_generation_context", { p_campaign_id: campaignId });
-    if (contextResult.error || !contextResult.data) {
-      throw new Error(contextResult.error?.message || "Outreach AI context unavailable");
+    const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
+      p_edge_function_slug: SLUG,
+    });
+    if (cfgResult.error) throw new Error(`AI runtime config unavailable: ${cfgResult.error.message}`);
+    const cfg = cfgResult.data as Record<string, unknown>;
+    if (!cfg) throw new Error("AI runtime config unavailable: empty response");
+
+    if (cfg.enable_run_logging) {
+      const run = await db.rpc("start_ai_edge_function_run", {
+        p_edge_function_slug: SLUG,
+        p_entity_type: "outreach_campaign",
+        p_entity_id: campaignId,
+        p_metadata: {
+          config_version: cfg.config_version,
+          prompt_version: cfg.prompt_version,
+        },
+      });
+      if (run.error) throw new Error(`Could not start AI run: ${run.error.message}`);
+      runId = run.data;
     }
 
-    const context = contextResult.data as Record<string, unknown>;
+    const context = await loadContext(campaignId);
     const language = String(context.language_code || "en");
     const brief = String(context.brief || "").trim();
     if (!brief) throw new Error("Private AI brief is required before generation");
@@ -156,7 +212,7 @@ Deno.serve(async (req: Request) => {
       updated_at: now,
     }, { onConflict: "campaign_id" });
 
-    const copy = await generateCopy(context, language);
+    const { copy, usage } = await generateCopy(context, language, cfg);
 
     const { data: pageRow } = await db
       .from("outreach_pages")
@@ -192,22 +248,63 @@ Deno.serve(async (req: Request) => {
       updated_at: now,
     }).eq("campaign_id", campaignId);
 
-    return out({ ok: true, campaign_id: campaignId, language_code: language, page: copy });
+    if (runId) {
+      await db.rpc("finish_ai_edge_function_run", {
+        p_run_id: runId,
+        p_status: "completed",
+        p_input_tokens: Number(usage.prompt_tokens ?? 0) || null,
+        p_output_tokens: Number(usage.completion_tokens ?? 0) || null,
+        p_response_status: 200,
+        p_metadata: {
+          campaign_id: campaignId,
+          language_code: language,
+          model: cfg.model,
+          config_version: cfg.config_version,
+          prompt_version: cfg.prompt_version,
+        },
+      });
+    }
+
+    return out({
+      ok: true,
+      campaign_id: campaignId,
+      language_code: language,
+      page: copy,
+      model: cfg.model,
+      config_version: cfg.config_version,
+      prompt_version: cfg.prompt_version,
+    });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message === "Unauthorized" || message === "Admin access required") {
+      return out({ error: message }, message === "Admin access required" ? 403 : 401);
+    }
+
     if (campaignId) {
       const now = new Date().toISOString();
       await db.from("outreach_campaigns").update({
         ai_generation_status: "failed",
-        ai_generation_error: message,
+        ai_generation_error: message.slice(0, 4000),
         updated_at: now,
       }).eq("id", campaignId);
       await db.from("outreach_ai_sources").update({
         generation_status: "failed",
-        last_error: message,
+        last_error: message.slice(0, 4000),
         updated_at: now,
       }).eq("campaign_id", campaignId);
     }
+
+    if (runId) {
+      await db.rpc("finish_ai_edge_function_run", {
+        p_run_id: runId,
+        p_status: "failed",
+        p_response_status: 500,
+        p_error_message: message.slice(0, 4000),
+        p_metadata: { campaign_id: campaignId || null },
+      });
+    }
+
+    console.error(`${SLUG} failed`, { campaignId, message });
     return out({ ok: false, error: message }, 500);
   }
 });

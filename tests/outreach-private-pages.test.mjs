@@ -78,8 +78,23 @@ test('outreach AI migration adds status columns and admin AI RPCs', () => {
 test('outreach AI edge function generates single-language page copy', () => {
   assert.match(edgeFunction, /generate-outreach-ai-content/);
   assert.match(edgeFunction, /get_outreach_ai_generation_context/);
+  assert.match(edgeFunction, /get_ai_edge_function_runtime_config/);
+  assert.match(edgeFunction, /start_ai_edge_function_run/);
+  assert.match(edgeFunction, /finish_ai_edge_function_run/);
   assert.match(edgeFunction, /openrouter\.ai/);
   assert.match(edgeFunction, /personal_intro/);
+  assert.doesNotMatch(edgeFunction, /openai\/gpt-4o-mini/);
+});
+
+test('outreach AI control plane migration registers runtime config', () => {
+  const controlPlane = readFileSync(
+    new URL('../supabase/migrations/20260717210000_outreach_ai_edge_function_control_plane.sql', import.meta.url),
+    'utf8',
+  );
+  assert.match(controlPlane, /generate-outreach-ai-content/);
+  assert.match(controlPlane, /ai_edge_function_configs/);
+  assert.match(controlPlane, /enable_run_logging/);
+  assert.match(controlPlane, /runtime_config_implemented/);
 });
 
 test('public outreach api uses token-gated RPCs', () => {
