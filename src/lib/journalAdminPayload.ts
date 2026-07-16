@@ -113,10 +113,17 @@ export function parseJournalOverviewPayload(payload: unknown): {
   };
 }
 
+export function canShowFootageOnlyUpload(
+  editingId: string | null,
+  publishedEditId: string | null,
+) {
+  return Boolean(editingId && publishedEditId === editingId);
+}
+
 export function canUploadFootageOnly(
   editingId: string | null,
-  status: JournalPostStatus | undefined,
+  publishedEditId: string | null,
   newFileCount: number,
 ) {
-  return Boolean(editingId && status === 'published' && newFileCount > 0);
+  return canShowFootageOnlyUpload(editingId, publishedEditId) && newFileCount > 0;
 }

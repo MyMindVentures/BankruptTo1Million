@@ -1,6 +1,6 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Camera, Check, Crosshair, FileVideo2, MapPin, Plus, Search, UserPlus, Users, X } from 'lucide-react';
+import { Camera, Check, Crosshair, FileVideo2, LoaderCircle, MapPin, Plus, Search, Upload, UserPlus, Users, X } from 'lucide-react';
 import { createJourneyPerson, type AdminJournalFootageItem, type EventTypeOption, type FounderOption, type JournalEventPayload, type JourneyPerson } from '../lib/journalAdminApi';
 import { publicStorageUrl } from '../lib/journalFootage';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -83,7 +83,7 @@ export const JOURNAL_EVENT_CAPTURE_I18N_MANIFEST = {
   keyPatterns: ['journal_event_capture.*'] as const,
 } as const satisfies I18nManifest;
 
-export function JournalEventCapture({ value, onChange, founders, people, eventTypes, files, onFilesChange, onPeopleRefresh, existingFootage = [], existingFootageHeading }: {
+export function JournalEventCapture({ value, onChange, founders, people, eventTypes, files, onFilesChange, onPeopleRefresh, existingFootage = [], existingFootageHeading, showFootageOnlyUpload = false, onFootageOnlyUpload, footageOnlyUploadLabel, footageOnlyUploadHint, footageOnlyUploadDisabled = false, footageOnlyUploadBusy = false }: {
   value: JournalEventPayload;
   onChange: (next: JournalEventPayload) => void;
   founders: FounderOption[];
@@ -94,6 +94,12 @@ export function JournalEventCapture({ value, onChange, founders, people, eventTy
   onPeopleRefresh: (person: JourneyPerson) => void;
   existingFootage?: AdminJournalFootageItem[];
   existingFootageHeading?: string;
+  showFootageOnlyUpload?: boolean;
+  onFootageOnlyUpload?: () => void;
+  footageOnlyUploadLabel?: string;
+  footageOnlyUploadHint?: string;
+  footageOnlyUploadDisabled?: boolean;
+  footageOnlyUploadBusy?: boolean;
 }) {
   const { t } = useWebsiteI18n();
   const [peopleQuery, setPeopleQuery] = useState('');
@@ -185,7 +191,7 @@ export function JournalEventCapture({ value, onChange, founders, people, eventTy
       const isVideo = item.asset_type === 'video' || Boolean(item.mime_type?.startsWith('video/'));
       const label = item.original_filename || item.alt_text || item.caption || item.asset_id;
       return <div key={item.asset_id}><span>{isVideo ? <FileVideo2 size={16} /> : <Camera size={16} />}</span>{url && !isVideo ? <img src={url} alt={item.alt_text || label} loading="lazy" /> : null}<p><strong>{label}</strong><small>{isVideo ? 'Video' : 'Photo'}</small></p></div>;
-    })}</div></div>}<div className="footage-actions"><button type="button" onClick={() => capturePhotoRef.current?.click()}><Camera size={21} /><strong>Take photo</strong><span>Open device camera</span></button><button type="button" onClick={() => captureVideoRef.current?.click()}><FileVideo2 size={21} /><strong>Record video</strong><span>Open device camera</span></button><button type="button" onClick={() => uploadRef.current?.click()}><FileVideo2 size={21} /><strong>Upload footage</strong><span>Select from device</span></button></div><input ref={capturePhotoRef} hidden type="file" accept="image/*" capture="environment" onChange={handleFileSelection} /><input ref={captureVideoRef} hidden type="file" accept="video/*" capture="environment" onChange={handleFileSelection} /><input ref={uploadRef} hidden type="file" accept="image/*,video/*" multiple onChange={handleFileSelection} />{files.length > 0 && <div className="footage-queue">{files.map((file, index) => <div key={`${file.name}-${index}`}><span>{file.type.startsWith('video/') ? <FileVideo2 size={16} /> : <Camera size={16} />}</span><p><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></p><button type="button" onClick={() => onFilesChange(files.filter((_, itemIndex) => itemIndex !== index))}><X size={15} /></button></div>)}</div>}</section>
+    })}</div></div>}<div className="footage-actions"><button type="button" onClick={() => capturePhotoRef.current?.click()}><Camera size={21} /><strong>Take photo</strong><span>Open device camera</span></button><button type="button" onClick={() => captureVideoRef.current?.click()}><FileVideo2 size={21} /><strong>Record video</strong><span>Open device camera</span></button><button type="button" onClick={() => uploadRef.current?.click()}><FileVideo2 size={21} /><strong>Upload footage</strong><span>Select from device</span></button></div><input ref={capturePhotoRef} hidden type="file" accept="image/*" capture="environment" onChange={handleFileSelection} /><input ref={captureVideoRef} hidden type="file" accept="video/*" capture="environment" onChange={handleFileSelection} /><input ref={uploadRef} hidden type="file" accept="image/*,video/*" multiple onChange={handleFileSelection} />{files.length > 0 && <div className="footage-queue">{files.map((file, index) => <div key={`${file.name}-${index}`}><span>{file.type.startsWith('video/') ? <FileVideo2 size={16} /> : <Camera size={16} />}</span><p><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></p><button type="button" onClick={() => onFilesChange(files.filter((_, itemIndex) => itemIndex !== index))}><X size={15} /></button></div>)}</div>}{showFootageOnlyUpload && onFootageOnlyUpload && footageOnlyUploadLabel && <div className="footage-upload-only-cta"><p>{footageOnlyUploadHint}</p><button type="button" className="upload-footage-only" disabled={footageOnlyUploadDisabled} onClick={onFootageOnlyUpload}>{footageOnlyUploadBusy ? <LoaderCircle className="spin" size={16} /> : <Upload size={16} />}{footageOnlyUploadLabel}</button></div>}</section>
 
     {newContactOpen && <div className="contact-modal-backdrop"><div className="contact-modal"><header><div><p>NEW JOURNEY CONTACT</p><h3>Add a person</h3></div><button type="button" onClick={() => setNewContactOpen(false)}><X /></button></header><div><label>Display name<input required value={contactForm.display_name} onChange={(e) => setContactForm({ ...contactForm, display_name: e.target.value })} /></label><label>Full name<input value={contactForm.full_name} onChange={(e) => setContactForm({ ...contactForm, full_name: e.target.value })} /></label><label>Email<input type="email" value={contactForm.email} onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })} /></label><label>Phone<input value={contactForm.phone} onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })} /></label><label>Person type<select value={contactForm.person_type} onChange={(e) => setContactForm({ ...contactForm, person_type: e.target.value })}><option value="guest">Guest</option><option value="host">Host</option><option value="supporter">Supporter</option><option value="partner">Partner</option><option value="interviewee">Interviewee</option></select></label><label>Location<input value={contactForm.location} onChange={(e) => setContactForm({ ...contactForm, location: e.target.value })} /></label></div><footer><button type="button" onClick={() => setNewContactOpen(false)}>Cancel</button><button type="button" className="primary" disabled={!contactForm.display_name || creatingContact} onClick={() => void createContact()}><Plus size={16} />{creatingContact ? 'Creating…' : 'Create contact'}</button></footer></div></div>}
   </div>;

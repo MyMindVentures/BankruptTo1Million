@@ -1,4 +1,4 @@
-import { canUploadFootageOnly, parseJournalOverviewPayload, type JournalPost, type JournalPostStatus, type JournalStatusCounts } from './journalAdminPayload';
+import { canShowFootageOnlyUpload, canUploadFootageOnly, parseJournalOverviewPayload, type JournalPost, type JournalPostStatus, type JournalStatusCounts } from './journalAdminPayload';
 import {
   JOURNAL_PUBLICATION_PIPELINE_STEP_ORDER,
   parseJournalPublicationStatus,
@@ -8,7 +8,7 @@ import {
 } from './journalPublicationStatus';
 
 export type { JournalPost, JournalPostStatus, JournalStatusCounts };
-export { canUploadFootageOnly };
+export { canShowFootageOnlyUpload, canUploadFootageOnly };
 export type {
   JournalPublicationStatus,
   PublicationStep,

@@ -80,6 +80,7 @@ export function JournalAdminPage() {
   const [eventForm, setEventForm] = useState<JournalEventPayload>(emptyEvent);
   const [footage, setFootage] = useState<File[]>([]);
   const [existingFootage, setExistingFootage] = useState<AdminJournalFootageItem[]>([]);
+  const [publishedEditId, setPublishedEditId] = useState<string | null>(null);
   const [saveStage, setSaveStage] = useState('');
   const [publishingPostId, setPublishingPostId] = useState<string | null>(null);
   const optionsLoaded = useRef(false);
@@ -149,6 +150,7 @@ export function JournalAdminPage() {
       setEventForm({ ...emptyEvent, occurred_at: localNow() });
       setFootage([]);
       setExistingFootage([]);
+      setPublishedEditId(null);
       setEditorOpen(true);
     }
   }, []);
@@ -163,6 +165,7 @@ export function JournalAdminPage() {
     setEventForm({ ...emptyEvent, occurred_at: localNow() });
     setFootage([]);
     setExistingFootage([]);
+    setPublishedEditId(null);
     setEditorOpen(true);
     setError(null);
     window.history.replaceState({}, '', '/admin/journal?create=1');
@@ -173,30 +176,40 @@ export function JournalAdminPage() {
     setForm({ ...post });
     setFootage([]);
     setExistingFootage([]);
+    setPublishedEditId(post.status === 'published' ? post.id : null);
     setEditorOpen(true);
     setError(null);
-    try {
-      const [context, rawDescription, linkedFootage] = await Promise.all([
-        getJournalEventContext(post.id),
-        getJournalAiSource(post.id),
-        getAdminJournalFootage(post.id),
-      ]);
-      setExistingFootage(linkedFootage);
+
+    const [contextResult, sourceResult, footageResult] = await Promise.allSettled([
+      getJournalEventContext(post.id),
+      getJournalAiSource(post.id),
+      getAdminJournalFootage(post.id),
+    ]);
+
+    if (footageResult.status === 'fulfilled') {
+      setExistingFootage(footageResult.value);
+    }
+
+    if (contextResult.status === 'fulfilled') {
+      const context = contextResult.value;
+      const rawDescription = sourceResult.status === 'fulfilled' ? sourceResult.value : '';
       setEventForm({
         ...emptyEvent,
         ...context,
         description: rawDescription,
         occurred_at: toLocalInput(context.occurred_at) || localNow(),
       });
-    } catch {
+    } else if (sourceResult.status === 'fulfilled') {
+      setEventForm({ ...emptyEvent, description: sourceResult.value, occurred_at: localNow() });
+    } else {
       setEventForm({ ...emptyEvent, occurred_at: localNow() });
     }
   }
 
-  const isPublishedEdit = Boolean(editingId && form.status === 'published');
+  const isPublishedEdit = Boolean(editingId && publishedEditId === editingId);
 
   async function submitFootageOnly() {
-    if (!editingId || form.status !== 'published') return;
+    if (!isPublishedEdit || !editingId) return;
     if (footage.length === 0) {
       setError(t('journal.admin.upload_footage_empty', 'Select at least one photo or video to upload.'));
       return;
@@ -348,7 +361,24 @@ export function JournalAdminPage() {
 
       <div className="journal-premium-layout">
         <main>
-          <JournalEventCapture value={eventForm} onChange={setEventForm} founders={founders} people={people} eventTypes={eventTypes} files={footage} onFilesChange={setFootage} existingFootage={existingFootage} existingFootageHeading={existingFootage.length > 0 ? t('journal.admin.existing_footage_heading', 'Already linked footage') : undefined} onPeopleRefresh={(person) => setPeople((current) => [...current, person].sort((a, b) => a.display_name.localeCompare(b.display_name)))} />
+          <JournalEventCapture
+            value={eventForm}
+            onChange={setEventForm}
+            founders={founders}
+            people={people}
+            eventTypes={eventTypes}
+            files={footage}
+            onFilesChange={setFootage}
+            existingFootage={existingFootage}
+            existingFootageHeading={existingFootage.length > 0 ? t('journal.admin.existing_footage_heading', 'Already linked footage') : undefined}
+            showFootageOnlyUpload={isPublishedEdit}
+            onFootageOnlyUpload={() => void submitFootageOnly()}
+            footageOnlyUploadLabel={t('journal.admin.upload_footage_button', 'Upload footage')}
+            footageOnlyUploadHint={t('journal.admin.upload_footage_hint', 'Add new photos or videos above, then upload without regenerating the public story.')}
+            footageOnlyUploadDisabled={saving || footage.length === 0}
+            footageOnlyUploadBusy={saving && !publishingPostId}
+            onPeopleRefresh={(person) => setPeople((current) => [...current, person].sort((a, b) => a.display_name.localeCompare(b.display_name)))}
+          />
 
           <section className="event-panel ai-source-panel">
             <div className="event-panel-heading"><span>06</span><div><h3>Private field notes</h3><p>Write quickly in your own words. These notes are admin-only and are never shown publicly.</p></div><Sparkles size={20} /></div>
