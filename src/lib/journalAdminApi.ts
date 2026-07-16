@@ -1,12 +1,6 @@
-export type JournalPost = {
-  id: string; title: string; slug: string; status: 'draft' | 'scheduled' | 'published' | 'archived';
-  subtitle: string | null; excerpt: string | null; body: string; content_format: 'markdown' | 'rich_text' | 'video' | 'mixed';
-  cover_image_url: string | null; cover_image_alt: string | null; original_language: string; category_id: string | null;
-  primary_creator_id: string | null; is_featured: boolean; is_vision_feature: boolean; published_at: string | null;
-  scheduled_for: string | null; reading_time_minutes: number | null; seo_title: string | null; seo_description: string | null;
-  publication_timezone: string; ai_generation_status?: string; ai_generated_at?: string | null; ai_model?: string | null;
-  created_at: string; updated_at: string;
-};
+import { parseJournalOverviewPayload, type JournalPost, type JournalPostStatus, type JournalStatusCounts } from './journalAdminPayload';
+
+export type { JournalPost, JournalPostStatus, JournalStatusCounts };
 export type JournalOption = { id: string; label: string };
 export type JourneyPerson = { id: string; display_name: string; full_name: string | null; person_type: string; email: string | null };
 export type EventTypeOption = { key: string; label: string; description: string | null };
@@ -45,6 +39,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
   const response = await fetch(`${supabaseUrl}${path}`, {
     ...init,
+    cache: 'no-store',
     headers: { apikey: anonKey, Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json', ...(init?.headers || {}) },
   });
   if (!response.ok) {
@@ -55,8 +50,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function listJournalPosts() {
-  return request<JournalPost[]>('/rest/v1/journal_posts?select=*&order=updated_at.desc&limit=200');
+export async function getJournalOverview(input?: {
+  status?: JournalPostStatus | 'all' | null;
+  query?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const payload = await request<unknown>('/rest/v1/rpc/admin_get_journal_overview', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_status: input?.status && input.status !== 'all' ? input.status : null,
+      p_query: input?.query ?? null,
+      p_limit: input?.limit ?? 200,
+      p_offset: input?.offset ?? 0,
+    }),
+  });
+  const overview = parseJournalOverviewPayload(payload);
+  return {
+    rows: overview.rows,
+    counts: overview.counts as JournalStatusCounts,
+  };
 }
 
 export async function getJournalOptions() {
@@ -157,28 +170,74 @@ function progressStage(status: JournalAiStatus): JournalAiProgressStage {
   return 'generating';
 }
 
-export async function generateJournalAiPost(
-  postId: string,
-  onProgress?: (stage: JournalAiProgressStage, status: JournalAiStatus) => void,
-) {
-  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+type JournalAiBatchResult = {
+  ok?: boolean;
+  complete?: boolean;
+  has_more?: boolean;
+  error?: string;
+  message?: string;
+};
 
+async function invokeJournalAiBatch(postId: string): Promise<JournalAiBatchResult | null> {
   const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-ai-post`, {
     method: 'POST',
     headers: {
-      apikey: anonKey,
+      apikey: anonKey!,
       Authorization: `Bearer ${token()}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({ post_id: postId }),
   });
 
-  const result = await response.json().catch(() => null) as { ok?: boolean; error?: string; message?: string } | null;
-  if (!response.ok || result?.ok === false) {
-    throw new Error(result?.error || result?.message || `AI generation could not start (${response.status}).`);
+  const result = await response.json().catch(() => null) as JournalAiBatchResult | null;
+
+  if (response.status === 504) {
+    return { ok: true, has_more: true };
   }
 
-  for (let attempt = 0; attempt < 420; attempt += 1) {
+  if (!response.ok || result?.ok === false) {
+    throw new Error(result?.error || result?.message || `AI generation failed (${response.status}).`);
+  }
+
+  return result;
+}
+
+export async function generateJournalAiPost(
+  postId: string,
+  onProgress?: (stage: JournalAiProgressStage, status: JournalAiStatus) => void,
+) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  let hasMore = true;
+  let invokeCount = 0;
+  const maxInvocations = 40;
+
+  while (hasMore && invokeCount < maxInvocations) {
+    invokeCount += 1;
+    const result = await invokeJournalAiBatch(postId);
+    const status = await getJournalAiStatus(postId);
+    if (!status) throw new Error('The saved journal post could not be found.');
+    onProgress?.(progressStage(status), status);
+
+    if (status.generation_status === 'failed') {
+      throw new Error(status.last_error || 'AI generation failed.');
+    }
+
+    if (
+      status.generation_status === 'completed'
+      && status.status === 'published'
+      && Number(status.translation_count) === Number(status.expected_translation_count)
+    ) {
+      return status;
+    }
+
+    hasMore = Boolean(result?.has_more) && status.generation_status !== 'completed';
+    if (result?.complete === true) {
+      hasMore = false;
+    }
+  }
+
+  for (let attempt = 0; attempt < 600; attempt += 1) {
     const status = await getJournalAiStatus(postId);
     if (!status) throw new Error('The saved journal post could not be found.');
     onProgress?.(progressStage(status), status);
@@ -210,29 +269,53 @@ export function journalEventHasPlaceContext(event: Pick<JournalEventPayload, 'fe
 export async function generateJournalPlaceContext(postId: string) {
   if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
 
-  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-place-context`, {
-    method: 'POST',
-    headers: {
-      apikey: anonKey,
-      Authorization: `Bearer ${token()}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ post_id: postId }),
-  });
-
-  const result = await response.json().catch(() => null) as {
+  type PlaceContextBatchResult = {
     ok?: boolean;
+    complete?: boolean;
+    has_more?: boolean;
     skipped?: boolean;
     error?: string;
     message?: string;
     translation_count?: number;
-  } | null;
+  };
 
-  if (!response.ok || result?.ok === false) {
-    throw new Error(result?.error || result?.message || `Place context generation failed (${response.status}).`);
+  let hasMore = true;
+  let invokeCount = 0;
+  const maxInvocations = 40;
+  let lastResult: PlaceContextBatchResult | null = null;
+
+  while (hasMore && invokeCount < maxInvocations) {
+    invokeCount += 1;
+    const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-place-context`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: `Bearer ${token()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+
+    const result = await response.json().catch(() => null) as PlaceContextBatchResult | null;
+
+    if (response.status === 504) {
+      lastResult = { ok: true, has_more: true };
+      await wait(1500);
+      continue;
+    }
+
+    if (!response.ok || result?.ok === false) {
+      throw new Error(result?.error || result?.message || `Place context generation failed (${response.status}).`);
+    }
+
+    lastResult = result;
+    if (result?.skipped) return result;
+    hasMore = Boolean(result?.has_more) && result?.complete !== true;
+    if (result?.complete === true) return result;
   }
 
-  return result;
+  if (lastResult?.complete === true || lastResult?.skipped) return lastResult;
+  throw new Error('Place context generation timed out before completion.');
 }
 
 export async function createJourneyPerson(payload: Record<string, unknown>) {

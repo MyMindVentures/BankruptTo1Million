@@ -10,7 +10,7 @@ const SLUG = "generate-journal-place-context";
 const db = createClient(U, S, { auth: { persistSession: false } });
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-journal-ai-worker-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -26,6 +26,35 @@ const parse = (text: string) => {
   if (a < 0 || b < a) throw new Error("Invalid AI JSON");
   return JSON.parse(t.slice(a, b + 1));
 };
+
+function chunkLanguages(languages: string[], batchSize: number) {
+  const batches: string[][] = [];
+  for (let index = 0; index < languages.length; index += batchSize) {
+    batches.push(languages.slice(index, index + batchSize));
+  }
+  return batches;
+}
+
+async function authenticate(req: Request) {
+  const workerSecret = req.headers.get("x-journal-ai-worker-secret");
+  if (workerSecret) {
+    const { data, error } = await db.rpc("get_journal_ai_worker_secret");
+    if (error || workerSecret !== data) throw new Error("Unauthorized worker");
+    return { source: "worker" as const };
+  }
+
+  const auth = req.headers.get("Authorization");
+  if (!auth) throw new Error("Unauthorized");
+
+  const user = createClient(U, A, {
+    global: { headers: { Authorization: auth } },
+    auth: { persistSession: false },
+  });
+  const access = await user.rpc("get_my_admin_access");
+  if (access.error) throw new Error(`Admin verification failed: ${access.error.message}`);
+  if (!access.data?.[0]?.is_active) throw new Error("Admin access required");
+  return { source: "admin" as const };
+}
 
 async function fetchActiveLanguages() {
   const { data, error } = await db
@@ -63,24 +92,115 @@ function journeyHasPlaceContext(context: Record<string, unknown>) {
   return hasBusiness || hasCoords;
 }
 
-function validatePlaceContext(placeContext: Record<string, unknown>, langs: string[]) {
-  if (!placeContext || typeof placeContext !== "object") {
-    throw new Error("Missing place_context object");
+async function loadDraftPayload(postId: string) {
+  const { data, error } = await db
+    .from("journal_post_place_context")
+    .select("draft_payload")
+    .eq("journal_post_id", postId)
+    .maybeSingle();
+
+  if (error) throw new Error(`Draft place context could not be loaded: ${error.message}`);
+  return (data?.draft_payload as Record<string, unknown> | null) ?? null;
+}
+
+function batchLangHasCoreContent(
+  lang: string,
+  draft: Record<string, unknown>,
+) {
+  const translations = draft.translations as Record<string, Record<string, string>> | undefined;
+  const pois = draft.pois as Array<Record<string, unknown>> | undefined;
+  const row = translations?.[lang];
+  if (!row?.place_title?.trim() || !row?.place_history?.trim() || !row?.area_title?.trim() || !row?.area_history?.trim()) {
+    return false;
   }
+  if (!Array.isArray(pois) || pois.length !== 5) return false;
+  return pois.every((poi) => {
+    const poiTranslations = poi.translations as Record<string, Record<string, string>> | undefined;
+    const item = poiTranslations?.[lang];
+    return Boolean(item?.title?.trim() && item?.description?.trim());
+  });
+}
+
+function batchLangsComplete(batchLangs: string[], draft: Record<string, unknown> | null) {
+  if (!draft) return false;
+  const translations = draft.translations as Record<string, Record<string, string>> | undefined;
+  if (!translations) return false;
+
+  return batchLangs.every((lang) => {
+    if (!batchLangHasCoreContent(lang, draft)) return false;
+    return Boolean(translations[lang]?.venue_thank_you_message?.trim());
+  });
+}
+
+function batchLangsNeedThankYouOnly(batchLangs: string[], draft: Record<string, unknown> | null) {
+  if (!draft) return false;
+  const translations = draft.translations as Record<string, Record<string, string>> | undefined;
+  return batchLangs.every((lang) => {
+    if (!batchLangHasCoreContent(lang, draft)) return false;
+    return !translations?.[lang]?.venue_thank_you_message?.trim();
+  });
+}
+
+function validateBatchPlaceContext(
+  placeContext: Record<string, unknown>,
+  batchLangs: string[],
+  settings: Record<string, unknown>,
+  thankYouOnly = false,
+) {
+  const thankYou = settings.thank_you_characters ?? { min: 180, max: 700 };
+  const thankYouMin = Number(thankYou.min ?? 180);
+  const thankYouMax = Number(thankYou.max ?? 700);
+
+  if (thankYouOnly) {
+    const translations = placeContext.translations as Record<string, Record<string, string>> | undefined;
+    if (!translations) throw new Error("Missing place_context.translations");
+    for (const lang of batchLangs) {
+      const message = translations[lang]?.venue_thank_you_message?.trim();
+      if (!message) throw new Error(`Missing venue_thank_you_message for ${lang}`);
+      if (message.length > 1200) throw new Error(`venue_thank_you_message too long for ${lang}`);
+      if (message.length < thankYouMin || message.length > thankYouMax) {
+        throw new Error(`Invalid venue_thank_you_message length for ${lang}: ${message.length}; expected ${thankYouMin}-${thankYouMax}`);
+      }
+    }
+    return;
+  }
+
+  const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
+  const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
+  const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
 
   const translations = placeContext.translations as Record<string, Record<string, string>> | undefined;
-  if (!translations || typeof translations !== "object") {
-    throw new Error("Missing place_context.translations");
-  }
+  if (!translations) throw new Error("Missing place_context.translations");
 
-  for (const lang of langs) {
+  for (const lang of batchLangs) {
     const item = translations[lang];
     if (!item?.place_title?.trim()) throw new Error(`Missing place_context place_title for ${lang}`);
     if (!item?.place_history?.trim()) throw new Error(`Missing place_context place_history for ${lang}`);
     if (!item?.area_title?.trim()) throw new Error(`Missing place_context area_title for ${lang}`);
     if (!item?.area_history?.trim()) throw new Error(`Missing place_context area_history for ${lang}`);
+    if (!item?.venue_thank_you_message?.trim()) throw new Error(`Missing venue_thank_you_message for ${lang}`);
+    if (item.venue_thank_you_message.length > 1200) throw new Error(`venue_thank_you_message too long for ${lang}`);
+    if (item.venue_thank_you_message.length < thankYouMin || item.venue_thank_you_message.length > thankYouMax) {
+      throw new Error(`Invalid venue_thank_you_message length for ${lang}: ${item.venue_thank_you_message.length}; expected ${thankYouMin}-${thankYouMax}`);
+    }
     if (item.place_history.length > 4000) throw new Error(`place_history too long for ${lang}`);
     if (item.area_history.length > 6000) throw new Error(`area_history too long for ${lang}`);
+    const placeMin = Number((settings.place_history_characters as { min?: number } | undefined)?.min ?? 150);
+    const placeMax = Number((settings.place_history_characters as { max?: number } | undefined)?.max ?? 800);
+    const areaMin = Number((settings.area_history_characters as { min?: number } | undefined)?.min ?? 200);
+    const areaMax = Number((settings.area_history_characters as { max?: number } | undefined)?.max ?? 1200);
+    const byLangPlace = (settings.place_history_by_language as Record<string, { min?: number; max?: number }> | undefined)?.[lang];
+    const byLangArea = (settings.area_history_by_language as Record<string, { min?: number; max?: number }> | undefined)?.[lang];
+    const effectivePlaceMin = Number(byLangPlace?.min ?? placeMin);
+    const effectivePlaceMax = Number(byLangPlace?.max ?? placeMax);
+    const effectiveAreaMin = Number(byLangArea?.min ?? areaMin);
+    const effectiveAreaMax = Number(byLangArea?.max ?? areaMax);
+    if (item.place_history.length < effectivePlaceMin || item.place_history.length > effectivePlaceMax) {
+      throw new Error(`Invalid place_history length for ${lang}: ${item.place_history.length}; expected ${effectivePlaceMin}-${effectivePlaceMax}`);
+    }
+    if (item.area_history.length < effectiveAreaMin || item.area_history.length > effectiveAreaMax) {
+      throw new Error(`Invalid area_history length for ${lang}: ${item.area_history.length}; expected ${effectiveAreaMin}-${effectiveAreaMax}`);
+    }
   }
 
   const pois = placeContext.pois as Array<Record<string, unknown>> | undefined;
@@ -92,13 +212,86 @@ function validatePlaceContext(placeContext: Record<string, unknown>, langs: stri
     const poi = pois[i];
     const poiTranslations = poi.translations as Record<string, Record<string, string>> | undefined;
     if (!poiTranslations) throw new Error(`Missing POI translations for item ${i + 1}`);
-    for (const lang of langs) {
+    for (const lang of batchLangs) {
       const row = poiTranslations[lang];
       if (!row?.title?.trim()) throw new Error(`Missing POI title for ${lang} item ${i + 1}`);
       if (!row?.description?.trim()) throw new Error(`Missing POI description for ${lang} item ${i + 1}`);
       if (row.description.length > 1200) throw new Error(`POI description too long for ${lang} item ${i + 1}`);
+      if (row.description.length < Number(poiDescription.min) || row.description.length > Number(poiDescription.max)) {
+        throw new Error(`Invalid POI description length for ${lang} item ${i + 1}`);
+      }
     }
   }
+}
+
+function mergePlaceContextBatch(
+  existing: Record<string, unknown> | null,
+  batch: Record<string, unknown>,
+  batchLangs: string[],
+  thankYouOnly = false,
+) {
+  const merged = existing ? structuredClone(existing) : {} as Record<string, unknown>;
+  const batchTranslations = (batch.translations ?? {}) as Record<string, Record<string, string>>;
+  const mergedTranslations = {
+    ...((merged.translations as Record<string, Record<string, string>> | undefined) ?? {}),
+  };
+
+  for (const lang of batchLangs) {
+    const incoming = batchTranslations[lang];
+    if (!incoming) continue;
+    if (thankYouOnly && mergedTranslations[lang]) {
+      mergedTranslations[lang] = {
+        ...mergedTranslations[lang],
+        venue_thank_you_message: incoming.venue_thank_you_message,
+      };
+    } else {
+      mergedTranslations[lang] = incoming;
+    }
+  }
+
+  merged.translations = mergedTranslations;
+
+  if (!merged.place_type && batch.place_type) merged.place_type = batch.place_type;
+  if (!merged.area_type && batch.area_type) merged.area_type = batch.area_type;
+  if (!merged.area_name && batch.area_name) merged.area_name = batch.area_name;
+  if (!merged.links && batch.links) merged.links = batch.links;
+
+  const batchPois = batch.pois as Array<Record<string, unknown>> | undefined;
+  const mergedPois = (merged.pois as Array<Record<string, unknown>> | undefined) ?? [];
+
+  if (batchPois?.length === 5) {
+    for (let i = 0; i < 5; i++) {
+      const source = batchPois[i];
+      const target = mergedPois[i] ?? {};
+      target.display_order = source.display_order ?? i + 1;
+      target.poi_type = source.poi_type ?? target.poi_type ?? "other";
+      target.latitude = source.latitude ?? target.latitude;
+      target.longitude = source.longitude ?? target.longitude;
+      target.coordinate_source = source.coordinate_source ?? target.coordinate_source;
+      target.translations = {
+        ...((target.translations as Record<string, Record<string, string>> | undefined) ?? {}),
+      };
+      for (const lang of batchLangs) {
+        const row = (source.translations as Record<string, Record<string, string>> | undefined)?.[lang];
+        if (row) {
+          (target.translations as Record<string, Record<string, string>>)[lang] = row;
+        }
+      }
+      mergedPois[i] = target;
+    }
+    merged.pois = mergedPois;
+  }
+
+  return merged;
+}
+
+function validatePlaceContext(placeContext: Record<string, unknown>, langs: string[]) {
+  validateBatchPlaceContext(placeContext, langs, {
+    place_history_characters: { min: 0, max: 4000 },
+    area_history_characters: { min: 0, max: 6000 },
+    poi_description_characters: { min: 0, max: 1200 },
+    thank_you_characters: { min: 0, max: 1200 },
+  });
 }
 
 function parseCoord(value: unknown) {
@@ -228,6 +421,56 @@ async function resolveAllPoiCoordinates(
   }
 }
 
+function normalizeEnum(value: unknown, allowed: string[], fallback: string) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (allowed.includes(normalized)) return normalized;
+  const aliasMap: Record<string, string> = {
+    beach: "nature",
+    coast: "nature",
+    park: "nature",
+    mountain: "nature",
+    church: "culture",
+    cathedral: "culture",
+    castle: "landmark",
+    monument: "landmark",
+    museum: "museum",
+    restaurant: "food",
+    cafe: "food",
+    bar: "food",
+    village: "village",
+    city: "city",
+    town: "town",
+    region: "region",
+    neighborhood: "town",
+    municipality: "town",
+  };
+  return aliasMap[normalized] ?? fallback;
+}
+
+function normalizePlaceContextEnums(placeContext: Record<string, unknown>) {
+  placeContext.place_type = normalizeEnum(
+    placeContext.place_type,
+    ["restaurant", "bar", "cafe", "hotel", "shop", "venue", "other"],
+    "other",
+  );
+  placeContext.area_type = normalizeEnum(
+    placeContext.area_type,
+    ["city", "village", "town", "region"],
+    "town",
+  );
+  const pois = placeContext.pois as Array<Record<string, unknown>> | undefined;
+  if (Array.isArray(pois)) {
+    for (const poi of pois) {
+      poi.poi_type = normalizeEnum(
+        poi.poi_type,
+        ["landmark", "museum", "nature", "food", "culture", "other"],
+        "other",
+      );
+    }
+  }
+  return placeContext;
+}
+
 function validatePoiCoordinates(placeContext: Record<string, unknown>) {
   const pois = placeContext.pois as Array<Record<string, unknown>>;
   for (let i = 0; i < pois.length; i++) {
@@ -243,79 +486,69 @@ function validatePoiCoordinates(placeContext: Record<string, unknown>) {
   }
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
-  if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
+function buildBatchPrompt(
+  batchLangs: string[],
+  settings: Record<string, unknown>,
+  userPromptTemplate: string,
+  context: unknown,
+  isFirstBatch: boolean,
+  thankYouOnly = false,
+) {
+  const thankYou = settings.thank_you_characters ?? { min: 180, max: 700 };
+  const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
+  const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
+  const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
+  const placeByLanguage = settings.place_history_by_language as Record<string, { min?: number; max?: number }> | undefined;
+  const areaByLanguage = settings.area_history_by_language as Record<string, { min?: number; max?: number }> | undefined;
+  const languageRangeInstructions = batchLangs.map((lang) => {
+    const place = { ...placeHistory, ...(placeByLanguage?.[lang] ?? {}) };
+    const area = { ...areaHistory, ...(areaByLanguage?.[lang] ?? {}) };
+    return `${lang}: place_history ${place.min}-${place.max}, area_history ${area.min}-${area.max}`;
+  }).join("\n");
 
-  let postId = "";
-  let runId: string | null = null;
+  const structureNote = thankYouOnly
+    ? `Return place_context with translations for ${batchLangs.join(", ")} only. Each translation object must contain venue_thank_you_message (${thankYou.min}-${thankYou.max} chars) and nothing else. Do not change place history, area history, or POI content.`
+    : isFirstBatch
+    ? `Include the full place_context structure: place_type, area_type, optional area_name, links, exactly 5 pois with display_order 1-5, poi_type, latitude, longitude near the venue, and translations for ${batchLangs.join(", ")} only.`
+    : `Return place_context with translations and poi translations for ${batchLangs.join(", ")} only. Reuse the same 5 POI structure (display_order, poi_type, coordinates) from the verified context.`;
 
-  try {
-    if (!K) throw new Error("Missing AI provider key");
-    const auth = req.headers.get("Authorization");
-    if (!auth) return out({ error: "Unauthorized" }, 401);
+  const translationFields = thankYouOnly
+    ? `Every requested language needs venue_thank_you_message (${thankYou.min}-${thankYou.max} chars): a warm thank-you to the venue team, staff, and owner for hosting workspace for the website, mission, and projects, and for the happiness of featuring their place in the journal post and on the website. Never invent personal names.`
+    : `Every requested language needs place_title, place_history, area_title, area_history, venue_thank_you_message (${thankYou.min}-${thankYou.max} chars), and each POI needs title and description (${poiDescription.min}-${poiDescription.max} chars). The thank-you must address the venue team, staff, and owner and mention hosting workspace and featuring their place on the journal and website.`;
 
-    const user = createClient(U, A, {
-      global: { headers: { Authorization: auth } },
-      auth: { persistSession: false },
-    });
-    const access = await user.rpc("get_my_admin_access");
-    if (access.error) throw new Error(`Admin verification failed: ${access.error.message}`);
-    if (!access.data?.[0]?.is_active) return out({ error: "Admin access required" }, 403);
+  return `${userPromptTemplate}
 
-    postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
-    if (!postId) return out({ error: "post_id required" }, 400);
+Return exactly one valid JSON object with a top-level place_context object.
 
-    const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
-      p_edge_function_slug: SLUG,
-    });
-    if (cfgResult.error) throw new Error(`AI runtime config unavailable: ${cfgResult.error.message}`);
-    const cfg = cfgResult.data;
-    if (!cfg) throw new Error("AI runtime config unavailable: empty response");
+${structureNote}
 
-    const context = await loadContext(postId);
-    if (!journeyHasPlaceContext(context as Record<string, unknown>)) {
-      return out({ ok: true, skipped: true, post_id: postId, reason: "no_location_context" });
-    }
+${translationFields}
 
-    if (cfg.enable_run_logging) {
-      const r = await db.rpc("start_ai_edge_function_run", {
-        p_edge_function_slug: SLUG,
-        p_entity_type: "journal_post",
-        p_entity_id: postId,
-        p_metadata: { source: "edge_function", config_version: cfg.config_version, prompt_version: cfg.prompt_version },
-      });
-      if (r.error) throw new Error(`Could not start AI run: ${r.error.message}`);
-      runId = r.data;
-    }
-
-    const now = new Date().toISOString();
-    await db.from("journal_post_place_context").upsert(
-      { journal_post_id: postId, generation_status: "processing", updated_at: now },
-      { onConflict: "journal_post_id" },
-    );
-
-    const langs = await fetchActiveLanguages();
-    const settings = cfg.generation_settings ?? {};
-    const placeHistory = settings.place_history_characters ?? { min: 150, max: 800 };
-    const areaHistory = settings.area_history_characters ?? { min: 200, max: 1200 };
-    const poiDescription = settings.poi_description_characters ?? { min: 80, max: 400 };
-
-    const prompt = `${cfg.user_prompt_template}
-
-Return exactly one valid JSON object with a top-level place_context object for ${langs.join(", ")}.
-
-place_context requires:
-- place_type: restaurant|bar|cafe|hotel|shop|venue|other
-- area_type: city|village|town|region
-- optional area_name
-- links: { google_maps_url, website_url, instagram_url } (null when unknown)
-- translations: every language needs place_title, place_history (${placeHistory.min}-${placeHistory.max} chars), area_title, area_history (${areaHistory.min}-${areaHistory.max} chars)
-- exactly 5 pois with display_order 1-5, poi_type landmark|museum|nature|food|culture|other, latitude, longitude (decimal degrees near the venue), and translations per language with title and description (${poiDescription.min}-${poiDescription.max} chars)
-
-Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
+${thankYouOnly ? "" : `Language-specific history ranges:\n${languageRangeInstructions}\n`}Base content on verified coordinates, featured business name, and location fields. Never invent URLs.
 
 Verified context: ${JSON.stringify(context)}`;
+}
+
+async function generatePlaceContextBatch(
+  batchLangs: string[],
+  cfg: Record<string, unknown>,
+  settings: Record<string, unknown>,
+  context: unknown,
+  isFirstBatch: boolean,
+  thankYouOnly = false,
+) {
+  const maxAttempts = 3;
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const prompt = `${buildBatchPrompt(
+      batchLangs,
+      settings,
+      String(cfg.user_prompt_template ?? ""),
+      context,
+      isFirstBatch,
+      thankYouOnly,
+    )}${attempt > 1 ? `\n\nPrevious attempt failed validation (${lastError?.message}). Regenerate the full JSON response.` : ""}`;
 
     const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -342,36 +575,187 @@ Verified context: ${JSON.stringify(context)}`;
     const payload = await ai.json();
     const finishReason = payload?.choices?.[0]?.finish_reason;
     if (finishReason && finishReason !== "stop") {
-      throw new Error(`AI response incomplete: finish_reason=${finishReason}`);
+      throw new Error(`AI response incomplete for batch [${batchLangs.join(", ")}]: finish_reason=${finishReason}`);
     }
 
-    const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
-    const placeContext = (parsed.place_context ?? parsed) as Record<string, unknown>;
-    validatePlaceContext(placeContext, langs);
-    await resolveAllPoiCoordinates(placeContext, context as Record<string, unknown>, settings);
-    validatePoiCoordinates(placeContext);
+    try {
+      const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
+      const placeContext = (parsed.place_context ?? parsed) as Record<string, unknown>;
+      validateBatchPlaceContext(placeContext, batchLangs, settings, thankYouOnly);
+      return {
+        placeContext,
+        usage: {
+          prompt_tokens: Number(payload?.usage?.prompt_tokens ?? 0),
+          completion_tokens: Number(payload?.usage?.completion_tokens ?? 0),
+        },
+        finishReason,
+      };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt >= maxAttempts) throw lastError;
+      await sleep(400 * attempt);
+    }
+  }
+
+  throw lastError ?? new Error(`Could not generate place context batch [${batchLangs.join(", ")}]`);
+}
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return out({ error: "Method not allowed" }, 405);
+
+  let postId = "";
+  let runId: string | null = null;
+
+  try {
+    if (!K) throw new Error("Missing AI provider key");
+    const auth = await authenticate(req);
+
+    postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
+    if (!postId) return out({ error: "post_id required" }, 400);
+
+    const cfgResult = await db.rpc("get_ai_edge_function_runtime_config", {
+      p_edge_function_slug: SLUG,
+    });
+    if (cfgResult.error) throw new Error(`AI runtime config unavailable: ${cfgResult.error.message}`);
+    const cfg = cfgResult.data as Record<string, unknown>;
+    if (!cfg) throw new Error("AI runtime config unavailable: empty response");
+
+    const context = await loadContext(postId);
+    if (!journeyHasPlaceContext(context as Record<string, unknown>)) {
+      return out({ ok: true, skipped: true, post_id: postId, reason: "no_location_context" });
+    }
+
+    if (cfg.enable_run_logging) {
+      const r = await db.rpc("start_ai_edge_function_run", {
+        p_edge_function_slug: SLUG,
+        p_entity_type: "journal_post",
+        p_entity_id: postId,
+        p_metadata: { source: auth.source, config_version: cfg.config_version, prompt_version: cfg.prompt_version },
+      });
+      if (r.error) throw new Error(`Could not start AI run: ${r.error.message}`);
+      runId = r.data;
+    }
+
+    const now = new Date().toISOString();
+    await db.from("journal_post_place_context").upsert(
+      { journal_post_id: postId, generation_status: "processing", last_error: null, updated_at: now },
+      { onConflict: "journal_post_id" },
+    );
+
+    const langs = await fetchActiveLanguages();
+    const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
+    const batchSize = Math.max(1, Number(settings.batch_size ?? 3));
+    const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
+    const batches = chunkLanguages(langs, batchSize);
+
+    let draftPayload = await loadDraftPayload(postId);
+    let totalInputTokens = 0;
+    let totalOutputTokens = 0;
+    let processedThisInvocation = 0;
+    let lastBatchIndex: number | null = null;
+
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+      const batchLangs = batches[batchIndex];
+      lastBatchIndex = batchIndex + 1;
+
+      if (batchLangsComplete(batchLangs, draftPayload)) continue;
+      if (processedThisInvocation >= batchesPerInvocation) break;
+
+      const isFirstBatch = !draftPayload;
+      const thankYouOnly = Boolean(draftPayload) && batchLangsNeedThankYouOnly(batchLangs, draftPayload);
+      const enrichedContext = isFirstBatch
+        ? context
+        : { ...(context as Record<string, unknown>), existing_place_context: draftPayload };
+
+      const { placeContext, usage, finishReason } = await generatePlaceContextBatch(
+        batchLangs,
+        cfg,
+        settings,
+        enrichedContext,
+        isFirstBatch,
+        thankYouOnly,
+      );
+
+      draftPayload = mergePlaceContextBatch(draftPayload, placeContext, batchLangs, thankYouOnly);
+      totalInputTokens += Number(usage.prompt_tokens ?? 0);
+      totalOutputTokens += Number(usage.completion_tokens ?? 0);
+      processedThisInvocation += 1;
+
+      await db.from("journal_post_place_context").upsert({
+        journal_post_id: postId,
+        generation_status: "processing",
+        draft_payload: draftPayload,
+        last_error: null,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "journal_post_id" });
+
+      if (finishReason) {
+        // keep lint happy
+      }
+    }
+
+    const allComplete = batches.every((batchLangs) => batchLangsComplete(batchLangs, draftPayload));
+    if (!allComplete) {
+      if (runId) {
+        await db.rpc("finish_ai_edge_function_run", {
+          p_run_id: runId,
+          p_status: "completed",
+          p_input_tokens: totalInputTokens || null,
+          p_output_tokens: totalOutputTokens || null,
+          p_response_status: 200,
+          p_metadata: { partial: true, batch_index: lastBatchIndex, total_batches: batches.length },
+        });
+      }
+
+      const completedLangs = Object.keys((draftPayload?.translations as Record<string, unknown>) ?? {}).length;
+      return out({
+        ok: true,
+        complete: false,
+        has_more: true,
+        post_id: postId,
+        batch_index: lastBatchIndex,
+        total_batches: batches.length,
+        translation_count: completedLangs,
+        expected_translation_count: langs.length,
+      });
+    }
+
+    if (!draftPayload) throw new Error("Place context draft payload missing after batching");
+    normalizePlaceContextEnums(draftPayload);
+    validatePlaceContext(draftPayload, langs);
+    await resolveAllPoiCoordinates(draftPayload, context as Record<string, unknown>, settings);
+    validatePoiCoordinates(draftPayload);
 
     const saved = await db.rpc("save_journal_place_context_result", {
       p_post_id: postId,
-      p_place_context: placeContext,
+      p_place_context: draftPayload,
       p_model: cfg.model,
     });
     if (saved.error) throw new Error(`Could not save place context: ${saved.error.message}`);
+
+    await db.from("journal_post_place_context").update({
+      draft_payload: null,
+      last_error: null,
+      updated_at: new Date().toISOString(),
+    }).eq("journal_post_id", postId);
 
     if (runId) {
       await db.rpc("finish_ai_edge_function_run", {
         p_run_id: runId,
         p_status: "completed",
-        p_input_tokens: payload?.usage?.prompt_tokens ?? null,
-        p_output_tokens: payload?.usage?.completion_tokens ?? null,
+        p_input_tokens: totalInputTokens || null,
+        p_output_tokens: totalOutputTokens || null,
         p_response_status: 200,
-        p_metadata: { poi_count: 5, language_count: langs.length, finish_reason: finishReason ?? null },
+        p_metadata: { poi_count: 5, language_count: langs.length, batched: true },
       });
     }
 
     return out({
       ok: true,
-      ...saved.data,
+      complete: true,
+      has_more: false,
+      ...(saved.data as Record<string, unknown>),
       languages: langs,
       model: cfg.model,
       config_version: cfg.config_version,
@@ -379,10 +763,25 @@ Verified context: ${JSON.stringify(context)}`;
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message === "Unauthorized" || message === "Admin access required") {
+      return out({ error: message }, message === "Admin access required" ? 403 : 401);
+    }
+
     if (postId) {
       const failedAt = new Date().toISOString();
+      const { data: existing } = await db
+        .from("journal_post_place_context")
+        .select("draft_payload")
+        .eq("journal_post_id", postId)
+        .maybeSingle();
+      const hasDraft = Boolean(existing?.draft_payload);
       await db.from("journal_post_place_context").upsert(
-        { journal_post_id: postId, generation_status: "failed", updated_at: failedAt },
+        {
+          journal_post_id: postId,
+          generation_status: hasDraft ? "processing" : "failed",
+          last_error: message.slice(0, 4000),
+          updated_at: failedAt,
+        },
         { onConflict: "journal_post_id" },
       );
     }

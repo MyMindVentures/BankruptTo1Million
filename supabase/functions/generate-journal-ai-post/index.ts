@@ -9,7 +9,7 @@ const SLUG = "generate-journal-ai-post";
 const db = createClient(U, S, { auth: { persistSession: false } });
 const cors = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-journal-ai-worker-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const out = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -25,12 +25,42 @@ const parse = (text: string) => {
   return JSON.parse(t.slice(a, b + 1));
 };
 
+type TranslationFields = {
+  title?: string;
+  subtitle?: string;
+  excerpt?: string;
+  body?: string;
+  seo_title?: string;
+  seo_description?: string;
+};
+
 function chunkLanguages(languages: string[], batchSize: number) {
   const batches: string[][] = [];
   for (let index = 0; index < languages.length; index += batchSize) {
     batches.push(languages.slice(index, index + batchSize));
   }
   return batches;
+}
+
+async function authenticate(req: Request) {
+  const workerSecret = req.headers.get("x-journal-ai-worker-secret");
+  if (workerSecret) {
+    const { data, error } = await db.rpc("get_journal_ai_worker_secret");
+    if (error || workerSecret !== data) throw new Error("Unauthorized worker");
+    return { source: "worker" as const };
+  }
+
+  const auth = req.headers.get("Authorization");
+  if (!auth) throw new Error("Unauthorized");
+
+  const user = createClient(U, A, {
+    global: { headers: { Authorization: auth } },
+    auth: { persistSession: false },
+  });
+  const access = await user.rpc("get_my_admin_access");
+  if (access.error) throw new Error(`Admin verification failed: ${access.error.message}`);
+  if (!access.data?.[0]?.is_active) throw new Error("Admin access required");
+  return { source: "admin" as const };
 }
 
 async function fetchActiveLanguages() {
@@ -41,19 +71,48 @@ async function fetchActiveLanguages() {
     .order("display_order", { ascending: true })
     .order("code", { ascending: true });
 
-  if (error) {
-    throw new Error(`Active languages could not be loaded: ${error.message}`);
-  }
+  if (error) throw new Error(`Active languages could not be loaded: ${error.message}`);
 
   const languages = (data ?? [])
     .map((row) => String(row.code || "").trim())
     .filter(Boolean);
 
-  if (languages.length === 0) {
-    throw new Error("No active languages are configured.");
-  }
-
+  if (languages.length === 0) throw new Error("No active languages are configured.");
   return languages;
+}
+
+async function loadExistingBatchTranslations(postId: string) {
+  const { data, error } = await db
+    .from("journal_translations")
+    .select("language_code, title, subtitle, excerpt, body, seo_title, seo_description")
+    .eq("journal_post_id", postId);
+
+  if (error) throw new Error(`Existing draft translations could not be loaded: ${error.message}`);
+
+  const translations: Record<string, TranslationFields> = {};
+  for (const row of data ?? []) {
+    const lang = String(row.language_code || "").trim();
+    if (!lang) continue;
+    translations[lang] = {
+      title: row.title ?? undefined,
+      subtitle: row.subtitle ?? undefined,
+      excerpt: row.excerpt ?? undefined,
+      body: row.body ?? undefined,
+      seo_title: row.seo_title ?? undefined,
+      seo_description: row.seo_description ?? undefined,
+    };
+  }
+  return translations;
+}
+
+function batchAlreadyComplete(
+  batchLangs: string[],
+  translations: Record<string, TranslationFields>,
+) {
+  return batchLangs.every((lang) => {
+    const item = translations[lang];
+    return Boolean(item?.title?.trim() && item?.body?.trim());
+  });
 }
 
 async function loadContext(postId: string) {
@@ -69,7 +128,7 @@ async function loadContext(postId: string) {
 
 function validateBatchTranslations(
   batchLangs: string[],
-  translations: Record<string, { title?: string; body?: string }>,
+  translations: Record<string, TranslationFields>,
   ranges: Record<string, { min: number; max: number }>,
   settings: Record<string, unknown>,
 ) {
@@ -107,7 +166,10 @@ function buildBatchPrompt(
     return `${lang}: target ${r.preferred_min}-${r.preferred_max} characters; accepted ${r.min}-${r.max}`;
   }).join("\n");
 
-  return `${userPromptTemplate}\n\nReturn exactly one valid JSON object with a translations object for ${batchLangs.join(", ")} only. Every language requires title, subtitle, excerpt, body, seo_title and seo_description. Preserve equivalent factual completeness in every language, but follow its own character range because languages have different character density.\n\nLanguage-specific body ranges:\n${rangeInstructions}\n\nExcerpt maximum ${settings.excerpt_max_characters ?? 220} characters. SEO title maximum ${settings.seo_title_max_characters ?? 60}. SEO description maximum ${settings.seo_description_max_characters ?? 155}.\n\nVerified context: ${JSON.stringify(context)}`;
+  const minHeadings = Number((settings.markdown_headings as { min?: number } | undefined)?.min ?? 3);
+  const maxHeadings = Number((settings.markdown_headings as { max?: number } | undefined)?.max ?? 5);
+
+  return `${userPromptTemplate}\n\nReturn exactly one valid JSON object with a translations object for ${batchLangs.join(", ")} only. Every language requires title, subtitle, excerpt, body, seo_title and seo_description. Preserve equivalent factual completeness in every language, but follow its own character range because languages have different character density.\n\nLanguage-specific body ranges:\n${rangeInstructions}\n\nEach body must use Markdown with ${minHeadings}-${maxHeadings} section headings on their own lines starting with exactly \"### \" (three hash characters and one space). Do not use **bold** alone as section titles.\n\nExcerpt maximum ${settings.excerpt_max_characters ?? 220} characters. SEO title maximum ${settings.seo_title_max_characters ?? 60}. SEO description maximum ${settings.seo_description_max_characters ?? 155}.\n\nVerified context: ${JSON.stringify(context)}`;
 }
 
 async function generateBatchTranslations(
@@ -117,50 +179,82 @@ async function generateBatchTranslations(
   ranges: Record<string, { min: number; preferred_min: number; preferred_max: number; max: number }>,
   context: unknown,
 ) {
-  const prompt = buildBatchPrompt(
-    batchLangs,
-    ranges,
-    settings,
-    String(cfg.user_prompt_template ?? ""),
-    context,
-  );
+  const maxAttempts = 3;
+  let lastError: Error | null = null;
+  let totalUsage: Record<string, number> = {};
+  let finishReason: string | null = null;
 
-  const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${K}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://bankruptto1million.com",
-      "X-Title": "Bankrupt to 1 Million Journal AI",
-    },
-    body: JSON.stringify({
-      model: cfg.model,
-      temperature: Number(cfg.temperature),
-      top_p: cfg.top_p == null ? undefined : Number(cfg.top_p),
-      max_tokens: Number(cfg.max_output_tokens ?? 8192),
-      response_format: cfg.response_format,
-      messages: [
-        { role: "system", content: cfg.system_prompt },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
-  if (!ai.ok) throw new Error(`AI provider ${ai.status}: ${(await ai.text()).slice(0, 900)}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const prompt = `${buildBatchPrompt(
+      batchLangs,
+      ranges,
+      settings,
+      String(cfg.user_prompt_template ?? ""),
+      context,
+    )}${attempt > 1 ? `\n\nPrevious attempt failed validation (${lastError?.message}). Regenerate the full JSON response and ensure every body includes the required \"### \" section headings.` : ""}`;
 
-  const payload = await ai.json();
-  const finishReason = payload?.choices?.[0]?.finish_reason;
-  if (finishReason && finishReason !== "stop") {
-    throw new Error(`AI response incomplete for batch [${batchLangs.join(", ")}]: finish_reason=${finishReason}`);
+    const ai = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${K}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://bankruptto1million.com",
+        "X-Title": "Bankrupt to 1 Million Journal AI",
+      },
+      body: JSON.stringify({
+        model: cfg.model,
+        temperature: Number(cfg.temperature),
+        top_p: cfg.top_p == null ? undefined : Number(cfg.top_p),
+        max_tokens: Number(cfg.max_output_tokens ?? 8192),
+        response_format: cfg.response_format,
+        messages: [
+          { role: "system", content: cfg.system_prompt },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+    if (!ai.ok) throw new Error(`AI provider ${ai.status}: ${(await ai.text()).slice(0, 900)}`);
+
+    const payload = await ai.json();
+    finishReason = payload?.choices?.[0]?.finish_reason ?? null;
+    if (finishReason && finishReason !== "stop") {
+      throw new Error(`AI response incomplete for batch [${batchLangs.join(", ")}]: finish_reason=${finishReason}`);
+    }
+
+    totalUsage = {
+      prompt_tokens: Number(totalUsage.prompt_tokens ?? 0) + Number(payload?.usage?.prompt_tokens ?? 0),
+      completion_tokens: Number(totalUsage.completion_tokens ?? 0) + Number(payload?.usage?.completion_tokens ?? 0),
+    };
+
+    try {
+      const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
+      const translations = parsed.translations as Record<string, TranslationFields>;
+      validateBatchTranslations(batchLangs, translations, ranges, settings);
+      return { translations, usage: totalUsage, finishReason };
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt >= maxAttempts) throw lastError;
+      await sleep(400 * attempt);
+    }
   }
 
-  const parsed = parse(payload?.choices?.[0]?.message?.content ?? "");
-  const translations = parsed.translations as Record<string, { title?: string; body?: string }>;
-  validateBatchTranslations(batchLangs, translations, ranges, settings);
+  throw lastError ?? new Error(`Could not generate batch [${batchLangs.join(", ")}]`);
+}
 
+function buildFailureMetadata(
+  batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }>,
+  currentBatchIndex: number | null,
+  currentBatchLangs: string[],
+  batchSize: number,
+  batchCount: number,
+) {
   return {
-    translations,
-    usage: payload?.usage ?? {},
-    finishReason: finishReason ?? null,
+    batch_size: batchSize,
+    batch_count: batchCount,
+    failed_batch_index: currentBatchIndex,
+    failed_batch_languages: currentBatchLangs,
+    completed_batches: batchSummaries,
+    completed_batch_count: batchSummaries.length,
   };
 }
 
@@ -170,18 +264,17 @@ Deno.serve(async (req: Request) => {
 
   let postId = "";
   let runId: string | null = null;
+  let batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }> = [];
+  let currentBatchIndex: number | null = null;
+  let currentBatchLangs: string[] = [];
+  let batchSize = 3;
+  let batchCount = 0;
+  let authSource = "admin";
+
   try {
     if (!K) throw new Error("Missing AI provider key");
-    const auth = req.headers.get("Authorization");
-    if (!auth) return out({ error: "Unauthorized" }, 401);
-
-    const user = createClient(U, A, {
-      global: { headers: { Authorization: auth } },
-      auth: { persistSession: false },
-    });
-    const access = await user.rpc("get_my_admin_access");
-    if (access.error) throw new Error(`Admin verification failed: ${access.error.message}`);
-    if (!access.data?.[0]?.is_active) return out({ error: "Admin access required" }, 403);
+    const auth = await authenticate(req);
+    authSource = auth.source;
 
     postId = String((await req.json().catch(() => ({})))?.post_id ?? "");
     if (!postId) return out({ error: "post_id required" }, 400);
@@ -199,7 +292,7 @@ Deno.serve(async (req: Request) => {
         p_entity_type: "journal_post",
         p_entity_id: postId,
         p_metadata: {
-          source: "edge_function",
+          source: authSource,
           config_version: cfg.config_version,
           prompt_version: cfg.prompt_version,
         },
@@ -215,19 +308,37 @@ Deno.serve(async (req: Request) => {
 
     const settings = (cfg.generation_settings ?? {}) as Record<string, unknown>;
     const langs = await fetchActiveLanguages();
-    const batchSize = Math.max(1, Number(settings.batch_size ?? 2));
+    batchSize = Math.max(1, Number(settings.batch_size ?? 3));
+    const batchesPerInvocation = Math.max(1, Number(settings.batches_per_invocation ?? 1));
     const batches = chunkLanguages(langs, batchSize);
+    batchCount = batches.length;
     const defaults = (settings.default_body_characters ?? { min: 1800, preferred_min: 2400, preferred_max: 3400, max: 4500 }) as Record<string, number>;
     const byLanguage = (settings.body_characters_by_language ?? {}) as Record<string, Record<string, number>>;
     const ranges = Object.fromEntries(langs.map((lang) => [lang, { ...defaults, ...(byLanguage[lang] ?? {}) }]));
 
-    const mergedTranslations: Record<string, unknown> = {};
+    const mergedTranslations: Record<string, TranslationFields> = await loadExistingBatchTranslations(postId);
     let totalInputTokens = 0;
     let totalOutputTokens = 0;
-    const batchSummaries: Array<{ batch_index: number; languages: string[]; finish_reason: string | null }> = [];
+    batchSummaries = [];
+    let processedThisInvocation = 0;
+    let lastBatchResult: Record<string, unknown> | null = null;
 
     for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
       const batchLangs = batches[batchIndex];
+      currentBatchIndex = batchIndex + 1;
+      currentBatchLangs = batchLangs;
+
+      if (batchAlreadyComplete(batchLangs, mergedTranslations)) {
+        batchSummaries.push({
+          batch_index: batchIndex + 1,
+          languages: batchLangs,
+          finish_reason: "skipped_resume",
+        });
+        continue;
+      }
+
+      if (processedThisInvocation >= batchesPerInvocation) break;
+
       const { translations, usage, finishReason } = await generateBatchTranslations(
         batchLangs,
         cfg,
@@ -248,6 +359,7 @@ Deno.serve(async (req: Request) => {
         throw new Error(`Could not save batch ${batchIndex + 1}/${batches.length} [${batchLangs.join(", ")}]: ${batchSaved.error.message}`);
       }
 
+      lastBatchResult = batchSaved.data as Record<string, unknown>;
       totalInputTokens += Number(usage.prompt_tokens ?? 0);
       totalOutputTokens += Number(usage.completion_tokens ?? 0);
       batchSummaries.push({
@@ -255,16 +367,59 @@ Deno.serve(async (req: Request) => {
         languages: batchLangs,
         finish_reason: finishReason,
       });
+      processedThisInvocation += 1;
     }
 
-    const saved = await db.rpc("save_journal_ai_generation_result", {
-      p_post_id: postId,
-      p_translations: mergedTranslations,
-      p_model: cfg.model,
-      p_config_version: cfg.config_version,
-      p_prompt_version: cfg.prompt_version,
-    });
-    if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
+    currentBatchIndex = null;
+    currentBatchLangs = [];
+
+    const allBatchesComplete = batches.every((batchLangs) => batchAlreadyComplete(batchLangs, mergedTranslations));
+    const runMetadata = {
+      translation_count: Object.keys(mergedTranslations).length,
+      expected_translation_count: langs.length,
+      batch_size: batchSize,
+      batch_count: batches.length,
+      batches: batchSummaries,
+      batches_per_invocation: batchesPerInvocation,
+      auth_source: authSource,
+    };
+
+    if (allBatchesComplete) {
+      const saved = await db.rpc("save_journal_ai_generation_result", {
+        p_post_id: postId,
+        p_translations: mergedTranslations,
+        p_model: cfg.model,
+        p_config_version: cfg.config_version,
+        p_prompt_version: cfg.prompt_version,
+      });
+      if (saved.error) throw new Error(`Could not save AI result: ${saved.error.message}`);
+
+      if (runId) {
+        await db.rpc("finish_ai_edge_function_run", {
+          p_run_id: runId,
+          p_status: "completed",
+          p_input_tokens: totalInputTokens || null,
+          p_output_tokens: totalOutputTokens || null,
+          p_response_status: 200,
+          p_metadata: runMetadata,
+        });
+      }
+
+      return out({
+        ok: true,
+        complete: true,
+        has_more: false,
+        ...(saved.data as Record<string, unknown>),
+        languages: langs,
+        model: cfg.model,
+        config_version: cfg.config_version,
+        prompt_version: cfg.prompt_version,
+        batch_size: batchSize,
+        batch_count: batches.length,
+        translation_count: langs.length,
+        expected_translation_count: langs.length,
+      });
+    }
 
     if (runId) {
       await db.rpc("finish_ai_edge_function_run", {
@@ -273,30 +428,62 @@ Deno.serve(async (req: Request) => {
         p_input_tokens: totalInputTokens || null,
         p_output_tokens: totalOutputTokens || null,
         p_response_status: 200,
-        p_metadata: {
-          translation_count: langs.length,
-          batch_size: batchSize,
-          batch_count: batches.length,
-          batches: batchSummaries,
-        },
+        p_metadata: { ...runMetadata, partial: true },
       });
     }
 
     return out({
-      ...(saved.data as Record<string, unknown>),
-      languages: langs,
+      ok: true,
+      complete: false,
+      has_more: true,
+      post_id: postId,
+      batch_index: lastBatchResult?.batch_index ?? batchSummaries.at(-1)?.batch_index ?? null,
+      total_batches: batches.length,
+      translation_count: lastBatchResult?.translation_count ?? Object.keys(mergedTranslations).length,
+      expected_translation_count: langs.length,
+      batch_size: batchSize,
+      batches_per_invocation: batchesPerInvocation,
       model: cfg.model,
       config_version: cfg.config_version,
       prompt_version: cfg.prompt_version,
-      batch_size: batchSize,
-      batch_count: batches.length,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const baseMessage = error instanceof Error ? error.message : String(error);
+    if (baseMessage === "Unauthorized" || baseMessage === "Admin access required") {
+      return out({ error: baseMessage }, baseMessage === "Admin access required" ? 403 : 401);
+    }
+
+    const failureMetadata = buildFailureMetadata(
+      batchSummaries,
+      currentBatchIndex,
+      currentBatchLangs,
+      batchSize,
+      batchCount,
+    );
+    const message = currentBatchIndex
+      ? `${baseMessage} (batch ${currentBatchIndex}/${batchCount || "?"}, completed ${batchSummaries.length})`
+      : baseMessage;
+
     if (postId) {
       const now = new Date().toISOString();
+      const { data: sourceRow } = await db
+        .from("journal_ai_sources")
+        .select("metadata")
+        .eq("journal_post_id", postId)
+        .maybeSingle();
+      const mergedMetadata = {
+        ...((sourceRow?.metadata as Record<string, unknown> | null) ?? {}),
+        ...failureMetadata,
+        last_failure_at: now,
+      };
+
       await db.from("journal_posts").update({ ai_generation_status: "failed", updated_at: now }).eq("id", postId);
-      await db.from("journal_ai_sources").update({ generation_status: "failed", last_error: message.slice(0, 4000), updated_at: now }).eq("journal_post_id", postId);
+      await db.from("journal_ai_sources").update({
+        generation_status: "failed",
+        last_error: message.slice(0, 4000),
+        metadata: mergedMetadata,
+        updated_at: now,
+      }).eq("journal_post_id", postId);
     }
     if (runId) {
       await db.rpc("finish_ai_edge_function_run", {
@@ -304,9 +491,10 @@ Deno.serve(async (req: Request) => {
         p_status: "failed",
         p_response_status: 500,
         p_error_message: message,
+        p_metadata: failureMetadata,
       });
     }
-    console.error("generate-journal-ai-post failed", { postId, message });
+    console.error("generate-journal-ai-post failed", { postId, message, failureMetadata });
     return out({ error: message }, 500);
   }
 });
