@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Check, Copy, Facebook, Linkedin, Mail, MessageCircle, Send, Share2 } from 'lucide-react';
 import { useState } from 'react';
 import { PostQrCodeButton } from './PostQrCodeButton';
@@ -13,7 +14,7 @@ type ShareActionsProps = {
   entityType: ContentQrEntityType;
   entityId: string;
   qrLabel?: string;
-  onShare?: (platform: SharePlatform) => void | Promise<void>;
+  onShare?: (platform: SharePlatform) => void;
 };
 
 const socialLinks: Array<{
@@ -41,6 +42,13 @@ function buildShareUrl(platform: Exclude<SharePlatform, 'native' | 'copy_link'>,
     case 'email': return `mailto:?subject=${encodedTitle}&body=${encodedUrl}`;
   }
 }
+
+export const SHARE_ACTIONS_I18N_MANIFEST = {
+  componentKey: 'components.share.actions',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function ShareActions({
   title,

@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, Gift, HandHeart } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Footer } from '../components/Footer';
@@ -125,6 +126,23 @@ function JournalExchangeSection({ items }: { items: JourneyExchangeItem[] }) {
     </div>
   </section>;
 }
+
+export const JOURNAL_LANDING_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.journal.landing.page',
+  namespace: 'Exchange, not charity',
+  translationKeys: [
+    'Exchange, not charity',
+    'Explore the complete offer catalogue.',
+    'Follow the journey, see the practical needs around each chapter, and discover the real skills and experiences Kevin and Micha can offer in return.',
+    'Help create the next step',
+    'No public needs are active right now.',
+    'Skills, experiences and honest value',
+    'View all offers',
+    'What we need',
+    'What we need — and what we give back.',
+    'What we offer',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function JournalLandingPage() {
   const { language } = useWebsiteI18n();

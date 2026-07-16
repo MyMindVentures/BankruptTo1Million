@@ -1,3 +1,5 @@
+import type { I18nManifest } from '../lib/i18nManifest';
+import type { WebsiteTranslate } from './websiteI18n';
 function formatJournalTimestamp(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
@@ -48,7 +50,15 @@ function enhanceJournalMetadata() {
   });
 }
 
-export function initializeJournalMetadataUi() {
+export const JOURNAL_METADATA_UI_I18N_MANIFEST = {
+  componentKey: 'lib.journal.metadata.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeJournalMetadataUi(_t: WebsiteTranslate) {
   const observer = new MutationObserver(() => enhanceJournalMetadata());
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener('popstate', enhanceJournalMetadata);

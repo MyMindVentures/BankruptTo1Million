@@ -1,6 +1,8 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Download, LoaderCircle } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import './StorageDownloadButton.css';
 
 type StorageDownloadButtonProps = {
@@ -36,19 +38,29 @@ function triggerBrowserDownload(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
 }
 
+export const STORAGE_DOWNLOAD_BUTTON_I18N_MANIFEST = {
+  componentKey: 'components.storage.download.button',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['storage_download.*'] as const,
+} as const satisfies I18nManifest;
+
 export function StorageDownloadButton({
   bucket,
   paths,
   filename,
   label,
-  loadingLabel = 'Downloading…',
-  errorLabel = 'The file could not be downloaded.',
+  loadingLabel,
+  errorLabel,
   className = '',
   disabled = false,
   onDownloaded,
 }: StorageDownloadButtonProps) {
+  const { t } = useWebsiteI18n();
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const resolvedLoadingLabel = loadingLabel || t('storage_download.loading', 'Downloading…');
+  const resolvedErrorLabel = errorLabel || t('storage_download.error', 'The file could not be downloaded.');
 
   async function download() {
     if (isDownloading || disabled || paths.length === 0) return;
@@ -85,9 +97,9 @@ export function StorageDownloadButton({
         aria-busy={isDownloading}
       >
         {isDownloading ? <LoaderCircle className="storage-download-button__spinner" size={18} aria-hidden="true" /> : <Download size={18} aria-hidden="true" />}
-        {isDownloading ? loadingLabel : label}
+        {isDownloading ? resolvedLoadingLabel : label}
       </button>
-      {hasError ? <p className="storage-download-button__error" role="alert">{errorLabel}</p> : null}
+      {hasError ? <p className="storage-download-button__error" role="alert">{resolvedErrorLabel}</p> : null}
     </div>
   );
 }

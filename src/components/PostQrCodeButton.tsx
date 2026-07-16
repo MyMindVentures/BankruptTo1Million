@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { LoaderCircle, QrCode, X } from 'lucide-react';
 import { useEffect, useId, useState, type ButtonHTMLAttributes } from 'react';
 import { generateContentQrCode, type ContentQrEntityType } from '../lib/contentQrCodes';
@@ -12,6 +13,13 @@ type PostQrCodeButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, 'chil
   label?: string;
   instruction?: string;
 };
+
+export const POST_QR_CODE_BUTTON_I18N_MANIFEST = {
+  componentKey: 'components.post.qr.code.button',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function PostQrCodeButton({
   entityType,

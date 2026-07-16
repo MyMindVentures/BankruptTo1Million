@@ -1,5 +1,30 @@
 import { ArrowRight, ArrowUp, ArrowUpRight, Github, MapPin, ShieldCheck } from 'lucide-react';
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+export const FOOTER_I18N_MANIFEST = {
+  componentKey: 'shell.footer',
+  namespace: 'footer',
+  translationKeys: [
+    'footer.mission.kicker',
+    'footer.mission.tagline',
+    'footer.mission.description',
+    'footer.actions.support',
+    'footer.actions.explore_concepts',
+    'footer.trust.original_concepts',
+    'footer.trust.location',
+    'footer.accessibility.sitemap_aria',
+    'footer.bottom.copyright',
+    'footer.bottom.github',
+    'footer.bottom.privacy',
+    'footer.bottom.back_to_top',
+    'header.brand_home_aria',
+  ] as const,
+  keyPatterns: [
+    'footer.groups.*',
+    'footer.links.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 const footerGroups = [
   {

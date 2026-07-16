@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { Archive, ArrowRight, ChevronDown, Filter, Gift, HandHeart, MapPin, Search, SlidersHorizontal } from 'lucide-react';
 import { AceternityContentCard } from '../AceternityContentCard';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from '../PremiumJourneyMap';
@@ -6,6 +7,17 @@ import { JourneyFootageCarousel, type JourneyFootageItem } from './JourneyFootag
 import { type JournalIndexData, type PublicJournalPost } from '../../lib/journal';
 import { formatJournalPeople, getJournalDisplayPeople, type JournalDisplayPerson } from '../../lib/journalPeople';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
+
+export const JOURNAL_LANDING_SECTIONS_I18N_MANIFEST = {
+  componentKey: 'components.journal.journal.landing.sections',
+  namespace: 'journal.timeline',
+  translationKeys: [
+    'journal.timeline.open_chapter',
+  ] as const,
+  keyPatterns: [
+    'journal.timeline.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export type FounderFilter = 'all' | 'kevin' | 'micha' | 'together';
 export type JourneyInvolvedPerson = JournalDisplayPerson & {
@@ -58,7 +70,8 @@ export function founderFilterLabel(value: FounderFilter) {
 }
 
 function FounderSwitch({ value, onChange, className = '' }: { value: FounderFilter; onChange: (value: FounderFilter) => void; className?: string }) {
-  return <div className={`journal-founder-switch ${className}`.trim()} role="group" aria-label="Filter the journey by involved person">
+  const { t } = useWebsiteI18n();
+  return <div className={`journal-founder-switch ${className}`.trim()} role="group" aria-label={t('journal.timeline.filter_founder', 'Filter the journey by involved person')}>
     {(['all', 'kevin', 'micha', 'together'] as FounderFilter[]).map((option) => <button key={option} type="button" className={value === option ? 'is-active' : ''} onClick={() => onChange(option)}>{founderFilterLabel(option)}</button>)}
   </div>;
 }
@@ -232,8 +245,8 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
   const { t } = useWebsiteI18n();
 
   return <section className="journal-timeline-section" aria-labelledby="journal-timeline-title">
-    <SectionHeading eyebrow="Interactive timeline" title="One real chapter at a time." titleId="journal-timeline-title">Past chapters, current needs and upcoming opportunities are separated clearly.</SectionHeading>
-    <div className="journal-timeline-legend" aria-label="Timeline status legend"><span className="is-past">Passed</span><span className="is-current">Now</span><span className="is-upcoming">Upcoming</span></div>
+    <SectionHeading eyebrow={t('journal.timeline.eyebrow', 'Interactive timeline')} title={t('journal.timeline.title', 'One real chapter at a time.')} titleId="journal-timeline-title">{t('journal.timeline.description', 'Past chapters, current needs and upcoming opportunities are separated clearly.')}</SectionHeading>
+    <div className="journal-timeline-legend" aria-label={t('journal.timeline.legend', 'Timeline status legend')}><span className="is-past">{t('journal.timeline.past', 'Passed')}</span><span className="is-current">{t('journal.timeline.current', 'Now')}</span><span className="is-upcoming">{t('journal.timeline.upcoming', 'Upcoming')}</span></div>
     <FounderSwitch value={founder} onChange={onFounderChange} className="journal-founder-switch--timeline" />
     <div className="journal-priority-timeline">
       {points.map((point) => {
@@ -275,8 +288,9 @@ export function JournalTimelineSection({ points, exchangeItems, activePoint, fou
 }
 
 export function JournalLatestSection({ posts }: { posts: PublicJournalPost[] }) {
+  const { t } = useWebsiteI18n();
   return <section className="journal-latest-section" id="latest" aria-labelledby="journal-latest-title">
-    <SectionHeading eyebrow="Latest stories" title="The three newest chapters." titleId="journal-latest-title">Only the latest three stories stay visible here, so the page remains focused and easy to scan.</SectionHeading>
+    <SectionHeading eyebrow={t('journal.timeline.latest_eyebrow', 'Latest stories')} title={t('journal.timeline.latest_title', 'The three newest chapters.')} titleId="journal-latest-title">{t('journal.timeline.latest_description', 'Only the latest three stories stay visible here, so the page remains focused and easy to scan.')}</SectionHeading>
     {posts.length ? <div className="journal-grid journal-grid--latest-three">{posts.map((post) => <JournalArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No published stories yet.</div>}
   </section>;
 }
@@ -294,6 +308,7 @@ export function JournalArchiveSection({ journal, posts, open, category, search, 
   onSortChange: (value: string) => void;
   onReset: () => void;
 }) {
+  const { t } = useWebsiteI18n();
   const chips = [{ slug: 'all', name: 'All' }, ...journal.categories];
   return <section className={`journal-archive-section ${open ? 'is-open' : ''}`} aria-labelledby="journal-archive-title">
     <button type="button" className="journal-archive-toggle" onClick={onToggle} aria-expanded={open}>
@@ -301,11 +316,11 @@ export function JournalArchiveSection({ journal, posts, open, category, search, 
     </button>
     {open ? <div className="journal-archive-content">
       <div className="journal-archive-toolbar">
-        <label><Search size={16} /><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder="Search title, tag or venture" /></label>
+        <label><Search size={16} /><input value={search} onChange={(event) => onSearchChange(event.target.value)} placeholder={t('journal.timeline.archive_search', 'Search title, tag or venture')} /></label>
         <label><SlidersHorizontal size={16} /><select value={sort} onChange={(event) => onSortChange(event.target.value)}><option value="newest">Newest first</option><option value="updated">Recently updated</option><option value="short">Shortest reading time</option><option value="long">Longest reading time</option></select></label>
         <button type="button" className="button button--ghost button--small" onClick={onReset}><Filter size={16} /> Reset</button>
       </div>
-      <div className="chip-group" role="group" aria-label="Archive categories">
+      <div className="chip-group" role="group" aria-label={t('journal.timeline.archive_categories', 'Archive categories')}>
         {chips.map((chip) => <button key={chip.slug} type="button" className={`chip ${category === chip.slug ? 'chip--active' : ''}`} onClick={() => onCategoryChange(chip.slug)}>{chip.name}<span>({chip.slug === 'all' ? journal.posts.length : journal.posts.filter((post) => post.journal_categories?.slug === chip.slug).length})</span></button>)}
       </div>
       {posts.length ? <div className="journal-grid">{posts.map((post) => <JournalArticleCard key={post.id} post={post} />)}</div> : <div className="impact-state">No archive stories match these filters.</div>}

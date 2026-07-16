@@ -8,9 +8,40 @@ import {
   type JournalPlaceContext,
   weatherConditionKey,
 } from '../../lib/journalPlaceContext';
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
 import { JournalPoiMap } from './JournalPoiMap';
 import './JournalPlaceContextSection.css';
+
+export const JOURNAL_PLACE_CONTEXT_I18N_MANIFEST = {
+  componentKey: 'journal.place_context.section',
+  namespace: 'journal.place_context',
+  translationKeys: [
+    'journal.place_context.links.google_maps',
+    'journal.place_context.links.instagram',
+    'journal.place_context.links.website',
+    'journal.place_context.section.title',
+    'journal.place_context.place.history_heading',
+    'journal.place_context.area.history_heading',
+    'journal.place_context.poi.heading',
+    'journal.place_context.weather.heading',
+    'journal.place_context.weather.loading',
+    'journal.place_context.weather.error',
+    'journal.place_context.weather.temperature',
+    'journal.place_context.weather.feels_like',
+    'journal.place_context.weather.wind',
+    'journal.place_context.weather.humidity',
+  ] as const,
+  keyPatterns: [
+    'journal.place_context.place_type.*',
+    'journal.place_context.area_type.*',
+    'journal.place_context.weather.condition.*',
+  ] as const,
+  entityContent: {
+    rpc: 'get_localized_journal_place_context',
+    tables: ['journal_post_place_context_translations', 'journal_post_poi_translations'],
+  },
+} as const satisfies I18nManifest;
 
 type LoadState = 'loading' | 'empty' | 'ready' | 'error';
 type WeatherState = 'idle' | 'loading' | 'ready' | 'error';

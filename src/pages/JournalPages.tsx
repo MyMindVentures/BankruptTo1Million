@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import {
   ArrowRight,
   BookOpen,
@@ -384,6 +385,13 @@ function JournalStorySections({ data }: { data: JournalIndexData }) {
     </>
   );
 }
+
+export const JOURNAL_PAGES_I18N_MANIFEST = {
+  componentKey: 'pages.journal.pages',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function JournalPage() {
   const [data, setData] = useState<JournalIndexData | null>(null);

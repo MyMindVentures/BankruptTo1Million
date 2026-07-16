@@ -2,7 +2,50 @@ import { ArrowRight, CheckCircle2, HeartHandshake, Users } from 'lucide-react';
 import { useEffect } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
 import { platformFeatures, roadmap } from '../data/siteContent';
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+export const HOME_PAGE_I18N_MANIFEST = {
+  componentKey: 'page.home',
+  namespace: 'home',
+  translationKeys: [
+    'home.seo.title',
+    'home.seo.description',
+    'home.page_aria',
+    'home.hero.eyebrow',
+    'home.hero.title',
+    'home.hero.description',
+    'home.hero.actions_aria',
+    'home.hero.primary_cta',
+    'home.hero.secondary_cta',
+    'home.hero.card_aria',
+    'home.hero.card_quote',
+    'home.hero.card_description',
+    'home.story.eyebrow',
+    'home.story.title',
+    'home.story.description',
+    'home.story.body_one',
+    'home.story.body_two',
+    'home.platform.eyebrow',
+    'home.platform.title',
+    'home.platform.description',
+    'home.platform.features_aria',
+    'home.roadmap.eyebrow',
+    'home.roadmap.title',
+    'home.roadmap.description',
+    'home.roadmap.list_aria',
+    'home.contribute.eyebrow',
+    'home.contribute.title',
+    'home.contribute.description',
+    'home.contribute.actions_aria',
+    'home.contribute.primary_cta',
+    'home.contribute.secondary_cta',
+  ] as const,
+  keyPatterns: [
+    'home.platform.features.*',
+    'home.roadmap.items.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 function setMetaDescription(content: string) {
   let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');

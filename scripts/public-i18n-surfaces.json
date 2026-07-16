@@ -1,0 +1,55 @@
+{
+  "brandAllowlist": [
+    "Bankrupt to 1 Million",
+    "B1M",
+    "Proof of Mind",
+    "MyMindVentures.io",
+    "GitHub",
+    "Stripe",
+    "PayPal",
+    "Wise",
+    "Kevin De Vlieger",
+    "Micha"
+  ],
+  "excludePaths": [
+    "src/components/ui/button.tsx",
+    "src/components/ui/card.tsx",
+    "src/pages/AdminAiControlCenterPage.tsx",
+    "src/pages/AdminAuthGate.tsx",
+    "src/pages/AdminDashboardPage.tsx",
+    "src/pages/AdminSectionPage.tsx",
+    "src/pages/FounderSupportAdminPage.tsx",
+    "src/pages/JournalAdminPage.tsx",
+    "src/pages/OutreachAdminPage.tsx",
+    "src/pages/OutreachPrivatePage.tsx"
+  ],
+  "dataModulePaths": [
+    "src/data/siteContent.ts"
+  ],
+  "domInjectorPaths": [
+    "src/lib/conceptMessageUi.ts",
+    "src/lib/conceptOwnershipUi.ts",
+    "src/lib/founderPostUi.ts",
+    "src/lib/founderPostOpportunitiesUi.ts",
+    "src/lib/journalMapMarkerMediaUi.ts",
+    "src/lib/journalMetadataUi.ts",
+    "src/lib/latestThreeUi.ts",
+    "src/lib/siteMediaUi.ts"
+  ],
+  "includeGlobs": [
+    "src/components/**/*.tsx",
+    "src/pages/**/*.tsx",
+    "src/data/siteContent.ts",
+    "src/App.tsx"
+  ],
+  "includePaths": [
+    "src/lib/conceptMessageUi.ts",
+    "src/lib/conceptOwnershipUi.ts",
+    "src/lib/founderPostUi.ts",
+    "src/lib/founderPostOpportunitiesUi.ts",
+    "src/lib/journalMapMarkerMediaUi.ts",
+    "src/lib/journalMetadataUi.ts",
+    "src/lib/latestThreeUi.ts",
+    "src/lib/siteMediaUi.ts"
+  ]
+}

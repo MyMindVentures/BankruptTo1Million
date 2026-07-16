@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Sparkles, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Footer } from '../components/Footer';
@@ -13,6 +14,39 @@ async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
   if (!result.ok) throw new Error(await result.text());
   return result.json() as Promise<T>;
 }
+
+export const FOUNDERS_OVERVIEW_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.founders.overview.page',
+  namespace: 'founders.closing',
+  translationKeys: [
+    'founders.closing.description',
+    'founders.closing.eyebrow',
+    'founders.closing.title',
+    'founders.directory.description',
+    'founders.directory.eyebrow',
+    'founders.directory.title',
+    'founders.hero.description',
+    'founders.hero.eyebrow',
+    'founders.hero.note',
+    'founders.hero.quote',
+    'founders.hero.title',
+    'founders.seo.title',
+    'founders.states.empty',
+    'founders.states.error',
+    'founders.states.loading',
+    'founders.video_section.description',
+    'founders.video_section.eyebrow',
+    'founders.video_section.title',
+  ] as const,
+  keyPatterns: [
+    'founders.closing.*',
+    'founders.directory.*',
+    'founders.hero.*',
+    'founders.seo.*',
+    'founders.states.*',
+    'founders.video_section.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FoundersOverviewPage() {
   const { t } = useWebsiteI18n();

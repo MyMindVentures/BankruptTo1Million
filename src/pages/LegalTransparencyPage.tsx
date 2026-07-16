@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { FileCheck2, Fingerprint, Globe2, LockKeyhole, Scale, ShieldCheck } from 'lucide-react';
 import { Footer } from '../components/Footer';
 import { Header } from '../components/Header';
@@ -8,6 +9,13 @@ const sections = [
   { id: 'privacy', label: 'Privacy', icon: LockKeyhole },
   { id: 'mission', label: 'Public Mission', icon: Globe2 },
 ] as const;
+
+export const LEGAL_TRANSPARENCY_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.legal.transparency.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function LegalTransparencyPage() {
   return (

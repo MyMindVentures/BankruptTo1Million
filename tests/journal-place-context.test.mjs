@@ -20,6 +20,10 @@ function weatherConditionKey(code) {
   return 'journal.place_context.weather.condition.unknown';
 }
 
+function poiTypeKey(type) {
+  return `journal.place_context.poi_type.${type}`;
+}
+
 function normalizePlaceContextPayload(payload) {
   if (!payload || typeof payload !== 'object') return null;
   const links = payload.links ?? {};
@@ -36,6 +40,7 @@ function normalizePlaceContextPayload(payload) {
 }
 
 function isValidMapCoordinate(latitude, longitude) {
+  if (latitude == null || longitude == null) return false;
   const lat = Number(latitude);
   const lng = Number(longitude);
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -63,6 +68,23 @@ test('weatherConditionKey maps Open-Meteo codes to translation keys', () => {
   assert.equal(weatherConditionKey(61), 'journal.place_context.weather.condition.rain');
   assert.equal(weatherConditionKey(95), 'journal.place_context.weather.condition.thunderstorm');
   assert.equal(weatherConditionKey(999), 'journal.place_context.weather.condition.unknown');
+});
+
+test('poiTypeKey maps POI types to translation keys', () => {
+  assert.equal(poiTypeKey('landmark'), 'journal.place_context.poi_type.landmark');
+  assert.equal(poiTypeKey('museum'), 'journal.place_context.poi_type.museum');
+  assert.equal(poiTypeKey('other'), 'journal.place_context.poi_type.other');
+});
+
+test('journal POI map hover card translation keys are namespaced', () => {
+  const cardKeys = [
+    'journal.place_context.map.card.close_label',
+    'journal.place_context.map.card.order',
+    'journal.place_context.poi_type.landmark',
+  ];
+  for (const key of cardKeys) {
+    assert.ok(key.startsWith('journal.place_context.'));
+  }
 });
 
 test('normalizePlaceContextPayload extracts the public RPC shape', () => {

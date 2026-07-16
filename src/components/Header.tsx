@@ -1,9 +1,27 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { navGroups, primaryNavItems } from '../data/siteContent';
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { LanguageSelector } from './LanguageSelector';
 import { MissionLogo } from './MissionLogo';
+
+export const HEADER_I18N_MANIFEST = {
+  componentKey: 'shell.header',
+  namespace: 'header',
+  translationKeys: [
+    'header.brand_home_aria',
+    'header.primary_navigation_aria',
+    'header.nav_group_toggle_aria',
+    'header.close_menu_aria',
+    'header.open_menu_aria',
+    'header.mobile_navigation_aria',
+  ] as const,
+  keyPatterns: [
+    'navigation.*',
+    'navigation.group.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 const groupLabelFallbacks: Record<string, string> = {
   'navigation.group.explore': 'Explore',

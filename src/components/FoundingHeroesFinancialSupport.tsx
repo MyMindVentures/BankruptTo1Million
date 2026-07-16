@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ChevronLeft, ChevronRight, Coins, Heart, Sparkles, Users } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import {
@@ -203,6 +204,32 @@ function FinancialSupportHeading() {
     </div>
   );
 }
+
+export const FOUNDING_HEROES_FINANCIAL_SUPPORT_I18N_MANIFEST = {
+  componentKey: 'components.founding.heroes.financial.support',
+  namespace: 'founding_heroes.financial',
+  translationKeys: [
+    'founding_heroes.financial.anonymous_supporter',
+    'founding_heroes.financial.aria_label',
+    'founding_heroes.financial.carousel_label',
+    'founding_heroes.financial.empty',
+    'founding_heroes.financial.error',
+    'founding_heroes.financial.eyebrow',
+    'founding_heroes.financial.latest_badge',
+    'founding_heroes.financial.lede',
+    'founding_heroes.financial.loading',
+    'founding_heroes.financial.next',
+    'founding_heroes.financial.previous',
+    'founding_heroes.financial.scroll_hint',
+    'founding_heroes.financial.slide_position',
+    'founding_heroes.financial.supporter_count',
+    'founding_heroes.financial.title',
+    'founding_heroes.financial.total_collected',
+  ] as const,
+  keyPatterns: [
+    'founding_heroes.financial.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FoundingHeroesFinancialSupport() {
   const { language, t } = useWebsiteI18n();

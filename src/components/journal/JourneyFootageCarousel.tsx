@@ -1,6 +1,19 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
 import './JourneyFootageCarousel.css';
+
+export const JOURNEY_FOOTAGE_CAROUSEL_I18N_MANIFEST = {
+  componentKey: 'components.journal.journey.footage.carousel',
+  namespace: 'Footage',
+  translationKeys: [
+    'Footage',
+    'Footage for {title}',
+    'Footage slides',
+    'Show footage {number}',
+    '{title} footage {number}',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export type JourneyFootageItem = {
   id: string;

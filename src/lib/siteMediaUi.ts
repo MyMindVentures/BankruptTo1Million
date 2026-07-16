@@ -1,4 +1,6 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { supabase } from './supabase';
+import type { WebsiteTranslate } from './websiteI18n';
 
 type WebsiteMediaSlot = {
   slot_key: string;
@@ -113,7 +115,15 @@ function applySlots(slots: Map<string, WebsiteMediaSlot>) {
   renderSupportQr(slots);
 }
 
-export function initializeSiteMediaUi() {
+export const SITE_MEDIA_UI_I18N_MANIFEST = {
+  componentKey: 'lib.site.media.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeSiteMediaUi(_t: WebsiteTranslate) {
   let slots: Map<string, WebsiteMediaSlot> | null = null;
   let scheduled = false;
 

@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 type DonationProviderIconProps = {
   slug: string;
   className?: string;
@@ -20,6 +21,13 @@ const BRAND_ICONS = {
     path: 'M6.488 7.469 0 15.05h11.585l1.301-3.576H7.922l3.033-3.507.01-.092L8.993 4.48h8.873l-6.878 18.925h4.706L24 .595H2.543l3.945 6.874Z',
   },
 } as const;
+
+export const DONATION_PROVIDER_ICON_I18N_MANIFEST = {
+  componentKey: 'components.journal.donation.provider.icon',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function DonationProviderIcon({ slug, className = 'donation-provider-icon' }: DonationProviderIconProps) {
   const brand = BRAND_ICONS[slug as keyof typeof BRAND_ICONS];

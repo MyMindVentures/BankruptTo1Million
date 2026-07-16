@@ -1,4 +1,6 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { supabase } from './supabase';
+import type { WebsiteTranslate } from './websiteI18n';
 
 type LatestItem = {
   id: string;
@@ -76,7 +78,15 @@ function removeDuplicateLatestSections(path: string) {
   sections.filter((section) => section.dataset.latestThreePath && section.dataset.latestThreePath !== path).forEach((section) => section.remove());
 }
 
-export function initializeLatestThreeUi() {
+export const LATEST_THREE_UI_I18N_MANIFEST = {
+  componentKey: 'lib.latest.three.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeLatestThreeUi(_t: WebsiteTranslate) {
   let mountedPath = '';
   let pendingPath = '';
   let requestVersion = 0;

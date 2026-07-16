@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FileText, Filter, MapPin, Pause, Play, RefreshCw, Search, Video, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { getPublicMediaAssets } from '../lib/mediaVault';
@@ -28,6 +29,13 @@ function MediaKindIcon({ kind, size = 14 }: { kind: MediaVaultKind; size?: numbe
 function MediaPlaceholder({ kind }: { kind: MediaVaultKind }) {
   return <span className="media-placeholder" aria-hidden="true"><MediaKindIcon kind={kind} size={34} /></span>;
 }
+
+export const MEDIA_VAULT_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.media.vault.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function MediaVaultPage() {
   const [items, setItems] = useState<PublicMediaAsset[]>([]);

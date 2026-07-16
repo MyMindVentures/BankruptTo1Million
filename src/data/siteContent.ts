@@ -1,5 +1,48 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { HandHeart, Map, Newspaper, Rocket, Users, Video } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+
+export const SITE_CONTENT_I18N_MANIFEST = {
+  componentKey: 'data.site.content',
+  namespace: 'home.platform.features',
+  translationKeys: [
+    'home.platform.features.community_hub',
+    'home.platform.features.founder_journal',
+    'home.platform.features.giving_back_platform',
+    'home.platform.features.interactive_journey_map',
+    'home.platform.features.living_documentary',
+    'home.platform.features.venture_studio_showcase',
+    'home.roadmap.items.community',
+    'home.roadmap.items.foundation',
+    'home.roadmap.items.momentum',
+    'home.roadmap.items.storytelling',
+    'navigation.apply',
+    'navigation.break_the_circle',
+    'navigation.founder_support',
+    'navigation.founders',
+    'navigation.founding_heroes',
+    'navigation.group.community',
+    'navigation.group.explore',
+    'navigation.group.participate',
+    'navigation.home',
+    'navigation.impact',
+    'navigation.issues',
+    'navigation.journal',
+    'navigation.media',
+    'navigation.platform',
+    'navigation.profile',
+    'navigation.proof_of_mind',
+    'navigation.roadmap',
+    'navigation.story',
+    'navigation.support',
+    'navigation.what_we_offer',
+  ] as const,
+  keyPatterns: [
+    'home.platform.features.*',
+    'home.roadmap.items.*',
+    'navigation.group.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export type NavItem = {
   label: string;

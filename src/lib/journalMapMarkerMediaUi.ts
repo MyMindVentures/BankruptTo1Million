@@ -1,4 +1,6 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { supabase } from './supabase';
+import type { WebsiteTranslate } from './websiteI18n';
 
 type MapPerson = {
   id?: string;
@@ -140,7 +142,15 @@ async function enhanceVisibleMarkers() {
   });
 }
 
-export function initializeJournalMapMarkerMediaUi() {
+export const JOURNAL_MAP_MARKER_MEDIA_UI_I18N_MANIFEST = {
+  componentKey: 'lib.journal.map.marker.media.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeJournalMapMarkerMediaUi(_t: WebsiteTranslate) {
   if (observer) return;
   void enhanceVisibleMarkers();
   observer = new MutationObserver(() => { void enhanceVisibleMarkers(); });

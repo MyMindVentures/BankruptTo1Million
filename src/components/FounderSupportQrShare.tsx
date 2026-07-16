@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Check, Copy, ExternalLink, NotebookPen, QrCode, Share2, Smartphone } from 'lucide-react';
 import { useState } from 'react';
 import { MISSION_BRAND } from '../lib/brandAssets';
@@ -6,6 +7,30 @@ import { MissionLogo } from './MissionLogo';
 import { PhotoFrameDownloadButton } from './PhotoFrameDownloadButton';
 import { FounderSupportUpcomingTimeline } from './FounderSupportUpcomingTimeline';
 import './FounderSupportQrShare.css';
+
+export const FOUNDER_SUPPORT_QR_SHARE_I18N_MANIFEST = {
+  componentKey: 'components.founder.support.qr.share',
+  namespace: 'founder_support.qr',
+  translationKeys: [
+    'founder_support.qr.body_after_brand',
+    'founder_support.qr.body_before_brand',
+    'founder_support.qr.copy_link',
+    'founder_support.qr.eyebrow',
+    'founder_support.qr.image_alt',
+    'founder_support.qr.link_copied',
+    'founder_support.qr.open_website',
+    'founder_support.qr.scan_caption',
+    'founder_support.qr.share_text',
+    'founder_support.qr.share_website',
+    'founder_support.qr.title',
+    'founder_support.qr.visuals_aria',
+    'founder_support.qr.website_url',
+    'founder_support.qr.create_event',
+  ] as const,
+  keyPatterns: [
+    'founder_support.qr.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FounderSupportQrShare() {
   const { t } = useWebsiteI18n();
@@ -79,12 +104,12 @@ export function FounderSupportQrShare() {
         </div>
         <div className="founder-support-qr__url">
           <Smartphone size={15} aria-hidden="true" />
-          <span>www.bankruptto1million.com</span>
+          <span>{t('founder_support.qr.website_url', 'www.bankruptto1million.com')}</span>
         </div>
         <div className="founder-support-qr__primary-actions">
           <a className="button founder-support-qr__journal-button" href="/admin/journal?create=1">
             <NotebookPen size={18} aria-hidden="true" />
-            Create journal event
+            {t('founder_support.qr.create_event', 'Create journal event')}
           </a>
           <PhotoFrameDownloadButton className="founder-support-qr__download-button" />
         </div>

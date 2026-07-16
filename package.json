@@ -8,7 +8,8 @@
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-4173}",
     "typecheck": "tsc -b --pretty false",
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
-    "precommit": "npm run lint && npm run typecheck && npm test"
+    "verify:i18n": "node scripts/verify-public-i18n.mjs",
+    "precommit": "npm run lint && npm run typecheck && npm test && npm run verify:i18n"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

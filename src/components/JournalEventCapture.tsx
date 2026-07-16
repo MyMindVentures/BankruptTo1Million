@@ -1,6 +1,8 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Camera, Check, Crosshair, FileVideo2, MapPin, Plus, Search, UserPlus, Users, X } from 'lucide-react';
 import { createJourneyPerson, type EventTypeOption, type FounderOption, type JournalEventPayload, type JourneyPerson } from '../lib/journalAdminApi';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 declare global { interface Window { L?: any } }
 
@@ -73,6 +75,13 @@ function LeafletPicker({ latitude, longitude, onPick }: { latitude: string; long
   return <div ref={ref} className="event-map-canvas" />;
 }
 
+export const JOURNAL_EVENT_CAPTURE_I18N_MANIFEST = {
+  componentKey: 'components.journal.event.capture',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['journal_event_capture.*'] as const,
+} as const satisfies I18nManifest;
+
 export function JournalEventCapture({ value, onChange, founders, people, eventTypes, files, onFilesChange, onPeopleRefresh }: {
   value: JournalEventPayload;
   onChange: (next: JournalEventPayload) => void;
@@ -83,6 +92,7 @@ export function JournalEventCapture({ value, onChange, founders, people, eventTy
   onFilesChange: (files: File[]) => void;
   onPeopleRefresh: (person: JourneyPerson) => void;
 }) {
+  const { t } = useWebsiteI18n();
   const [peopleQuery, setPeopleQuery] = useState('');
   const [newContactOpen, setNewContactOpen] = useState(false);
   const [creatingContact, setCreatingContact] = useState(false);
@@ -158,14 +168,14 @@ export function JournalEventCapture({ value, onChange, founders, people, eventTy
 
     <section className="event-panel">
       <div className="event-panel-heading"><span>03</span><div><h3>Where did it happen?</h3><p>Drop a pin, capture your device location, and optionally spotlight a business.</p></div></div>
-      <label>Business or venue name <small>Optional — AI will highlight it naturally</small><input value={value.featured_business_name} onChange={(e) => onChange({ ...value, featured_business_name: e.target.value })} placeholder="Restaurant, café, hotel, shop, host venue…" /></label>
+      <label>{t('journal_event_capture.business_name', 'Business or venue name')} <small>{t('journal_event_capture.business_optional', 'Optional — AI will highlight it naturally')}</small><input value={value.featured_business_name} onChange={(e) => onChange({ ...value, featured_business_name: e.target.value })} placeholder={t('journal_event_capture.business_placeholder', 'Restaurant, café, hotel, shop, host venue…')} /></label>
       <div className="event-location-actions"><button type="button" onClick={useDeviceLocation}><Crosshair size={17} />Use current location</button><div><MapPin size={15} /><span>{value.plus_code || 'Google Plus Code will appear here'}</span></div></div>
       <LeafletPicker latitude={value.latitude} longitude={value.longitude} onPick={(lat, lng) => void reverseLookup(lat, lng)} />
-      <div className="event-two-column"><label>Location name<input value={value.location_name} onChange={(e) => onChange({ ...value, location_name: e.target.value })} placeholder="Finca, beach, town, venue…" /></label><label>Google Plus Code<input value={value.plus_code} onChange={(e) => onChange({ ...value, plus_code: e.target.value })} /></label></div>
+      <div className="event-two-column"><label>{t('journal_event_capture.location_name', 'Location name')}<input value={value.location_name} onChange={(e) => onChange({ ...value, location_name: e.target.value })} placeholder={t('journal_event_capture.location_placeholder', 'Finca, beach, town, venue…')} /></label><label>{t('journal_event_capture.plus_code', 'Google Plus Code')}<input value={value.plus_code} onChange={(e) => onChange({ ...value, plus_code: e.target.value })} /></label></div>
       <label>Address<input value={value.address_text} onChange={(e) => onChange({ ...value, address_text: e.target.value })} /></label>
     </section>
 
-    <section className="event-panel"><div className="event-panel-heading"><span>04</span><div><h3>Who was there?</h3><p>Search existing contacts or create a new person.</p></div><button type="button" className="event-add-contact" onClick={() => setNewContactOpen(true)}><UserPlus size={16} />New contact</button></div><div className="people-search"><Search size={17} /><input value={peopleQuery} onChange={(e) => setPeopleQuery(e.target.value)} placeholder="Fast search by name or email…" /></div>{selectedPeople.length > 0 && <div className="selected-people">{selectedPeople.map((person) => <button type="button" key={person.id} onClick={() => onChange({ ...value, person_ids: value.person_ids.filter((id) => id !== person.id) })}>{person.display_name}<X size={13} /></button>)}</div>}<div className="people-results">{filteredPeople.map((person) => { const selected = value.person_ids.includes(person.id); return <button type="button" key={person.id} className={selected ? 'selected' : ''} onClick={() => onChange({ ...value, person_ids: selected ? value.person_ids.filter((id) => id !== person.id) : [...value.person_ids, person.id] })}><div><Users size={16} /></div><span><strong>{person.display_name}</strong><small>{person.email || person.person_type}</small></span>{selected && <Check size={16} />}</button>; })}</div></section>
+    <section className="event-panel"><div className="event-panel-heading"><span>04</span><div><h3>Who was there?</h3><p>Search existing contacts or create a new person.</p></div><button type="button" className="event-add-contact" onClick={() => setNewContactOpen(true)}><UserPlus size={16} />{t('journal_event_capture.new_contact', 'New contact')}</button></div><div className="people-search"><Search size={17} /><input value={peopleQuery} onChange={(e) => setPeopleQuery(e.target.value)} placeholder={t('journal_event_capture.search_placeholder', 'Fast search by name or email…')} /></div>{selectedPeople.length > 0 && <div className="selected-people">{selectedPeople.map((person) => <button type="button" key={person.id} onClick={() => onChange({ ...value, person_ids: value.person_ids.filter((id) => id !== person.id) })}>{person.display_name}<X size={13} /></button>)}</div>}<div className="people-results">{filteredPeople.map((person) => { const selected = value.person_ids.includes(person.id); return <button type="button" key={person.id} className={selected ? 'selected' : ''} onClick={() => onChange({ ...value, person_ids: selected ? value.person_ids.filter((id) => id !== person.id) : [...value.person_ids, person.id] })}><div><Users size={16} /></div><span><strong>{person.display_name}</strong><small>{person.email || person.person_type}</small></span>{selected && <Check size={16} />}</button>; })}</div></section>
 
     <section className="event-panel"><div className="event-panel-heading"><span>05</span><div><h3>Capture or upload footage</h3><p>Photos and videos are uploaded to the Media Vault and linked to this journal post.</p></div></div><div className="footage-actions"><button type="button" onClick={() => capturePhotoRef.current?.click()}><Camera size={21} /><strong>Take photo</strong><span>Open device camera</span></button><button type="button" onClick={() => captureVideoRef.current?.click()}><FileVideo2 size={21} /><strong>Record video</strong><span>Open device camera</span></button><button type="button" onClick={() => uploadRef.current?.click()}><FileVideo2 size={21} /><strong>Upload footage</strong><span>Select from device</span></button></div><input ref={capturePhotoRef} hidden type="file" accept="image/*" capture="environment" onChange={handleFileSelection} /><input ref={captureVideoRef} hidden type="file" accept="video/*" capture="environment" onChange={handleFileSelection} /><input ref={uploadRef} hidden type="file" accept="image/*,video/*" multiple onChange={handleFileSelection} />{files.length > 0 && <div className="footage-queue">{files.map((file, index) => <div key={`${file.name}-${index}`}><span>{file.type.startsWith('video/') ? <FileVideo2 size={16} /> : <Camera size={16} />}</span><p><strong>{file.name}</strong><small>{(file.size / 1024 / 1024).toFixed(1)} MB</small></p><button type="button" onClick={() => onFilesChange(files.filter((_, itemIndex) => itemIndex !== index))}><X size={15} /></button></div>)}</div>}</section>
 

@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowLeft, Camera, Check, Clock3, MapPin, Play, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOfferBySlug } from '../lib/offers';
@@ -16,6 +17,13 @@ function MediaCard({ item, onOpen }: { item: OfferMediaItem; onOpen: () => void 
     <span className="offer-footage-card__caption">{item.caption || item.title}</span>
   </button>;
 }
+
+export const OFFER_DETAIL_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.offer.detail.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function OfferDetailPage({ slug }: { slug: string }) {
   const [offer, setOffer] = useState<PublicOffer | null>(null);

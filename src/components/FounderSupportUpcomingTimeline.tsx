@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, CalendarDays, ChevronDown, Gift, HandHeart } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
@@ -67,6 +68,25 @@ function itemUrl(item: ExchangeItem) {
 function founderName(founder: FounderProfile) {
   return founder.display_name || founder.full_name || 'Founder';
 }
+
+export const FOUNDER_SUPPORT_UPCOMING_TIMELINE_I18N_MANIFEST = {
+  componentKey: 'components.founder.support.upcoming.timeline',
+  namespace: 'founder_support.upcoming',
+  translationKeys: [
+    'founder_support.upcoming.aria_label',
+    'founder_support.upcoming.empty',
+    'founder_support.upcoming.error',
+    'founder_support.upcoming.loading',
+    'founder_support.upcoming.more_details',
+    'founder_support.upcoming.no_extra_details',
+    'founder_support.upcoming.people_involved',
+    'founder_support.upcoming.what_we_need',
+    'founder_support.upcoming.what_we_offer',
+  ] as const,
+  keyPatterns: [
+    'founder_support.upcoming.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FounderSupportUpcomingTimeline() {
   const { language, t, formatDate } = useWebsiteI18n();

@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowLeft } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Footer } from '../components/Footer';
@@ -32,6 +33,22 @@ async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
   if (!result.ok) throw new Error(await result.text());
   return result.json() as Promise<T>;
 }
+
+export const FOUNDER_PROFILE_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.founder.profile.page',
+  namespace: 'founder_profile.actions',
+  translationKeys: [
+    'founder_profile.actions.back_journal',
+    'founder_profile.seo.title',
+    'founder_profile.states.loading',
+    'founder_profile.states.not_found',
+  ] as const,
+  keyPatterns: [
+    'founder_profile.actions.*',
+    'founder_profile.seo.*',
+    'founder_profile.states.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FounderProfilePage({ slug }: { slug: string }) {
   const { t } = useWebsiteI18n();

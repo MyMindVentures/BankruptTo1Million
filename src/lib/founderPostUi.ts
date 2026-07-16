@@ -1,4 +1,6 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { supabase } from './supabase';
+import type { WebsiteTranslate } from './websiteI18n';
 
 type FounderPostRow = {
   founder_post_id: string;
@@ -67,7 +69,15 @@ function renderFounderPost(row: FounderPostRow) {
   return wrapper;
 }
 
-export function initializeFounderPostUi() {
+export const FOUNDER_POST_UI_I18N_MANIFEST = {
+  componentKey: 'lib.founder.post.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeFounderPostUi(_t: WebsiteTranslate) {
   let renderedSlug = '';
   let loadingSlug = '';
   const enhance = async () => {

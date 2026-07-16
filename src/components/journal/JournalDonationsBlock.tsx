@@ -21,6 +21,7 @@ import {
   type DonationSupporterThanks,
 } from '../../lib/donations';
 import type { PublicJournalPost } from '../../lib/journal';
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
 import { DonationProviderIcon } from './DonationProviderIcon';
 import { DonationThankYouModal } from './DonationThankYouModal';
@@ -51,6 +52,7 @@ const PROVIDER_LABEL_FALLBACKS: Record<string, string> = {
   wise: 'Wise transfer',
   manual: 'Manual transfer',
 };
+
 
 export const JOURNAL_DONATION_TRANSLATION_KEYS = [
   'donations.cta.support_this_story',
@@ -89,6 +91,13 @@ export const JOURNAL_DONATION_TRANSLATION_KEYS = [
   'donations.error.invalid_email',
   'donations.error.not_found',
 ] as const;
+
+export const JOURNAL_DONATIONS_BLOCK_I18N_MANIFEST = {
+  componentKey: 'journal.donations.block',
+  namespace: 'donations',
+  translationKeys: JOURNAL_DONATION_TRANSLATION_KEYS,
+  keyPatterns: ['donations.provider.*'] as const,
+} as const satisfies I18nManifest;
 
 function resolveCustomPreset(presets: DonationAmountPreset[]) {
   return presets.find((preset) => preset.is_custom_allowed) || null;

@@ -1,6 +1,15 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState, type ReactNode } from 'react';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import './AceternityContentCard.css';
+
+export const ACETERNITY_CONTENT_CARD_I18N_MANIFEST = {
+  componentKey: 'components.aceternity.content.card',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['content_card.*'] as const,
+} as const satisfies I18nManifest;
 
 export type ContentCardPerson = {
   id?: string;
@@ -27,25 +36,27 @@ export function AceternityContentCard({
   href,
   title,
   description,
-  authorName = 'Bankrupt to 1 Million',
+  authorName,
   avatarSrc = '/og-image.png',
   people,
   imageSrc,
   imageAlt = '',
-  readTime = '4 min read',
-  category = 'Journal',
+  readTime,
+  category,
   publishedDate,
   children,
 }: AceternityContentCardProps) {
+  const { t } = useWebsiteI18n();
   const [hovered, setHovered] = useState(false);
-  const visiblePeople = people?.length ? people : [{ name: authorName, avatarSrc }];
+  const resolvedAuthorName = authorName || t('content_card.author.default', 'Bankrupt to 1 Million');
+  const visiblePeople = people?.length ? people : [{ name: resolvedAuthorName, avatarSrc }];
   const peopleLabel = visiblePeople.map((person) => person.name).join(' & ');
 
   return (
     <a
       className="aceternity-hover-card"
       href={href}
-      aria-label={`Read ${title}`}
+      aria-label={t('content_card.read', 'Read {title}', { title })}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onFocus={() => setHovered(true)}
@@ -73,8 +84,8 @@ export function AceternityContentCard({
 
         <div className="aceternity-hover-card__body">
           <div className="aceternity-hover-card__topline">
-            <span className="aceternity-hover-card__category">{category}</span>
-            <span>{readTime}</span>
+            <span className="aceternity-hover-card__category">{category || t('content_card.category.journal', 'Journal')}</span>
+            <span>{readTime || t('content_card.read_time.default', '4 min read')}</span>
           </div>
 
           <div className="aceternity-hover-card__copy">

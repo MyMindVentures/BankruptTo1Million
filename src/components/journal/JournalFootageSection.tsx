@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { ChevronLeft, ChevronRight, Play, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -24,6 +25,27 @@ function FootageThumbnail({ item }: { item: JournalFootageItem }) {
     </>
   );
 }
+
+export const JOURNAL_FOOTAGE_SECTION_I18N_MANIFEST = {
+  componentKey: 'components.journal.journal.footage.section',
+  namespace: 'journal.footage.alt',
+  translationKeys: [
+    'journal.footage.alt.image',
+    'journal.footage.alt.video',
+    'journal.footage.close',
+    'journal.footage.counter',
+    'journal.footage.error',
+    'journal.footage.eyebrow',
+    'journal.footage.next',
+    'journal.footage.open',
+    'journal.footage.previous',
+    'journal.footage.title',
+  ] as const,
+  keyPatterns: [
+    'journal.footage.alt.*',
+    'journal.footage.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function JournalFootageSection({ slug }: { slug: string }) {
   const { t } = useWebsiteI18n();

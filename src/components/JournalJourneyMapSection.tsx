@@ -1,33 +1,11 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from './PremiumJourneyMap';
 import { JourneyCalendarPlanner } from './JourneyCalendarPlanner';
 import { Button } from './ui/button';
 import { Callout } from './ui/card';
 import { supabase } from '../lib/supabase';
-
-const STARTER_POINTS: PremiumJourneyPoint[] = [
-  {
-    journey_entry_id: 'starter-santa-pola', slug: '', title: 'Where the rebuild becomes public',
-    excerpt: 'Kevin and Micha choose to stop hiding the struggle and begin rebuilding openly from the Costa Blanca.',
-    occurred_at: '2026-07-09', country_name: 'Spain', city_name: 'Santa Pola', location_name: 'Santa Pola',
-    latitude: 38.1917, longitude: -0.5658, journey_person: 'together', is_milestone: true, is_current_location: false,
-    involved_people: [],
-  },
-  {
-    journey_entry_id: 'starter-alicante', slug: '', title: 'Building the platform and the story',
-    excerpt: 'The Journal, venture concepts and public mission begin to take shape as one visible ecosystem.',
-    occurred_at: '2026-07-10', country_name: 'Spain', city_name: 'Alicante', location_name: 'Alicante',
-    latitude: 38.3452, longitude: -0.481, journey_person: 'kevin', is_milestone: true, is_current_location: false,
-    involved_people: [],
-  },
-  {
-    journey_entry_id: 'starter-open-road', slug: '', title: 'The next chapter is still open',
-    excerpt: 'The road ahead will be shaped by hosts, builders, partners and people willing to believe before the proof exists.',
-    occurred_at: '2026-07-13', country_name: 'Spain', city_name: 'Costa Blanca', location_name: 'Open road',
-    latitude: 38.57, longitude: -0.12, journey_person: 'together', is_milestone: false, is_current_location: true,
-    involved_people: [],
-  },
-];
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
   const response = await responseOrPromise;
@@ -54,11 +32,20 @@ function newestPoint(points: PremiumJourneyPoint[], value: 'all' | PremiumJourne
     .sort((a, b) => eventTimestamp(b) - eventTimestamp(a) || b.journey_entry_id.localeCompare(a.journey_entry_id))[0];
 }
 
+export const JOURNAL_JOURNEY_MAP_SECTION_I18N_MANIFEST = {
+  componentKey: 'components.journal.journey.map.section',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['journal_journey_map.*'] as const,
+} as const satisfies I18nManifest;
+
 export function JournalJourneyMapSection() {
+  const { t } = useWebsiteI18n();
   const [livePoints, setLivePoints] = useState<PremiumJourneyPoint[]>([]);
   const [mapFeedError, setMapFeedError] = useState('');
+  const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | PremiumJourneyPoint['journey_person']>('all');
-  const [activeId, setActiveId] = useState(() => newestPoint(STARTER_POINTS, 'all')?.journey_entry_id);
+  const [activeId, setActiveId] = useState<string>();
 
   useEffect(() => {
     readJson<PremiumJourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' }))
@@ -66,20 +53,19 @@ export function JournalJourneyMapSection() {
         setMapFeedError('');
         setLivePoints(rows);
         setActiveId(newestPoint(rows, 'all')?.journey_entry_id);
+        setLoading(false);
       })
-      .catch((error: unknown) => {
-        setLivePoints([]);
-        setMapFeedError(error instanceof Error ? error.message : 'The live map feed could not be loaded.');
-        setActiveId(newestPoint(STARTER_POINTS, 'all')?.journey_entry_id);
+      .catch(() => {
+        setMapFeedError(t('journal_journey_map.error', 'The live map feed could not be loaded.'));
+        setLoading(false);
       });
-  }, []);
+  }, [t]);
 
-  const source = livePoints.length ? livePoints : STARTER_POINTS;
   const points = useMemo(
-    () => source
+    () => livePoints
       .filter((point) => matchesFilter(point, filter))
       .sort((a, b) => eventTimestamp(a) - eventTimestamp(b) || a.journey_entry_id.localeCompare(b.journey_entry_id)),
-    [source, filter],
+    [livePoints, filter],
   );
   const activePoint = useMemo(
     () => points.find((point) => point.journey_entry_id === activeId) || newestPoint(points, filter) || points[0],
@@ -101,16 +87,19 @@ export function JournalJourneyMapSection() {
 
   const selectFilter = (value: 'all' | PremiumJourneyPoint['journey_person']) => {
     setFilter(value);
-    const next = newestPoint(source, value);
+    const next = newestPoint(livePoints, value);
     if (next) setActiveId(next.journey_entry_id);
   };
 
+  if (loading) return <div className="impact-state">{t('journal_journey_map.loading', 'Loading the live journey map…')}</div>;
+  if (mapFeedError) return <div className="impact-state impact-state--error">{mapFeedError}</div>;
+  if (!points.length) return <div className="impact-state">{t('journal_journey_map.empty', 'No published journey locations are available yet.')}</div>;
+
   return <div className="journey-map-only">
     <Callout className="journey-map-only__toolbar">
-      <div><strong>Explore the route</strong><span>{livePoints.length ? 'Live journey entries and timeline locations' : 'Mission preview until the live map feed is available'}</span></div>
+      <div><strong>{t('journal_journey_map.explore', 'Explore the route')}</strong><span>{t('journal_journey_map.live_entries', 'Live journey entries and timeline locations')}</span></div>
       <div>{(['all', 'kevin', 'micha', 'together'] as const).map((value) => <Button key={value} type="button" size="sm" variant={filter === value ? 'default' : 'ghost'} onClick={() => selectFilter(value)}>{label(value)}</Button>)}</div>
     </Callout>
-    {mapFeedError ? <Callout><strong>Live map feed unavailable</strong><span>{mapFeedError}</span></Callout> : null}
     {activePoint ? (
       <PremiumJourneyMap
         key={activePoint.journey_entry_id}

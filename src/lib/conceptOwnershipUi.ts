@@ -1,4 +1,14 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { supabase } from './supabase';
+import type { WebsiteTranslate } from './websiteI18n';
+
+export const CONCEPT_OWNERSHIP_UI_I18N_MANIFEST = {
+  componentKey: 'lib.concept.ownership.ui',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
 
 export type ConceptOwnershipNotice = {
   notice_key: string;
@@ -147,7 +157,7 @@ function enhanceOwnershipUi(notice: ConceptOwnershipNotice) {
   replaceDetailSignature(notice);
 }
 
-export function initializeConceptOwnershipUi() {
+export function initializeConceptOwnershipUi(_t: WebsiteTranslate) {
   if (typeof window === 'undefined' || typeof document === 'undefined') return;
 
   void loadOwnershipNotice().then((notice) => {

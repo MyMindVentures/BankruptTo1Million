@@ -1,6 +1,8 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, HandHeart, MapPin, Navigation, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 import { Badge, Card, Callout } from './ui/card';
 import { Button } from './ui/button';
 import './JourneyCalendarPlanner.css';
@@ -35,37 +37,6 @@ type ExchangeItem = {
   display_order: number;
 };
 
-const STARTER_CALENDAR: CalendarEntry[] = [
-  {
-    id: 'starter-calendar-1', title: 'Santa Pola base', journey_person: 'together', status: 'current',
-    starts_on: '2026-07-13', ends_on: '2026-07-14', city_name: 'Santa Pola', country_name: 'Spain', location_name: 'Santa Pola',
-    public_summary: 'Current base while the public mission, journal and founder platform are being built.',
-    accommodation_needed: true, nights_needed: 1, can_offer_hosting: true,
-  },
-  {
-    id: 'starter-calendar-2', title: 'Alicante work stop', journey_person: 'kevin', status: 'planned',
-    starts_on: '2026-07-15', city_name: 'Alicante', country_name: 'Spain', location_name: 'Alicante',
-    public_summary: 'A focused build and outreach day for the platform and launch partners.',
-    accommodation_needed: false, can_offer_hosting: false,
-  },
-  {
-    id: 'starter-calendar-3', title: 'Open Costa Blanca route', journey_person: 'together', status: 'planned',
-    starts_on: '2026-07-16', ends_on: '2026-07-18', city_name: 'Costa Blanca', country_name: 'Spain', location_name: 'Route to be shaped by hosts',
-    public_summary: 'The next stop remains open and can be shaped by a host, partner or local supporter.',
-    accommodation_needed: true, nights_needed: 2, can_offer_hosting: true,
-  },
-];
-
-const STARTER_EXCHANGE: ExchangeItem[] = [
-  { id: 'need-1', calendar_entry_id: 'starter-calendar-1', journey_person: 'together', item_type: 'need', category: 'camper', title: 'Safe camper place', description: 'A quiet overnight place close to Santa Pola.', priority: 'high', display_order: 1 },
-  { id: 'offer-1', calendar_entry_id: 'starter-calendar-1', journey_person: 'together', item_type: 'offer', category: 'cooking', title: 'Belgian dinner', description: 'Kevin and Micha can cook for their host and share the story publicly.', priority: 'normal', display_order: 1 },
-  { id: 'need-2', calendar_entry_id: 'starter-calendar-2', journey_person: 'kevin', item_type: 'need', category: 'workspace', title: 'Workspace and Wi-Fi', description: 'A few productive hours with electricity and reliable internet.', priority: 'normal', display_order: 1 },
-  { id: 'offer-2', calendar_entry_id: 'starter-calendar-2', journey_person: 'kevin', item_type: 'offer', category: 'content', title: 'Raw photo and video content', description: 'Kevin can shoot useful footage for a local business or host.', priority: 'normal', display_order: 1 },
-  { id: 'need-3', calendar_entry_id: 'starter-calendar-3', journey_person: 'together', item_type: 'need', category: 'host', title: 'Host or legal camper place', description: 'A bed, guest room or safe overnight location for the next route leg.', priority: 'urgent', display_order: 1 },
-  { id: 'need-4', calendar_entry_id: 'starter-calendar-3', journey_person: 'together', item_type: 'need', category: 'shower', title: 'Shower and fresh water', description: 'Simple practical support for continuing the route.', priority: 'high', display_order: 2 },
-  { id: 'offer-3', calendar_entry_id: 'starter-calendar-3', journey_person: 'together', item_type: 'offer', category: 'practical', title: 'Practical help and storytelling', description: 'Handyman support, cooking, house sitting and adding the host to the public journey.', priority: 'normal', display_order: 1 },
-];
-
 async function readJson<T>(responseOrPromise: Response | Promise<Response>): Promise<T> {
   const response = await responseOrPromise;
   if (!response.ok) throw new Error(await response.text());
@@ -86,10 +57,19 @@ function dateParts(value: string) {
   };
 }
 
+export const JOURNEY_CALENDAR_PLANNER_I18N_MANIFEST = {
+  componentKey: 'components.journey.calendar.planner',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['journey_calendar.*'] as const,
+} as const satisfies I18nManifest;
+
 export function JourneyCalendarPlanner() {
+  const { t } = useWebsiteI18n();
   const [calendar, setCalendar] = useState<CalendarEntry[]>([]);
   const [exchange, setExchange] = useState<ExchangeItem[]>([]);
-  const [selectedId, setSelectedId] = useState(STARTER_CALENDAR[0].id);
+  const [selectedId, setSelectedId] = useState<string>();
+  const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
 
   useEffect(() => {
     Promise.all([
@@ -99,27 +79,37 @@ export function JourneyCalendarPlanner() {
       setCalendar(calendarRows);
       setExchange(exchangeRows);
       if (calendarRows[0]) setSelectedId(calendarRows[0].id);
+      setState('ready');
     }).catch(() => {
-      setCalendar([]);
-      setExchange([]);
+      setState('error');
     });
   }, []);
 
-  const entries = calendar.length ? calendar : STARTER_CALENDAR;
-  const items = exchange.length ? exchange : STARTER_EXCHANGE;
+  const selectedNeeds = useMemo(() => {
+    const selected = calendar.find((entry) => entry.id === selectedId) || calendar[0];
+    return selected ? exchange.filter((item) => item.item_type === 'need' && (item.calendar_entry_id === selected.id || !item.calendar_entry_id) && (item.journey_person === selected.journey_person || item.journey_person === 'together')).sort((a,b)=>a.display_order-b.display_order) : [];
+  }, [calendar, exchange, selectedId]);
+  const selectedOffers = useMemo(() => {
+    const selected = calendar.find((entry) => entry.id === selectedId) || calendar[0];
+    return selected ? exchange.filter((item) => item.item_type === 'offer' && (item.calendar_entry_id === selected.id || !item.calendar_entry_id) && (item.journey_person === selected.journey_person || item.journey_person === 'together')).sort((a,b)=>a.display_order-b.display_order) : [];
+  }, [calendar, exchange, selectedId]);
+
+  if (state === 'loading') return <div className="impact-state">{t('journey_calendar.loading', 'Loading the public journey calendar…')}</div>;
+  if (state === 'error') return <div className="impact-state impact-state--error">{t('journey_calendar.error', 'The public journey calendar is temporarily unavailable.')}</div>;
+  if (!calendar.length) return <div className="impact-state">{t('journey_calendar.empty', 'No public journey dates are published yet.')}</div>;
+
+  const entries = calendar;
   const selected = entries.find((entry) => entry.id === selectedId) || entries[0];
   const selectedIndex = Math.max(0, entries.findIndex((entry) => entry.id === selected.id));
   const previous = entries[(selectedIndex - 1 + entries.length) % entries.length];
   const next = entries[(selectedIndex + 1) % entries.length];
-  const selectedNeeds = useMemo(() => items.filter((item) => item.item_type === 'need' && (item.calendar_entry_id === selected.id || !item.calendar_entry_id) && (item.journey_person === selected.journey_person || item.journey_person === 'together')).sort((a,b)=>a.display_order-b.display_order), [items, selected]);
-  const selectedOffers = useMemo(() => items.filter((item) => item.item_type === 'offer' && (item.calendar_entry_id === selected.id || !item.calendar_entry_id) && (item.journey_person === selected.journey_person || item.journey_person === 'together')).sort((a,b)=>a.display_order-b.display_order), [items, selected]);
   const selectedDate = dateParts(selected.starts_on);
   const currentEntry = entries.find((entry) => entry.status === 'current') || entries[0];
 
   return <section className="journey-calendar-planner" aria-labelledby="journey-calendar-planner-title">
     <div className="journey-calendar-planner__header">
       <div><p className="eyebrow">Journey calendar</p><h3 id="journey-calendar-planner-title">Where Kevin and Micha are — and what comes next.</h3><p>Choose a day to see the location, their request for help and what they can offer in return.</p></div>
-      <Callout><Navigation/><span><small>Current location</small><strong>{currentEntry.location_name || currentEntry.city_name}</strong></span></Callout>
+      <Callout><Navigation/><span><small>{t('journey_calendar.current_location', 'Current location')}</small><strong>{currentEntry.location_name || currentEntry.city_name}</strong></span></Callout>
     </div>
 
     <div className="journey-calendar-strip" role="list">
@@ -128,7 +118,7 @@ export function JourneyCalendarPlanner() {
         const active = entry.id === selected.id;
         return <button type="button" key={entry.id} className={`journey-calendar-day${active ? ' is-active' : ''}${entry.status === 'current' ? ' is-current' : ''}`} onClick={() => setSelectedId(entry.id)}>
           <span>{date.weekday}</span><strong>{date.day}</strong><small>{date.month}</small>
-          {entry.status === 'current' ? <i>Now</i> : null}
+          {entry.status === 'current' ? <i>{t('journey_calendar.now', 'Now')}</i> : null}
         </button>;
       })}
     </div>

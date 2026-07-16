@@ -1,4 +1,4 @@
-import { StrictMode } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
@@ -15,7 +15,7 @@ import { initializeJournalPostQrMount } from './lib/journalPostQrMount';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
-import { WebsiteI18nProvider } from './lib/websiteI18n';
+import { WebsiteI18nProvider, useWebsiteI18n } from './lib/websiteI18n';
 import { AdminAuthGate } from './pages/AdminAuthGate';
 import { FounderProfilePage } from './pages/FounderProfilePage';
 import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
@@ -65,17 +65,27 @@ import './styles/adminAiControlCenter.css';
 import { OutreachPrivatePage } from './pages/OutreachPrivatePage';
 import './styles/outreachPrivate.css';
 
-initializeConceptOwnershipUi();
-initializeConceptMessageUi();
-initializeFounderPostUi();
-initializeFounderPostOpportunitiesUi();
 initializeJournalArticleEnhancements();
-initializeJournalMapMarkerMediaUi();
-initializeJournalMetadataUi();
 initializeJournalPostQrMount();
-initializeLatestThreeUi();
 initializePlatformUpdatesUi();
-initializeSiteMediaUi();
+
+function PublicUiInitializers() {
+  const { t } = useWebsiteI18n();
+  const initialized = useRef(false);
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    initializeConceptOwnershipUi(t);
+    initializeConceptMessageUi(t);
+    initializeFounderPostUi(t);
+    initializeFounderPostOpportunitiesUi(t);
+    initializeJournalMapMarkerMediaUi(t);
+    initializeJournalMetadataUi(t);
+    initializeLatestThreeUi(t);
+    initializeSiteMediaUi(t);
+  }, [t]);
+  return null;
+}
 
 const path = window.location.pathname.replace(/\/$/, '') || '/';
 const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
@@ -115,6 +125,7 @@ const rootPage = adminPage
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WebsiteI18nProvider>
+      <PublicUiInitializers />
       {rootPage}
     </WebsiteI18nProvider>
   </StrictMode>,

@@ -4,8 +4,8 @@ insert into public.website_translation_keys
   (translation_key, namespace, description, default_text, value_type, is_required, is_active, interpolation_variables, supports_plural)
 values
   ('journal.place_context.map.heading', 'journal', 'POI map heading', 'Map of nearby points', 'text', true, true, '{}', false),
-  ('journal.place_context.map.venue_pin', 'journal', 'Venue map marker aria label', 'Featured place: {title}', 'text', true, true, '{"title":"string"}', false),
-  ('journal.place_context.map.poi_pin', 'journal', 'POI map marker aria label', 'Point of interest {order}: {title}', 'text', true, true, '{"order":"number","title":"string"}', false),
+  ('journal.place_context.map.venue_pin', 'journal', 'Venue map marker aria label', 'Featured place: {title}', 'text', true, true, '{title}', false),
+  ('journal.place_context.map.poi_pin', 'journal', 'POI map marker aria label', 'Point of interest {order}: {title}', 'text', true, true, '{order,title}', false),
   ('journal.place_context.map.open_in_maps', 'journal', 'Open POI in Google Maps link', 'Open in Google Maps', 'text', true, true, '{}', false),
   ('journal.place_context.map.error', 'journal', 'POI map error state', 'Map is temporarily unavailable.', 'text', true, true, '{}', false)
 on conflict (translation_key) do update

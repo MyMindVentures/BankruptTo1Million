@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, Camera, Clock3, Compass, MapPin, Search, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOffers } from '../lib/offers';
@@ -8,6 +9,13 @@ function founderLabel(offer: PublicOffer): string {
   if (names.length === 2) return `${names[0]} & ${names[1]}`;
   return names[0] || 'Kevin & Micha';
 }
+
+export const OFFERS_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.offers.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function OffersPage() {
   const [offers, setOffers] = useState<PublicOffer[]>([]);

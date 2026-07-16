@@ -9,8 +9,10 @@ export type MapLibreGlobal = {
 export type MapLibreMap = {
   addControl: (control: unknown, position?: string) => void;
   fitBounds: (bounds: [[number, number], [number, number]], options?: Record<string, unknown>) => void;
+  project: (lngLat: [number, number]) => { x: number; y: number };
   remove: () => void;
   on: (event: string, handler: () => void) => void;
+  off: (event: string, handler: () => void) => void;
 };
 
 export type MapLibreMarker = {
@@ -24,11 +26,9 @@ export type MapLibrePopup = {
   setHTML: (html: string) => MapLibrePopup;
 };
 
-declare global {
-  interface Window {
-    maplibregl?: MapLibreGlobal;
-  }
-}
+type MapLibreWindow = Window & { maplibregl?: MapLibreGlobal };
+
+const mapWindow = () => window as MapLibreWindow;
 
 export const MAPLIBRE_JS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.js';
 export const MAPLIBRE_CSS = 'https://unpkg.com/maplibre-gl@5.6.1/dist/maplibre-gl.css';
@@ -54,7 +54,8 @@ export const POI_MAP_STYLE = {
 let mapLibrePromise: Promise<MapLibreGlobal> | null = null;
 
 export function loadMapLibre(): Promise<MapLibreGlobal> {
-  if (window.maplibregl) return Promise.resolve(window.maplibregl);
+  const existing = mapWindow().maplibregl;
+  if (existing) return Promise.resolve(existing);
   if (mapLibrePromise) return mapLibrePromise;
 
   mapLibrePromise = new Promise((resolve, reject) => {
@@ -68,7 +69,8 @@ export function loadMapLibre(): Promise<MapLibreGlobal> {
     const existing = document.querySelector(`script[src="${MAPLIBRE_JS}"]`) as HTMLScriptElement | null;
     if (existing) {
       existing.addEventListener('load', () => {
-        window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.'));
+        const maplibregl = mapWindow().maplibregl;
+        maplibregl ? resolve(maplibregl) : reject(new Error('MapLibre failed to initialize.'));
       }, { once: true });
       existing.addEventListener('error', () => reject(new Error('MapLibre failed to load.')), { once: true });
       return;
@@ -78,7 +80,8 @@ export function loadMapLibre(): Promise<MapLibreGlobal> {
     script.src = MAPLIBRE_JS;
     script.async = true;
     script.onload = () => {
-      window.maplibregl ? resolve(window.maplibregl) : reject(new Error('MapLibre failed to initialize.'));
+      const maplibregl = mapWindow().maplibregl;
+      maplibregl ? resolve(maplibregl) : reject(new Error('MapLibre failed to initialize.'));
     };
     script.onerror = () => reject(new Error('MapLibre failed to load.'));
     document.head.appendChild(script);

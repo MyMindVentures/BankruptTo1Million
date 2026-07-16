@@ -1,4 +1,6 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { getPublishedConceptMessages, type ProofOfMindConceptMessage } from './conceptMessages';
+import type { WebsiteTranslate } from './websiteI18n';
 
 const htmlEntities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
 
@@ -20,31 +22,31 @@ function normalizedKey(value: string | null | undefined) {
   return (value || '').trim().toLowerCase();
 }
 
-function messageBody(message: ProofOfMindConceptMessage) {
-  return message.personal_intro || message.excerpt || message.why_i_created_it || message.lived_experience || message.vision_for_impact || message.founder_video_description || 'A personal message from the founder will appear here.';
+function messageBody(message: ProofOfMindConceptMessage, t: WebsiteTranslate) {
+  return message.personal_intro || message.excerpt || message.why_i_created_it || message.lived_experience || message.vision_for_impact || message.founder_video_description || t('concept_message.empty', 'A personal message from the founder will appear here.');
 }
 
-function renderPanel(message: ProofOfMindConceptMessage) {
+function renderPanel(message: ProofOfMindConceptMessage, t: WebsiteTranslate) {
   const videoUrl = safeUrl(message.video_url);
   const ctaUrl = safeUrl(message.cta_url);
   const video = videoUrl
     ? `<video class="concept-message-panel__video" controls playsinline preload="metadata"${message.video_thumbnail_url ? ` poster="${escapeHtml(message.video_thumbnail_url)}"` : ''}><source src="${escapeHtml(videoUrl)}" /></video>`
-    : `<div class="concept-message-panel__visual" aria-hidden="true"><span>PERSONAL MESSAGE</span><strong>${escapeHtml(message.founder_video_title || message.title)}</strong><small>${escapeHtml(message.video_status === 'published' ? 'Video message' : 'Founder story')}</small></div>`;
+    : `<div class="concept-message-panel__visual" aria-hidden="true"><span>${escapeHtml(t('concept_message.visual_label', 'Personal message'))}</span><strong>${escapeHtml(message.founder_video_title || message.title)}</strong><small>${escapeHtml(message.video_status === 'published' ? t('concept_message.video', 'Video message') : t('concept_message.story', 'Founder story'))}</small></div>`;
 
-  return `<section class="concept-message-panel" aria-label="Personal message from the founder">
-    <div class="concept-message-panel__topline"><span>Personal concept message</span><button type="button" class="concept-message-panel__close" aria-label="Close personal message">×</button></div>
+  return `<section class="concept-message-panel" aria-label="${escapeHtml(t('concept_message.panel_label', 'Personal message from the founder'))}">
+    <div class="concept-message-panel__topline"><span>${escapeHtml(t('concept_message.panel_title', 'Personal concept message'))}</span><button type="button" class="concept-message-panel__close" aria-label="${escapeHtml(t('concept_message.close', 'Close personal message'))}">×</button></div>
     ${video}
     <div class="concept-message-panel__copy">
       <h4>${escapeHtml(message.title)}</h4>
-      <p>${escapeHtml(messageBody(message))}</p>
-      ${message.why_i_created_it ? `<div><strong>Why I created it</strong><p>${escapeHtml(message.why_i_created_it)}</p></div>` : ''}
-      ${message.vision_for_impact ? `<div><strong>What I hope it changes</strong><p>${escapeHtml(message.vision_for_impact)}</p></div>` : ''}
-      ${ctaUrl ? `<a class="button button--small" href="${escapeHtml(ctaUrl)}">${escapeHtml(message.cta_label || 'Explore the concept')}</a>` : ''}
+      <p>${escapeHtml(messageBody(message, t))}</p>
+      ${message.why_i_created_it ? `<div><strong>${escapeHtml(t('concept_message.why_created', 'Why I created it'))}</strong><p>${escapeHtml(message.why_i_created_it)}</p></div>` : ''}
+      ${message.vision_for_impact ? `<div><strong>${escapeHtml(t('concept_message.impact', 'What I hope it changes'))}</strong><p>${escapeHtml(message.vision_for_impact)}</p></div>` : ''}
+      ${ctaUrl ? `<a class="button button--small" href="${escapeHtml(ctaUrl)}">${escapeHtml(message.cta_label || t('concept_message.cta', 'Explore the concept'))}</a>` : ''}
     </div>
   </section>`;
 }
 
-function attachMessage(card: HTMLElement, message: ProofOfMindConceptMessage) {
+function attachMessage(card: HTMLElement, message: ProofOfMindConceptMessage, t: WebsiteTranslate) {
   if (card.dataset.conceptMessageReady === 'true') return;
   const titleRow = card.querySelector('.concept-card__title-row');
   const actions = card.querySelector('.proof-card-actions');
@@ -54,15 +56,15 @@ function attachMessage(card: HTMLElement, message: ProofOfMindConceptMessage) {
   const button = document.createElement('button');
   button.type = 'button';
   button.className = 'concept-message-icon-button';
-  button.setAttribute('aria-label', `Open the personal message for ${message.concept_title || message.title}`);
+  button.setAttribute('aria-label', t('concept_message.open', 'Open the personal message for {title}', { title: message.concept_title || message.title }));
   button.setAttribute('aria-expanded', 'false');
-  button.innerHTML = '<span aria-hidden="true">▶</span><span class="concept-message-icon-button__label">Founder message</span>';
+  button.innerHTML = `<span aria-hidden="true">▶</span><span class="concept-message-icon-button__label">${escapeHtml(t('concept_message.button', 'Founder message'))}</span>`;
   titleRow.appendChild(button);
 
   const panelHost = document.createElement('div');
   panelHost.className = 'concept-message-host';
   panelHost.hidden = true;
-  panelHost.innerHTML = renderPanel(message);
+  panelHost.innerHTML = renderPanel(message, t);
   actions.before(panelHost);
 
   const setOpen = (open: boolean) => {
@@ -94,7 +96,15 @@ function currentLanguage() {
   return (queryLanguage || storedLanguage || document.documentElement.lang || 'en').toLowerCase().split('-')[0];
 }
 
-export function initializeConceptMessageUi() {
+export const CONCEPT_MESSAGE_UI_I18N_MANIFEST = {
+  componentKey: 'lib.concept.message.ui',
+  namespace: 'ui',
+  translationKeys: [] as const,
+  keyPatterns: ['concept_message.*'] as const,
+  entityContent: { tables: [] },
+} as const satisfies I18nManifest;
+
+export function initializeConceptMessageUi(t: WebsiteTranslate) {
   let messagesBySlug = new Map<string, ProofOfMindConceptMessage>();
   let messagesByTitle = new Map<string, ProofOfMindConceptMessage>();
   let loading: Promise<void> | null = null;
@@ -120,7 +130,7 @@ export function initializeConceptMessageUi() {
       const slug = conceptSlug(card);
       const title = conceptTitle(card);
       const message = (slug ? messagesBySlug.get(slug) : null) || (title ? messagesByTitle.get(normalizedKey(title)) : null);
-      if (message) attachMessage(card, message);
+      if (message) attachMessage(card, message, t);
     });
   };
 

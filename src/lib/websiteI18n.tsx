@@ -14,6 +14,7 @@ type TranslationRow = { translation_key: string; translated_text: string };
 type TranslationKeyRow = { id: string; translation_key: string; default_text: string };
 type TranslationValueRow = { translation_key_id: string; translated_text: string };
 type TranslationVariables = Record<string, string | number>;
+export type WebsiteTranslate = (key: string, fallback: string, variables?: TranslationVariables) => string;
 type TranslationBundle = { byKey: Record<string, string>; bySource: Record<string, string> };
 
 type WebsiteI18nContextValue = {
@@ -21,7 +22,7 @@ type WebsiteI18nContextValue = {
   languages: WebsiteLanguage[];
   isLoading: boolean;
   setLanguage: (languageCode: string) => void;
-  t: (key: string, fallback: string, variables?: TranslationVariables) => string;
+  t: WebsiteTranslate;
   translateText: (fallback: string, variables?: TranslationVariables) => string;
   formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string;
   formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string;

@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useMemo } from 'react';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { StorageDownloadButton } from './StorageDownloadButton';
@@ -12,6 +13,19 @@ function normalizeLanguageCode(language: string) {
 function photoFramePath(language: string) {
   return `photoframe-${language}.png`;
 }
+
+export const PHOTO_FRAME_DOWNLOAD_BUTTON_I18N_MANIFEST = {
+  componentKey: 'components.photo.frame.download.button',
+  namespace: 'founder_support.qr',
+  translationKeys: [
+    'founder_support.qr.download_photo_frame',
+    'founder_support.qr.downloading_photo_frame',
+    'founder_support.qr.photo_frame_download_failed',
+  ] as const,
+  keyPatterns: [
+    'founder_support.qr.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function PhotoFrameDownloadButton({ className = '' }: { className?: string }) {
   const { language, t } = useWebsiteI18n();

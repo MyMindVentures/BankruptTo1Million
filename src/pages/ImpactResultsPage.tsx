@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, GitPullRequest, Sparkles, TrendingUp, Wrench } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { Footer } from '../components/Footer';
@@ -80,6 +81,13 @@ async function readJson<T>(response: Response | Promise<Response>): Promise<T> {
   if (!resolved.ok) throw new Error(await resolved.text());
   return resolved.json() as Promise<T>;
 }
+
+export const IMPACT_RESULTS_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.impact.results.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function ImpactResultsPage() {
   const [impact, setImpact] = useState<ImpactData | null>(null);

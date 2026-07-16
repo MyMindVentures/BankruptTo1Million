@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Copy, Database, ExternalLink, Factory, Film, Globe2, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
@@ -122,6 +123,13 @@ function DiscoveryCallModal({ concept, onClose }: { concept: ProofOfMindConcept;
   const set = (key: keyof typeof form, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
   return <div className="discovery-modal" role="dialog" aria-modal="true" aria-labelledby="discovery-title"><div className="discovery-modal__panel"><button className="discovery-modal__close" type="button" onClick={onClose} aria-label="Close discovery call form"><X size={18} /></button>{state === 'success' ? <div className="impact-state"><CheckCircle /><div><strong>Request received.</strong><br />{message}</div><button className="button button--small" type="button" onClick={onClose}>Close</button></div> : <form className="application-form journal-form discovery-form" onSubmit={submit}><p className="eyebrow">Book Discovery Call</p><h2 id="discovery-title">Discuss {concept.title}</h2><p>Tell us how you could help validate, build, fund or launch this concept.</p><div className="form-grid"><label>Full name<input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} /></label><label>Email<input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></label></div><div className="form-grid"><label>Company or organisation<input required value={form.company} onChange={(e) => set('company', e.target.value)} /></label><label>Role<input required value={form.role} onChange={(e) => set('role', e.target.value)} /></label></div><label>Country/location<input required value={form.country} onChange={(e) => set('country', e.target.value)} /></label><div className="form-grid"><label>Website <span className="optional-label">optional</span><input type="url" value={form.website} onChange={(e) => set('website', e.target.value)} /></label><label>LinkedIn <span className="optional-label">optional</span><input type="url" value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} /></label></div><label>Interest type<select value={form.interest_type} onChange={(e) => set('interest_type', e.target.value)}>{interestTypes.map((type) => <option key={type} value={type}>{type}</option>)}</select></label><label>Why does this concept interest you?<textarea required rows={5} value={form.interest_message} onChange={(e) => set('interest_message', e.target.value)} /></label><label><input type="checkbox" required checked={form.consent_to_contact} onChange={(e) => set('consent_to_contact', e.target.checked)} /> I consent to be contacted about this concept.</label><div className={`form-status ${state === 'error' ? 'impact-state--error' : ''}`} role="status">{state === 'loading' ? 'Saving…' : message}</div><div className="hero__actions"><button className="button" disabled={state === 'loading'} type="submit">Submit request</button><button className="button button--ghost" type="button" onClick={onClose}>Cancel</button></div></form>}</div></div>;
 }
+
+export const PROOF_OF_MIND_PAGES_I18N_MANIFEST = {
+  componentKey: 'pages.proof.of.mind.pages',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function ProofOfMindPage() {
   const [concepts, setConcepts] = useState<ProofOfMindConcept[]>([]);

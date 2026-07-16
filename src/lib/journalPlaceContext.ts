@@ -48,6 +48,7 @@ export function buildGoogleMapsUrl(latitude: number | null | undefined, longitud
 }
 
 export function isValidMapCoordinate(latitude: unknown, longitude: unknown) {
+  if (latitude == null || longitude == null) return false;
   const lat = Number(latitude);
   const lng = Number(longitude);
   return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -55,6 +56,10 @@ export function isValidMapCoordinate(latitude: unknown, longitude: unknown) {
 
 export function poiHasMapCoordinate(poi: Pick<JournalPlaceContextPoi, 'latitude' | 'longitude'>) {
   return isValidMapCoordinate(poi.latitude, poi.longitude);
+}
+
+export function poiTypeKey(type: string) {
+  return `journal.place_context.poi_type.${type}` as const;
 }
 
 export function haversineDistanceKm(

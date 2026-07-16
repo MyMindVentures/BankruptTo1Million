@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowRight, Heart, LockKeyhole, MessageCircleHeart, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
@@ -276,6 +277,13 @@ function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
     </div>
   );
 }
+
+export const FOUNDER_SUPPORT_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.founder.support.page',
+  namespace: 'ui',
+  translationKeys: [
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FounderSupportPage() {
   const [profiles, setProfiles] = useState<FounderProfile[]>([]);

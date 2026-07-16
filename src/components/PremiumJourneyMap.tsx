@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Compass, Crosshair, Flag, Fullscreen, LocateFixed, MapPin, Navigation, Route, Sparkles } from 'lucide-react';
 import type { JournalDisplayPerson } from '../lib/journalPeople';
@@ -9,6 +10,47 @@ import { Button, ButtonLink } from './ui/button';
 import { mountJourneyMapPin } from './JourneyMapPin';
 import { JourneyFootageCarousel, type JourneyFootageItem } from './journal/JourneyFootageCarousel';
 import './PremiumJourneyMap.css';
+
+export const PREMIUM_JOURNEY_MAP_I18N_MANIFEST = {
+  componentKey: 'components.premium.journey.map',
+  namespace: 'journal.map.action',
+  translationKeys: [
+    'journal.map.action.current',
+    'journal.map.action.fullscreen',
+    'journal.map.badge.live_map',
+    'journal.map.detail.journey_progress',
+    'journal.map.detail.live_location',
+    'journal.map.detail.read_chapter',
+    'journal.map.empty.body',
+    'journal.map.empty.title',
+    'journal.map.error.load_failed',
+    'journal.map.error.routing_fallback',
+    'journal.map.floating.journey_view',
+    'journal.map.kpi.current_stop',
+    'journal.map.kpi.mapped_chapters',
+    'journal.map.kpi.open_road',
+    'journal.map.kpi.road_distance',
+    'journal.map.kpi.route_position',
+    'journal.map.legend.kevin_route',
+    'journal.map.legend.micha_route',
+    'journal.map.legend.shared_stop',
+    'journal.map.nav.next',
+    'journal.map.nav.previous',
+    'journal.map.topbar.subtitle',
+  ] as const,
+  keyPatterns: [
+    'journal.map.action.*',
+    'journal.map.badge.*',
+    'journal.map.detail.*',
+    'journal.map.empty.*',
+    'journal.map.error.*',
+    'journal.map.floating.*',
+    'journal.map.kpi.*',
+    'journal.map.legend.*',
+    'journal.map.nav.*',
+    'journal.map.topbar.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export type JourneyInvolvedPerson = JournalDisplayPerson & {
   relation_role?: string;

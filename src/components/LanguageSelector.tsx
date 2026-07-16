@@ -1,5 +1,14 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { Globe2 } from 'lucide-react';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+export const LANGUAGE_SELECTOR_I18N_MANIFEST = {
+  componentKey: 'components.language.selector',
+  namespace: 'header',
+  translationKeys: [
+    'header.language_label',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function LanguageSelector() {
   const { language, languages, setLanguage, t } = useWebsiteI18n();

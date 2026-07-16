@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { Heart, X } from 'lucide-react';
 import { useEffect, useId, useRef } from 'react';
 import { formatDonationAmount } from '../../lib/donations';
@@ -14,6 +15,21 @@ type DonationThankYouModalProps = {
 
 const BODY_FALLBACK =
   'Your contribution of {amount} helps keep this story moving forward. We are deeply grateful for your support.';
+
+export const DONATION_THANK_YOU_MODAL_I18N_MANIFEST = {
+  componentKey: 'components.journal.donation.thank.you.modal',
+  namespace: 'donations.cta',
+  translationKeys: [
+    'donations.cta.support_this_story',
+    'donations.success.modal.close',
+    'donations.success.modal.close_label',
+    'donations.success.modal.title',
+  ] as const,
+  keyPatterns: [
+    'donations.cta.*',
+    'donations.success.modal.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function DonationThankYouModal({
   open,

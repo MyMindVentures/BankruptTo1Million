@@ -1,7 +1,39 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { ChevronDown, ExternalLink, GitPullRequest } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+export const PUBLIC_BUILD_REQUESTS_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.public.build.requests.page',
+  namespace: 'issues.buildRequest',
+  translationKeys: [
+    'issues.buildRequest.affectedAreas',
+    'issues.buildRequest.deployment',
+    'issues.buildRequest.desiredOutcome',
+    'issues.buildRequest.founderRequest',
+    'issues.buildRequest.technicalSummary',
+    'issues.buildRequests.backToImpact',
+    'issues.buildRequests.empty',
+    'issues.buildRequests.error',
+    'issues.buildRequests.eyebrow',
+    'issues.buildRequests.intro',
+    'issues.buildRequests.latestDescription',
+    'issues.buildRequests.latestEyebrow',
+    'issues.buildRequests.latestTitle',
+    'issues.buildRequests.loading',
+    'issues.buildRequests.noRemaining',
+    'issues.buildRequests.openCount',
+    'issues.buildRequests.remainingDescription',
+    'issues.buildRequests.remainingEyebrow',
+    'issues.buildRequests.remainingTitle',
+    'issues.buildRequests.title',
+  ] as const,
+  keyPatterns: [
+    'issues.buildRequest.*',
+    'issues.buildRequests.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export type BuildRequest = {
   id: string;

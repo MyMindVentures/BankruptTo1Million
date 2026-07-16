@@ -1,3 +1,4 @@
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { ArrowRight, MapPin, PlayCircle, UserRound } from 'lucide-react';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
 import type { FounderOverview } from './founderOverviewTypes';
@@ -22,6 +23,33 @@ function getVideoEmbed(url: string) {
   }
   return null;
 }
+
+export const FOUNDER_OVERVIEW_CARDS_I18N_MANIFEST = {
+  componentKey: 'components.founders.founder.overview.cards',
+  namespace: 'founders.card',
+  translationKeys: [
+    'founders.card.badge_cofounder',
+    'founders.card.badge_public',
+    'founders.card.badge_video',
+    'founders.card.eyebrow',
+    'founders.card.open_aria',
+    'founders.card.open_profile',
+    'founders.card.portrait_alt',
+    'founders.metrics.concepts',
+    'founders.metrics.founder_posts',
+    'founders.metrics.posts',
+    'founders.video.eyebrow',
+    'founders.video.iframe_title',
+    'founders.video.open_profile',
+    'founders.video.personal_message',
+    'founders.video.unsupported',
+  ] as const,
+  keyPatterns: [
+    'founders.card.*',
+    'founders.metrics.*',
+    'founders.video.*',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function FounderVideoCard({ founder }: { founder: FounderOverview }) {
   const { t, translateText } = useWebsiteI18n();
