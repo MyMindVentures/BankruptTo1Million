@@ -93,7 +93,50 @@ type MarkerRecord = {
   marker: any;
   pin: MountedMapPin;
   pointId: string;
+  disposeHover?: () => void;
 };
+
+function wireMarkerHover(markers: MarkerRecord[], record: MarkerRecord) {
+  let closeTimer: number | undefined;
+  const { marker, pin } = record;
+  const popupEl = pin.popupElement;
+
+  const openPopup = () => {
+    window.clearTimeout(closeTimer);
+    markers.forEach(({ marker: other }) => {
+      if (other === marker) return;
+      const otherPopup = other.getPopup?.();
+      if (otherPopup?.isOpen?.()) other.togglePopup();
+    });
+    if (!marker.getPopup()?.isOpen?.()) marker.togglePopup();
+  };
+
+  const scheduleClose = () => {
+    window.clearTimeout(closeTimer);
+    closeTimer = window.setTimeout(() => {
+      if (marker.getPopup()?.isOpen?.()) marker.togglePopup();
+    }, 140);
+  };
+
+  const cancelClose = () => window.clearTimeout(closeTimer);
+
+  pin.element.addEventListener('mouseenter', openPopup);
+  pin.element.addEventListener('mouseleave', scheduleClose);
+  pin.element.addEventListener('focusin', openPopup);
+  pin.element.addEventListener('focusout', scheduleClose);
+  popupEl.addEventListener('mouseenter', cancelClose);
+  popupEl.addEventListener('mouseleave', scheduleClose);
+
+  return () => {
+    cancelClose();
+    pin.element.removeEventListener('mouseenter', openPopup);
+    pin.element.removeEventListener('mouseleave', scheduleClose);
+    pin.element.removeEventListener('focusin', openPopup);
+    pin.element.removeEventListener('focusout', scheduleClose);
+    popupEl.removeEventListener('mouseenter', cancelClose);
+    popupEl.removeEventListener('mouseleave', scheduleClose);
+  };
+}
 
 function coordinates(point: PremiumJourneyPoint): Coordinate {
   return [Number(point.longitude), Number(point.latitude)];
@@ -127,8 +170,18 @@ function newestPoint(points: PremiumJourneyPoint[]) {
   return newestMapPoint(points);
 }
 
+function mapBounds(points: PremiumJourneyPoint[]): [[number, number], [number, number]] {
+  const coords = points.map(coordinates);
+  const lngs = coords.map(([lng]) => lng);
+  const lats = coords.map(([, lat]) => lat);
+  return [
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
+  ];
+}
+
 export function PremiumJourneyMap({ points, activeId, onSelect }: { points: PremiumJourneyPoint[]; activeId?: string; onSelect: (id: string) => void }) {
-  const { t, formatDate } = useWebsiteI18n();
+  const { t, formatDate, language } = useWebsiteI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<any>(null);
   const markersRef = useRef<MarkerRecord[]>([]);
@@ -147,6 +200,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   const routeProgress = mapped.length > 1 ? ((activeIndex + 1) / mapped.length) * 100 : 100;
   const routedDistance = routes.kevin.distanceKm + routes.micha.distanceKm;
   const routingFallback = routes.kevin.status === 'fallback' || routes.micha.status === 'fallback';
+  const mapPinI18n = useMemo(() => ({ t, formatDate }), [t, formatDate]);
+  const mapMarkerKey = useMemo(
+    () => `${language}:${mapped.map((point) => point.journey_entry_id).join(',')}`,
+    [language, mapped],
+  );
 
   useEffect(() => {
     if (!mapped.length || isActiveIdValid) return;
@@ -225,19 +283,28 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
           map.addLayer({ id: `journey-route-${key}-line`, type: 'line', source: `journey-route-${key}`, paint: { 'line-color': key === 'kevin' ? '#e2b45f' : '#6687d8', 'line-width': 5, 'line-opacity': 0.95 } });
         });
 
+        const markerRecords: MarkerRecord[] = [];
         mapped.forEach((point) => {
-          const pin = mountJourneyMapPin(point, point.journey_entry_id === active.journey_entry_id, onSelect);
-          const popup = new maplibregl.Popup({ offset: 34, closeButton: false }).setDOMContent(pin.popupElement);
+          const pin = mountJourneyMapPin(point, point.journey_entry_id === active.journey_entry_id, onSelect, mapPinI18n);
+          const popup = new maplibregl.Popup({ offset: 34, closeButton: false, closeOnClick: false }).setDOMContent(pin.popupElement);
           const marker = new maplibregl.Marker({ element: pin.element, anchor: 'center' })
             .setLngLat(coordinates(point))
             .setPopup(popup)
             .addTo(map);
-          markersRef.current.push({ marker, pin, pointId: point.journey_entry_id });
+          markerRecords.push({ marker, pin, pointId: point.journey_entry_id });
         });
+        markerRecords.forEach((record) => {
+          record.disposeHover = wireMarkerHover(markerRecords, record);
+        });
+        markersRef.current = markerRecords;
         resizeMap();
         window.setTimeout(resizeMap, 120);
         window.setTimeout(resizeMap, 450);
-        map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
+        if (mapped.length > 1) {
+          map.fitBounds(mapBounds(mapped), { padding: 60, maxZoom: 11, duration: 700, pitch: 32, bearing: -4 });
+        } else {
+          map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
+        }
       });
     }).catch(() => { if (!cancelled) setMapError(t('journal.map.error.load_failed', 'The interactive map could not load. Check the connection and refresh.')); });
 
@@ -248,7 +315,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       window.removeEventListener('orientationchange', resizeMap);
       document.removeEventListener('fullscreenchange', resizeMap);
       window.cancelAnimationFrame(resizeTimer || 0);
-      markersRef.current.forEach(({ marker, pin }) => {
+      markersRef.current.forEach(({ marker, pin, disposeHover }) => {
+        disposeHover?.();
         marker.remove();
         pin.unmount();
       });
@@ -256,7 +324,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       if (map) map.remove();
       mapRef.current = null;
     };
-  }, [mapped, onSelect, t]);
+  }, [active, mapMarkerKey, mapPinI18n, onSelect, t]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -271,11 +339,11 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     if (!active || !mapRef.current) return;
     markersRef.current.forEach(({ pin, pointId }) => {
       const point = mapped.find((entry) => entry.journey_entry_id === pointId);
-      if (point) pin.update(point, pointId === active.journey_entry_id);
+      if (point) pin.update(point, pointId === active.journey_entry_id, mapPinI18n);
     });
     mapRef.current.resize?.();
     mapRef.current.flyTo({ center: coordinates(active), zoom: Math.max(mapRef.current.getZoom(), 9.5), pitch: 32, duration: 950, essential: true });
-  }, [active, mapped]);
+  }, [active, mapPinI18n, mapped]);
 
   if (!mapped.length || !active) {
     return <Card className="premium-map-empty">

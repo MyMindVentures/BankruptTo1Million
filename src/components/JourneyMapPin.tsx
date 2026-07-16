@@ -2,8 +2,13 @@ import type { I18nManifest } from '../lib/i18nManifest';
 import { createRoot, type Root } from 'react-dom/client';
 import { ChevronRight, MapPin } from 'lucide-react';
 import type { PremiumJourneyPoint } from './PremiumJourneyMap';
-import { useWebsiteI18n } from '../lib/websiteI18n';
+import type { WebsiteTranslate } from '../lib/websiteI18n';
 import './JourneyMapPin.css';
+
+export type MapPinI18n = {
+  t: WebsiteTranslate;
+  formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string;
+};
 
 function sortedPeople(point: PremiumJourneyPoint) {
   return [...(point.involved_people || [])].sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
@@ -33,12 +38,13 @@ export const JOURNEY_MAP_PIN_I18N_MANIFEST = {
   keyPatterns: ['journey_map_pin.*'] as const,
 } as const satisfies I18nManifest;
 
-export function JourneyMapPin({ point, active, onSelect }: {
+export function JourneyMapPin({ point, active, onSelect, i18n }: {
   point: PremiumJourneyPoint;
   active: boolean;
   onSelect: (id: string) => void;
+  i18n: MapPinI18n;
 }) {
-  const { t } = useWebsiteI18n();
+  const { t } = i18n;
   const people = sortedPeople(point);
   const className = [
     'journey-medallion',
@@ -74,8 +80,8 @@ export function JourneyMapPin({ point, active, onSelect }: {
   );
 }
 
-export function JourneyMapPinPopup({ point }: { point: PremiumJourneyPoint }) {
-  const { t, formatDate } = useWebsiteI18n();
+export function JourneyMapPinPopup({ point, i18n }: { point: PremiumJourneyPoint; i18n: MapPinI18n }) {
+  const { t, formatDate } = i18n;
   const people = sortedPeople(point);
   const location = [point.location_name || point.city_name, point.country_name].filter(Boolean).join(', ');
 
@@ -102,7 +108,12 @@ export function JourneyMapPinPopup({ point }: { point: PremiumJourneyPoint }) {
   );
 }
 
-export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, onSelect: (id: string) => void) {
+export function mountJourneyMapPin(
+  point: PremiumJourneyPoint,
+  active: boolean,
+  onSelect: (id: string) => void,
+  i18n: MapPinI18n,
+) {
   const markerContainer = document.createElement('div');
   const popupContainer = document.createElement('div');
   markerContainer.className = 'journey-medallion-root';
@@ -110,10 +121,11 @@ export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, 
   const popupRoot: Root = createRoot(popupContainer);
   let currentPoint = point;
   let currentActive = active;
+  let currentI18n = i18n;
 
   const render = () => {
-    markerRoot.render(<JourneyMapPin point={currentPoint} active={currentActive} onSelect={onSelect} />);
-    popupRoot.render(<JourneyMapPinPopup point={currentPoint} />);
+    markerRoot.render(<JourneyMapPin point={currentPoint} active={currentActive} onSelect={onSelect} i18n={currentI18n} />);
+    popupRoot.render(<JourneyMapPinPopup point={currentPoint} i18n={currentI18n} />);
   };
 
   render();
@@ -121,9 +133,10 @@ export function mountJourneyMapPin(point: PremiumJourneyPoint, active: boolean, 
   return {
     element: markerContainer,
     popupElement: popupContainer,
-    update(nextPoint: PremiumJourneyPoint, nextActive: boolean) {
+    update(nextPoint: PremiumJourneyPoint, nextActive: boolean, nextI18n?: MapPinI18n) {
       currentPoint = nextPoint;
       currentActive = nextActive;
+      if (nextI18n) currentI18n = nextI18n;
       render();
     },
     unmount() {

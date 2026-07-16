@@ -167,11 +167,12 @@ export function JournalLandingPage() {
     Promise.all([
       getJournalIndex(),
       readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.asc,journey_entry_id.asc' })),
+      readJson<JourneyPoint[]>(supabase.from('public_journal_map_points').request({ query: 'select=*&order=occurred_at.desc,journey_entry_id.desc&limit=5' })),
       readJson<JourneyExchangeItem[]>(supabase.from('journey_exchange_items').request({
         query: `select=id,slug,journey_person,item_type,category,title,tagline,description,priority,status,is_featured,journey_exchange_item_translations(language_code,title,tagline,description,translation_status),calendar_entry:journey_calendar_entries(city_name,location_name,region_name,starts_on,ends_on)&is_public=eq.true&status=eq.active&order=is_featured.desc,display_order.asc,created_at.desc`,
       })),
       readJson<CategoryTranslation[]>(supabase.from('journal_category_translations').request({ query: `select=category_id,language_code,name,description,translation_status&language_code=eq.${encodeURIComponent(language)}` })),
-    ]).then(([rawJournal, journeyRows, exchangeRows, categoryTranslations]) => {
+    ]).then(([rawJournal, journeyRows, mapRows, exchangeRows, categoryTranslations]) => {
       if (cancelled) return;
       const categoryById = new Map(categoryTranslations.filter((row) => !row.translation_status || row.translation_status === 'published').map((row) => [row.category_id, row]));
       const categories: JournalCategory[] = rawJournal.categories.map((category) => ({ ...category, name: categoryById.get(category.id)?.name || category.name, description: categoryById.get(category.id)?.description || category.description }));
@@ -190,11 +191,12 @@ export function JournalLandingPage() {
       };
       const postsBySlug = new Map(posts.map((post) => [post.slug, post]));
       const hydratedJourney = journeyRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
+      const hydratedMapJourney = mapRows.map((point) => hydrateJourneyPoint(point, postsBySlug.get(point.slug))).sort(compareByOccurredAt);
       setJournal(journalData);
       setJourney(hydratedJourney);
-      setMapJourney(hydratedJourney);
+      setMapJourney(hydratedMapJourney);
       setExchangeItems(exchangeRows.map((item) => localizeExchangeItem(item, language)));
-      setActiveId(newestMapPoint(hydratedJourney)?.journey_entry_id);
+      setActiveId(newestMapPoint(hydratedMapJourney)?.journey_entry_id || newestPoint(hydratedJourney)?.journey_entry_id);
       setStatus('ready');
     }).catch(() => { if (!cancelled) setStatus('error'); });
     return () => { cancelled = true; };
