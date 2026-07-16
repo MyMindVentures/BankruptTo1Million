@@ -15,6 +15,8 @@ export function useShareCopy() {
     loadingQr: t('share.qr.loading', 'Loading QR Code…'),
     generatingQr: t('share.qr.generating', 'Generating the QR code…'),
     retry: t('share.qr.retry', 'Try again'),
+    qrNetworkError: t('share.qr.network_error', 'Could not reach the QR code service. Check your connection and try again.'),
+    qrApiError: t('share.qr.api_error', 'Unable to generate the QR code. Please try again.'),
     closeQr: t('share.qr.close', 'Close QR code'),
     shareLabel: t('share.group_aria', 'Share this content'),
     shareVia: t('share.via_aria', 'Share via'),

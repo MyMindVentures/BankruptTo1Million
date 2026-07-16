@@ -1,7 +1,7 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { LoaderCircle, QrCode, X } from 'lucide-react';
 import { useEffect, useId, useState, type ButtonHTMLAttributes } from 'react';
-import { generateContentQrCode, type ContentQrEntityType } from '../lib/contentQrCodes';
+import { ContentQrCodeError, generateContentQrCode, type ContentQrEntityType } from '../lib/contentQrCodes';
 import { useShareCopy } from '../lib/shareI18n';
 import './PostQrCodeButton.css';
 
@@ -65,7 +65,11 @@ export function PostQrCodeButton({
       setQrCodeUrl(result.qrCodeUrl);
       setResolvedUrl(result.canonicalUrl);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to load the QR code.');
+      if (cause instanceof ContentQrCodeError) {
+        setError(cause.kind === 'network' ? copy.qrNetworkError : (cause.message || copy.qrApiError));
+      } else {
+        setError(copy.qrApiError);
+      }
     } finally {
       setLoading(false);
     }
