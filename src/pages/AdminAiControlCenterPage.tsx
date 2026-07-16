@@ -148,6 +148,11 @@ export function AdminAiControlCenterPage() {
   }
 
   const recentRuns = (data?.runs || []).filter((run) => !selectedSlug || run.edge_function_slug === selectedSlug).slice(0, 8);
+  const usingConfigLevelPrompt = Boolean(
+    selected
+    && !promptVersions.length
+    && (selected.system_prompt || selected.user_prompt_template),
+  );
 
   return <div className="admin-ai-page">
     <section className="admin-section-heading">
@@ -209,7 +214,7 @@ export function AdminAiControlCenterPage() {
 
           <section className="admin-ai-card">
             <header><div><p>VERSION HISTORY</p><h2>Prompt versions</h2></div><Sparkles /></header>
-            <div className="admin-ai-versions">{promptVersions.length ? promptVersions.map((prompt) => <article key={prompt.id}><div><strong>{prompt.name}</strong><span>Version {prompt.version ?? '—'} · {prompt.created_at ? new Date(prompt.created_at).toLocaleString() : 'Unknown date'}</span></div><small className={prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'active' : ''}>{prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'Active' : 'Inactive'}</small>{prompt.id !== selected.active_prompt_version_id && !prompt.is_active && <button disabled={saving} onClick={() => void activatePrompt(prompt)}><Play size={14} /> Activate</button>}</article>) : <div className="admin-empty">No prompt versions found for this function.</div>}</div>
+            <div className="admin-ai-versions">{promptVersions.length ? promptVersions.map((prompt) => <article key={prompt.id}><div><strong>{prompt.name}</strong><span>Version {prompt.version ?? '—'} · {prompt.created_at ? new Date(prompt.created_at).toLocaleString() : 'Unknown date'}</span></div><small className={prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'active' : ''}>{prompt.id === selected.active_prompt_version_id || prompt.is_active ? 'Active' : 'Inactive'}</small>{prompt.id !== selected.active_prompt_version_id && !prompt.is_active && <button disabled={saving} onClick={() => void activatePrompt(prompt)}><Play size={14} /> Activate</button>}</article>) : usingConfigLevelPrompt ? <div className="admin-empty">Using config-level prompt (no version history yet).</div> : <div className="admin-empty">No prompt versions found for this function.</div>}</div>
           </section>
 
           <section className="admin-ai-card">
