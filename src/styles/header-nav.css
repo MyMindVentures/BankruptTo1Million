@@ -3,6 +3,13 @@
   margin: 0 auto;
 }
 
+.site-header[data-scrolled] {
+  background: rgba(16, 13, 10, 0.94);
+  border-bottom-color: rgba(255, 247, 237, 0.1);
+  box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(16px);
+}
+
 .site-header__tools {
   display: flex;
   align-items: center;
@@ -25,6 +32,14 @@
   align-items: center;
   gap: 0.35rem;
   flex-wrap: nowrap;
+}
+
+.site-nav a[aria-current="page"],
+.site-nav__group[data-active] > summary,
+.site-nav__mobile-group[data-active] > summary {
+  color: var(--gold);
+  background: rgba(215, 168, 79, 0.1);
+  border-color: rgba(215, 168, 79, 0.22);
 }
 
 .site-nav__group {
@@ -82,6 +97,13 @@
   border-radius: 1rem;
   background: rgba(27, 23, 18, 0.98);
   box-shadow: 0 1.25rem 3rem rgba(0, 0, 0, 0.32);
+  animation: navigation-reveal 160ms ease-out;
+  transform-origin: top center;
+}
+
+.site-nav__group:last-of-type .site-nav__dropdown {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
 }
 
 .site-nav__dropdown a {
@@ -98,6 +120,11 @@
 .site-nav__dropdown a:focus-visible {
   background: rgba(215, 168, 79, 0.09);
   color: var(--gold);
+}
+
+.site-nav__dropdown a[aria-current="page"],
+.site-nav__mobile-group__links a[aria-current="page"] {
+  font-weight: 800;
 }
 
 .site-nav--mobile-groups {
@@ -164,6 +191,21 @@
 
 .mobile-nav-backdrop {
   display: none;
+}
+
+[id] {
+  scroll-margin-top: calc(var(--header-height, 4.75rem) + 1rem);
+}
+
+@keyframes navigation-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(-0.3rem) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @media (max-width: 1280px) {
@@ -235,6 +277,7 @@
     border-top: 1px solid var(--line);
     background: rgba(16, 13, 10, 0.98);
     box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.35);
+    animation: navigation-reveal 160ms ease-out;
   }
 
   .mobile-nav-panel[hidden] {
@@ -263,6 +306,19 @@
 
   .mobile-nav-panel {
     padding-inline: 0.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-header,
+  .site-nav__dropdown,
+  .mobile-nav-panel {
+    animation: none;
+    transition: none;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }
 
