@@ -248,7 +248,7 @@ function preferredEntryIdForFounderFilter(
 type PublicJourneyCalendarSectionProps = {
   /** When false, hide the section eyebrow/title (page already has a hero). Default true for embeds. */
   showIntro?: boolean;
-  /** Compact live map of Kevin/Micha current journal pins. Opt-in so journal embeds stay single-map. */
+  /** Compact live map of current calendar stops (same entries as the callouts). Opt-in so journal embeds stay single-map. */
   showCurrentLocationMap?: boolean;
 };
 
@@ -404,7 +404,7 @@ export function PublicJourneyCalendarSection({
             </div>
           </div>
         ) : null}
-        {showCurrentLocationMap ? <CurrentLocationMap /> : null}
+        {showCurrentLocationMap ? <CurrentLocationMap entries={locationCallouts} /> : null}
         {filterChips}
         <div className="impact-state">
           {t('journey_calendar.filter.empty', 'No stops match this founder filter.')}
@@ -486,7 +486,7 @@ export function PublicJourneyCalendarSection({
         </div>
       ) : null}
 
-      {showCurrentLocationMap ? <CurrentLocationMap /> : null}
+      {showCurrentLocationMap ? <CurrentLocationMap entries={locationCallouts} /> : null}
 
       {filterChips}
 

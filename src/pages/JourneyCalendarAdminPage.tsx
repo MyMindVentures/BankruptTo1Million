@@ -1186,38 +1186,34 @@ export function JourneyCalendarAdminPage() {
               <fieldset className="journey-calendar-admin__section">
                 <legend>Hosting</legend>
                 <div className="journey-calendar-admin__fields">
-                  <label>
-                    <span>Accommodation needed</span>
+                  <AdminField label="Accommodation needed">
                     <button type="button" className={`admin-toggle ${form.accommodation_needed ? 'on' : ''}`} onClick={() => setForm((current) => ({ ...current, accommodation_needed: !current.accommodation_needed }))}>
                       <i />{form.accommodation_needed ? 'Needed' : 'Not needed'}
                     </button>
-                  </label>
-                  <label className="journey-calendar-admin__span-full">
-                    <span>Host request status</span>
+                  </AdminField>
+                  <AdminField label="Host request status" className="journey-calendar-admin__span-full">
                     <SegmentedControl
                       ariaLabel="Host request status"
                       value={form.host_request_status || 'not_needed'}
                       options={hostRequestStatuses.map((item) => ({ value: item, label: label(item) }))}
                       onChange={(host_request_status) => setForm((current) => ({ ...current, host_request_status }))}
                     />
-                  </label>
-                  <label>
-                    <span>Guests</span>
+                  </AdminField>
+                  <AdminField label="Guests">
                     <NumberStepper
                       min={1}
                       value={form.guests_count ?? 1}
                       onChange={(value) => setForm((current) => ({ ...current, guests_count: Math.max(1, value ?? 1) }))}
                     />
-                  </label>
-                  <label>
-                    <span>Nights needed</span>
+                  </AdminField>
+                  <AdminField label="Nights needed">
                     <NumberStepper
                       min={0}
                       allowNull
                       value={form.nights_needed ?? null}
                       onChange={(value) => setForm((current) => ({ ...current, nights_needed: value }))}
                     />
-                  </label>
+                  </AdminField>
                   <DateRangeFields
                     start={form.accommodation_from || ''}
                     end={form.accommodation_until || null}
@@ -1264,9 +1260,9 @@ export function JourneyCalendarAdminPage() {
                         setShowLinkExchange((value) => !value);
                         setShowExchangeForm(false);
                       }}
-                      disabled={saving}
+                      disabled={saving || Boolean(pickerLoadError)}
                     >
-                      <Search size={14} /> Link existing
+                      <Search size={14} /> {showLinkExchange ? 'Hide catalog' : 'Link existing'}
                     </button>
                     <button
                       type="button"
@@ -1280,47 +1276,49 @@ export function JourneyCalendarAdminPage() {
                     </button>
                   </div>
                 </div>
+                <p className="admin-picker-catalog-meta">
+                  {pickerLoadError
+                    ? 'Exchange catalog failed to load from Supabase.'
+                    : `${allExchangeOptions.length} live items loaded · ${selectedExchangeIds.length} linked to this stop`}
+                </p>
                 {!form.id && <p className="journey-calendar-admin__hint">Linked items apply on Save. Create new requires saving the stop first.</p>}
+                <div className="admin-picker-multi__chips" style={{ marginBottom: '0.75rem' }}>
+                  {displayedLinkedExchange.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedExchangeIds((current) => current.filter((id) => id !== item.id));
+                        setLinkedExchange((current) => current.filter((row) => row.id !== item.id));
+                      }}
+                    >
+                      {item.title}
+                      <XCircle size={12} />
+                    </button>
+                  ))}
+                  {displayedLinkedExchange.length === 0 ? (
+                    <span className="admin-picker-multi__empty">No linked exchange items yet.</span>
+                  ) : null}
+                </div>
                 {showLinkExchange ? (
                   <SearchableMultiSelect
                     values={selectedExchangeIds}
                     options={exchangeLinkOptions}
                     placeholder="Search needs and offers…"
+                    emptyLabel={pickerLoadError || (allExchangeOptions.length === 0 ? 'No exchange items in database' : 'No matches')}
                     onChange={(ids) => {
                       setSelectedExchangeIds(ids);
                       setLinkedExchange(allExchangeOptions.filter((item) => ids.includes(item.id)));
                     }}
                   />
-                ) : (
-                  <ul className="journey-calendar-admin__list">
-                    {(() => {
-                      const byId = new Map<string, ExchangeItem>();
-                      for (const item of linkedExchange) byId.set(item.id, item);
-                      for (const item of allExchangeOptions) byId.set(item.id, item);
-                      const ids = selectedExchangeIds.length
-                        ? selectedExchangeIds
-                        : linkedExchange.map((item) => item.id);
-                      const rows = ids.map((id) => byId.get(id)).filter((item): item is ExchangeItem => Boolean(item));
-                      if (rows.length === 0) {
-                        return <li>No linked exchange items yet.</li>;
-                      }
-                      return rows.map((item) => (
-                        <li key={item.id}>
-                          <strong>{item.title}</strong>
-                          <span>{label(item.item_type)} · {label(item.status)} · {label(item.priority)}</span>
-                        </li>
-                      ));
-                    })()}
-                  </ul>
-                )}
+                ) : null}
                 {showExchangeForm && (
                   <div className="journey-calendar-admin__nested-form">
                     <label>
                       <span>Title</span>
                       <input value={exchangeForm.title} onChange={(event) => setExchangeForm((current) => ({ ...current, title: event.target.value }))} />
                     </label>
-                    <label>
-                      <span>Type</span>
+                    <AdminField label="Type">
                       <SegmentedControl
                         ariaLabel="Exchange type need or offer"
                         value={exchangeForm.item_type}
@@ -1330,9 +1328,8 @@ export function JourneyCalendarAdminPage() {
                         ]}
                         onChange={(item_type) => setExchangeForm((current) => ({ ...current, item_type }))}
                       />
-                    </label>
-                    <label>
-                      <span>Category</span>
+                    </AdminField>
+                    <AdminField label="Category">
                       <SearchableSelect
                         value={exchangeForm.category || null}
                         options={categoryOptions.map((item) => ({ value: item.option_key, label: item.label }))}
@@ -1353,50 +1350,46 @@ export function JourneyCalendarAdminPage() {
                             onChange={(event) => setNewLookupLabel(event.target.value)}
                           />
                           <button type="button" disabled={saving || !newLookupLabel.trim()} onClick={() => void addLookupOption('exchange_category')}>Add</button>
-                          {categoryOptions.map((option) => (
+                          {categoryOptions.filter((option) => !option.id.startsWith('pinned-')).map((option) => (
                             <button key={option.id} type="button" onClick={() => void deactivateLookupOption(option)}>
                               Remove {option.label}
                             </button>
                           ))}
                         </div>
                       ) : null}
-                    </label>
-                    <label>
-                      <span>Priority</span>
+                    </AdminField>
+                    <AdminField label="Priority">
                       <SegmentedControl
                         ariaLabel="Priority"
                         value={exchangeForm.priority || 'normal'}
                         options={exchangePriorities.map((item) => ({ value: item, label: label(item) }))}
                         onChange={(priority) => setExchangeForm((current) => ({ ...current, priority }))}
                       />
-                    </label>
-                    <label>
-                      <span>Status</span>
+                    </AdminField>
+                    <AdminField label="Status">
                       <SegmentedControl
                         ariaLabel="Exchange status"
                         value={exchangeForm.status || 'active'}
                         options={exchangeStatuses.map((item) => ({ value: item, label: label(item) }))}
                         onChange={(statusValue) => setExchangeForm((current) => ({ ...current, status: statusValue }))}
                       />
-                    </label>
-                    <label>
-                      <span>Person</span>
+                    </AdminField>
+                    <AdminField label="Person">
                       <SegmentedControl
                         ariaLabel="Exchange person"
                         value={exchangeForm.journey_person || 'together'}
                         options={people.map((item) => ({ value: item, label: label(item) }))}
                         onChange={(journey_person) => setExchangeForm((current) => ({ ...current, journey_person }))}
                       />
-                    </label>
-                    <label>
-                      <span>Exchange type</span>
+                    </AdminField>
+                    <AdminField label="Exchange type">
                       <SegmentedControl
                         ariaLabel="Exchange compensation"
                         value={exchangeForm.exchange_type || 'free'}
                         options={exchangeTypes.map((item) => ({ value: item, label: label(item) }))}
                         onChange={(exchange_type) => setExchangeForm((current) => ({ ...current, exchange_type }))}
                       />
-                    </label>
+                    </AdminField>
                     <label className="journey-calendar-admin__span-full">
                       <span>Description</span>
                       <textarea rows={3} value={exchangeForm.description || ''} onChange={(event) => setExchangeForm((current) => ({ ...current, description: event.target.value }))} />

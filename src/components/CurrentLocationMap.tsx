@@ -1,6 +1,6 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { getCurrentLocationMapPoints } from '../lib/currentLocationMap';
+import type { PublicJourneyCalendarEntry } from '../lib/journeyCalendar';
 import { loadMapLibre, POI_MAP_STYLE, type MapLibreMap } from '../lib/mapLibreLoader';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { mountJourneyMapPin } from './JourneyMapPin';
@@ -18,7 +18,7 @@ export const CURRENT_LOCATION_MAP_I18N_MANIFEST = {
   ] as const,
   keyPatterns: ['journey_calendar.current_map.*'] as const,
   entityContent: {
-    tables: ['public_journal_map_points'],
+    tables: ['journey_calendar_entries'],
   },
 } as const satisfies I18nManifest;
 
@@ -55,6 +55,56 @@ function mapBounds(points: PremiumJourneyPoint[]): [[number, number], [number, n
     [Math.min(...lngs), Math.min(...lats)],
     [Math.max(...lngs), Math.max(...lats)],
   ];
+}
+
+function founderMatchesJourneyPerson(
+  slug: string,
+  journeyPerson: PublicJourneyCalendarEntry['journey_person'],
+) {
+  const normalized = slug.toLowerCase();
+  if (journeyPerson === 'kevin') return normalized.includes('kevin');
+  if (journeyPerson === 'micha') return normalized === 'micha' || normalized.includes('micha');
+  return true;
+}
+
+function pinPeopleForEntry(entry: PublicJourneyCalendarEntry) {
+  const founders = entry.founders || [];
+  let selected = entry.journey_person === 'together'
+    ? founders
+    : founders.filter((founder) => founderMatchesJourneyPerson(founder.slug, entry.journey_person));
+
+  if (!selected.length) {
+    const withAvatar = founders.find((founder) => founder.avatar_url);
+    selected = withAvatar ? [withAvatar] : founders.slice(0, 1);
+  }
+
+  return selected.map((founder, index) => ({
+    id: founder.id,
+    slug: founder.slug,
+    display_name: founder.display_name || founder.slug,
+    avatar_url: founder.avatar_url || undefined,
+    display_order: index,
+  }));
+}
+
+/** Adapt a calendar stop into the journal pin shape so we can reuse JourneyMapPin. */
+function calendarEntryToMapPoint(entry: PublicJourneyCalendarEntry): PremiumJourneyPoint {
+  return {
+    journey_entry_id: entry.id,
+    slug: entry.related_journal_post_slug || '',
+    title: entry.title,
+    excerpt: entry.public_summary || undefined,
+    occurred_at: `${entry.starts_on}T12:00:00`,
+    country_name: entry.country_name || undefined,
+    city_name: entry.city_name || undefined,
+    location_name: entry.location_name || undefined,
+    latitude: entry.latitude ?? undefined,
+    longitude: entry.longitude ?? undefined,
+    journey_person: entry.journey_person,
+    is_milestone: false,
+    is_current_location: true,
+    involved_people: pinPeopleForEntry(entry),
+  };
 }
 
 function wireMarkerHover(markers: MarkerRecord[], record: MarkerRecord) {
@@ -99,15 +149,13 @@ function wireMarkerHover(markers: MarkerRecord[], record: MarkerRecord) {
   };
 }
 
-export function CurrentLocationMap() {
+export function CurrentLocationMap({ entries }: { entries: PublicJourneyCalendarEntry[] }) {
   const { t, formatDate, language } = useWebsiteI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MarkerRecord[]>([]);
   const activeIdRef = useRef<string | undefined>(undefined);
 
-  const [points, setPoints] = useState<PremiumJourneyPoint[] | null>(null);
-  const [loadError, setLoadError] = useState('');
   const [mapError, setMapError] = useState('');
   const [activeId, setActiveId] = useState<string>();
 
@@ -115,36 +163,21 @@ export function CurrentLocationMap() {
 
   const mapPinI18n = useMemo(() => ({ t, formatDate }), [t, formatDate]);
   const mapped = useMemo(
-    () => (points || []).filter((point) => isValidCoord(point.latitude, point.longitude)),
-    [points],
+    () => entries
+      .filter((entry) => isValidCoord(entry.latitude, entry.longitude))
+      .map(calendarEntryToMapPoint),
+    [entries],
   );
   const mapMarkerKey = useMemo(
-    () => `${language}:${mapped.map((point) => point.journey_entry_id).join(',')}`,
+    () => `${language}:${mapped.map((point) => `${point.journey_entry_id}:${point.latitude}:${point.longitude}`).join(',')}`,
     [language, mapped],
   );
 
   useEffect(() => {
-    let cancelled = false;
-    setPoints(null);
-    setLoadError('');
-    getCurrentLocationMapPoints()
-      .then((rows) => {
-        if (cancelled) return;
-        setPoints(rows);
-        setActiveId(rows[0]?.journey_entry_id);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setLoadError(t('journey_calendar.current_map.error', 'Current locations could not be loaded.'));
-        setPoints([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [t]);
-
-  useEffect(() => {
-    if (!mapped.length) return;
+    if (!mapped.length) {
+      setActiveId(undefined);
+      return;
+    }
     if (!mapped.some((point) => point.journey_entry_id === activeId)) {
       setActiveId(mapped[0]?.journey_entry_id);
     }
@@ -242,8 +275,8 @@ export function CurrentLocationMap() {
       map?.remove();
       mapRef.current = null;
     };
-  // Remount when the current-location set or language changes — not on pin selection.
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- mapMarkerKey encodes mapped point ids
+  // Remount when stop ids/coords or language change — not on pin selection.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mapMarkerKey encodes mapped ids + coords
   }, [mapMarkerKey, mapPinI18n, t]);
 
   useEffect(() => {
@@ -265,23 +298,7 @@ export function CurrentLocationMap() {
     });
   }, [activeId, mapPinI18n, mapped]);
 
-  if (points === null && !loadError) {
-    return (
-      <div className="current-location-map current-location-map--state" role="status">
-        {t('journey_calendar.current_map.loading', 'Loading current locations…')}
-      </div>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <div className="current-location-map current-location-map--state current-location-map--error" role="alert">
-        {loadError}
-      </div>
-    );
-  }
-
-  if (!mapped.length) {
+  if (!entries.length || !mapped.length) {
     return (
       <div className="current-location-map current-location-map--state" role="status">
         {t('journey_calendar.current_map.empty', 'No live current locations are available yet.')}

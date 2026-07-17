@@ -102,6 +102,10 @@
   margin: 0;
 }
 
+.journey-calendar-admin__fields > .admin-picker-field {
+  min-width: 0;
+}
+
 .journey-calendar-admin__span-full {
   grid-column: 1 / -1;
 }
@@ -179,6 +183,10 @@
   gap: 0.35rem;
   min-width: 0;
   margin: 0;
+}
+
+.journey-calendar-admin__nested-form > .admin-picker-field {
+  min-width: 0;
 }
 
 .journey-calendar-admin__nested-form > button {

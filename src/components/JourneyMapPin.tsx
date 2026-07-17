@@ -42,7 +42,21 @@ function primaryFootageSrc(item?: JourneyFootageItem) {
 }
 
 function Avatar({ name, url }: { name: string; url?: string }) {
-  if (url) return <img src={url} alt="" loading="eager" decoding="async" />;
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+  if (url && !failed) {
+    return (
+      <img
+        src={url}
+        alt=""
+        loading="eager"
+        decoding="async"
+        onError={() => setFailed(true)}
+      />
+    );
+  }
   return <span aria-hidden="true">{name.slice(0, 1).toUpperCase()}</span>;
 }
 
