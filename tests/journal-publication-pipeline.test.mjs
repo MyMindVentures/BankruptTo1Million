@@ -76,4 +76,40 @@ test('journal admin page uses staged publishJournalPost orchestrator', async () 
   assert.doesNotMatch(adminPage, /generateJournalVenueThankYou/);
   assert.match(adminApi, /finalizeJournalPublication/);
   assert.match(adminApi, /admin_start_journal_publication/);
+  assert.match(adminApi, /stepStatus\('story_english'\) !== 'completed'/);
+});
+
+test('story translate defers batch completion when place context is in the pipeline', async () => {
+  const { readFileSync } = await import('node:fs');
+  const storyEdge = readFileSync(
+    new URL('../supabase/functions/generate-journal-ai-post/index.ts', import.meta.url),
+    'utf8',
+  );
+  const placeEdge = readFileSync(
+    new URL('../supabase/functions/generate-journal-place-context/index.ts', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(storyEdge, /publicationIncludesPlaceContext/);
+  assert.match(storyEdge, /await_place:\s*true/);
+  assert.match(storyEdge, /story_complete:\s*true/);
+  assert.match(placeEdge, /place_complete:\s*true/);
+  assert.match(placeEdge, /failRunningTranslateStep/);
+  assert.match(placeEdge, /generation_status:\s*"failed"/);
+});
+
+test('hindi place history length guidance migration raises max and lowers preferred target', async () => {
+  const { readFileSync } = await import('node:fs');
+  const migration = readFileSync(
+    new URL(
+      '../supabase/migrations/20260719241000_journal_place_history_hi_length_guidance.sql',
+      import.meta.url,
+    ),
+    'utf8',
+  );
+
+  assert.match(migration, /'hi'/);
+  assert.match(migration, /'max',\s*850/);
+  assert.match(migration, /'preferred_max',\s*480/);
+  assert.match(migration, /length_soft_margin',\s*80/);
 });
