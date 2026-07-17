@@ -11,6 +11,8 @@ import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { resolvePublicPage } from './lib/publicRoutes';
 import { WebsiteI18nProvider, useWebsiteI18n } from './lib/websiteI18n';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
@@ -76,7 +78,11 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WebsiteI18nProvider>
       <PublicUiInitializers />
-      {rootPage}
+      <Header />
+      <div className="page-shell">
+        {rootPage}
+      </div>
+      <Footer />
     </WebsiteI18nProvider>
   </StrictMode>,
 );

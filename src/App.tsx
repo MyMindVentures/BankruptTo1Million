@@ -8,6 +8,9 @@ import { BreakTheCircleArticlePage, BreakTheCirclePage, AdminBreakTheCirclePage,
 import { HomePage } from './pages/HomePage';
 import { JournalArticlePage, JournalPage, AdminJournalCommentsPage } from './pages/JournalPages';
 import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
+import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
+import { SectionHeading } from './components/SectionHeading';
+import { HomePage } from './pages/HomePage';
 import { FoundingHeroesFinancialSupport } from './components/FoundingHeroesFinancialSupport';
 import { supabase } from './lib/supabase';
 import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
