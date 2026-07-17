@@ -29,6 +29,31 @@ const groupLabelFallbacks: Record<string, string> = {
   'navigation.group.participate': 'Participate',
 };
 
+const activePublicNavigationHrefs = new Set([
+  '/#top',
+  '/#story',
+  '/#platform',
+  '/#roadmap',
+  '/journal',
+  '/founders',
+  '/offers',
+  '/media',
+  '/calendar',
+  '/proof-of-mind',
+  '/break-the-circle',
+  '/founder-support',
+  '/impact',
+  '/issues',
+]);
+
+const visiblePrimaryNavItems = primaryNavItems.filter((item) => activePublicNavigationHrefs.has(item.href));
+const visibleNavGroups = navGroups
+  .map((group) => ({
+    ...group,
+    items: group.items.filter((item) => activePublicNavigationHrefs.has(item.href)),
+  }))
+  .filter((group) => group.items.length > 0);
+
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const { t } = useWebsiteI18n();
@@ -54,10 +79,10 @@ export function Header() {
         </a>
         <nav className="site-nav site-nav--desktop" aria-label={t('header.primary_navigation_aria', 'Primary navigation')}>
           <div className="site-nav--primary">
-            {primaryNavItems.map((item) => (
+            {visiblePrimaryNavItems.map((item) => (
               <a key={item.href} href={item.href}>{t(item.translationKey, item.label)}</a>
             ))}
-            {navGroups.map((group) => (
+            {visibleNavGroups.map((group) => (
               <details key={group.id} className="site-nav__group">
                 <summary aria-label={t('header.nav_group_toggle_aria', 'Open {group} links', { group: t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id) })}>
                   {t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id)}
@@ -79,11 +104,11 @@ export function Header() {
       <div className="mobile-nav-panel" id={mobileMenuId} data-open={isMenuOpen} hidden={!isMenuOpen}>
         <nav className="site-nav site-nav--mobile-groups" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
           <div className="site-nav__mobile-primary">
-            {primaryNavItems.map((item) => (
+            {visiblePrimaryNavItems.map((item) => (
               <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
             ))}
           </div>
-          {navGroups.map((group) => (
+          {visibleNavGroups.map((group) => (
             <details key={group.id} className="site-nav__mobile-group">
               <summary>{t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id)}</summary>
               <div className="site-nav__mobile-group__links">
