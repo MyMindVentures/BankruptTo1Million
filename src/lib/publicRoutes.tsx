@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import React from 'react';
+import { legacyRouteAliases } from '../data/siteMap';
 import { HomePage } from '../pages/HomePage';
 import { BreakTheCircleArticlePage, BreakTheCirclePage } from '../pages/BreakTheCirclePages';
 import { ProofOfMindDetailPage, ProofOfMindPage } from '../pages/ProofOfMindPages';
@@ -33,13 +34,6 @@ const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/admin': () => <AdminAuthGate />,
 };
 
-const LEGACY_ROUTE_ALIASES: Record<string, string> = {
-  '/support': '/founder-support',
-  '/founding-heroes': '/impact',
-  '/become-a-founding-hero': '/issues',
-  '/profile/issues': '/issues',
-};
-
 function normalizePath(path: string) {
   const withoutQueryOrHash = path.split(/[?#]/, 1)[0] || '/';
   const collapsed = withoutQueryOrHash.replace(/\/{2,}/g, '/');
@@ -69,7 +63,7 @@ function NotFoundPage() {
 
 export function resolvePublicPage(path: string): ReactElement {
   let normalizedPath = normalizePath(path);
-  const aliasTarget = LEGACY_ROUTE_ALIASES[normalizedPath];
+  const aliasTarget = legacyRouteAliases[normalizedPath];
   if (aliasTarget) normalizedPath = aliasTarget;
 
   if (ROUTE_MAP[normalizedPath]) return ROUTE_MAP[normalizedPath]();
