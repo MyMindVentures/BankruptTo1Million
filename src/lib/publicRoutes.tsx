@@ -40,10 +40,15 @@ const LEGACY_ROUTE_ALIASES: Record<string, string> = {
   '/profile/issues': '/issues',
 };
 
-function normalizePath(path: string) {
+export function normalizePublicPath(path: string): string {
   const withoutQueryOrHash = path.split(/[?#]/, 1)[0] || '/';
   const collapsed = withoutQueryOrHash.replace(/\/{2,}/g, '/');
   return collapsed !== '/' ? collapsed.replace(/\/+$/, '') : '/';
+}
+
+export function canonicalizePublicPath(path: string): string {
+  const normalizedPath = normalizePublicPath(path);
+  return LEGACY_ROUTE_ALIASES[normalizedPath] ?? normalizedPath;
 }
 
 function decodeRouteValue(value: string) {
@@ -68,12 +73,9 @@ function NotFoundPage() {
 }
 
 export function resolvePublicPage(path: string): ReactElement {
-  let normalizedPath = normalizePath(path);
-  const aliasTarget = LEGACY_ROUTE_ALIASES[normalizedPath];
-  if (aliasTarget) normalizedPath = aliasTarget;
+  const normalizedPath = canonicalizePublicPath(path);
 
   if (ROUTE_MAP[normalizedPath]) return ROUTE_MAP[normalizedPath]();
-
   if (normalizedPath.startsWith('/admin/')) return <AdminAuthGate />;
 
   if (normalizedPath.startsWith('/break-the-circle/')) {
