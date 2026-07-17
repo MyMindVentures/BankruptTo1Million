@@ -27,7 +27,7 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v17.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v18.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 const PUBLIC_SITE_ROOT_SELECTOR = '#root';

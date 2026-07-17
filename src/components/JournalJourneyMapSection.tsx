@@ -1,7 +1,7 @@
 import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import { PremiumJourneyMap, type PremiumJourneyPoint } from './PremiumJourneyMap';
-import { JourneyCalendarPlanner } from './JourneyCalendarPlanner';
+import { PublicJourneyCalendarSection } from './PublicJourneyCalendarSection';
 import { Button } from './ui/button';
 import { Callout } from './ui/card';
 import { supabase } from '../lib/supabase';
@@ -108,6 +108,6 @@ export function JournalJourneyMapSection() {
         onSelect={selectPoint}
       />
     ) : null}
-    <JourneyCalendarPlanner />
+    <PublicJourneyCalendarSection />
   </div>;
 }

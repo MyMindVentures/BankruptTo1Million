@@ -1,0 +1,222 @@
+.journey-calendar-admin__actions {
+  display: flex;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.journey-calendar-admin__tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  flex-wrap: wrap;
+}
+
+.journey-calendar-admin__tabs button {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 0.45rem 0.95rem;
+  cursor: pointer;
+}
+
+.journey-calendar-admin__tabs button.is-active {
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  font-weight: 600;
+}
+
+.admin-editor.journey-calendar-admin__editor {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  border-left: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-editor.journey-calendar-admin__editor > header,
+.admin-editor.journey-calendar-admin__editor > footer {
+  flex-shrink: 0;
+}
+
+.admin-editor.journey-calendar-admin__editor > header {
+  padding: 24px 28px;
+}
+
+.admin-editor.journey-calendar-admin__editor > header h2 {
+  font-size: clamp(22px, 2.4vw, 30px);
+  letter-spacing: -0.03em;
+}
+
+.admin-editor.journey-calendar-admin__editor > footer {
+  position: static;
+  padding: 16px 28px;
+}
+
+.journey-calendar-admin__editor-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 8px 28px 28px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.journey-calendar-admin__section {
+  margin: 0;
+  padding: 1rem 0 0.35rem;
+  border: 0;
+  min-width: 0;
+}
+
+.journey-calendar-admin__section + .journey-calendar-admin__section {
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  margin-top: 0.35rem;
+}
+
+.journey-calendar-admin__section > legend,
+.journey-calendar-admin__section > h3 {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--admin-muted, color-mix(in srgb, currentColor 65%, transparent));
+}
+
+.journey-calendar-admin__fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+}
+
+.journey-calendar-admin__fields > label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.journey-calendar-admin__span-full {
+  grid-column: 1 / -1;
+}
+
+.journey-calendar-admin__panel {
+  margin: 1rem 0 0;
+  padding: 1rem 0 0.35rem;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+
+.journey-calendar-admin__panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+}
+
+.journey-calendar-admin__panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.journey-calendar-admin__panel-header h3 {
+  margin: 0;
+}
+
+.journey-calendar-admin__founder-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 0.5rem;
+}
+
+.journey-calendar-admin__founder-list label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.journey-calendar-admin__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.55rem;
+}
+
+.journey-calendar-admin__list li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.7rem;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 0.55rem;
+}
+
+.journey-calendar-admin__list span {
+  opacity: 0.75;
+  font-size: 0.85rem;
+}
+
+.journey-calendar-admin__nested-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem 1rem;
+  margin-top: 0.85rem;
+}
+
+.journey-calendar-admin__nested-form > label {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.journey-calendar-admin__nested-form > button {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.journey-calendar-admin__hint {
+  opacity: 0.7;
+  margin: 0 0 0.75rem;
+}
+
+.journey-calendar-admin__danger {
+  border-color: rgba(220, 80, 80, 0.45) !important;
+  color: #f0a0a0 !important;
+}
+
+.journey-calendar-admin__danger:hover {
+  background: rgba(220, 80, 80, 0.12) !important;
+}
+
+@media (max-width: 1024px) {
+  .journey-calendar-admin__fields,
+  .journey-calendar-admin__nested-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .admin-editor.journey-calendar-admin__editor > header,
+  .admin-editor.journey-calendar-admin__editor > footer,
+  .journey-calendar-admin__editor-body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .journey-calendar-admin__fields,
+  .journey-calendar-admin__nested-form {
+    grid-template-columns: 1fr;
+  }
+}

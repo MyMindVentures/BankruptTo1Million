@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bell, ChevronRight, CircleAlert, Database, FileText, FolderKanban, Gauge, Image, LayoutDashboard, ListChecks, LoaderCircle, Map as MapIcon, Menu, PanelLeft, PanelLeftClose, Search, Settings, ShieldCheck, Sparkles, Users, X } from 'lucide-react';
+import { Activity, Bell, CalendarDays, ChevronRight, CircleAlert, Database, FileText, FolderKanban, Gauge, Image, LayoutDashboard, ListChecks, LoaderCircle, Map as MapIcon, Menu, PanelLeft, PanelLeftClose, Search, Settings, ShieldCheck, Sparkles, Users, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { getAdminDashboardData, type AdminModule, type AdminNotification, type AdminTask, type AuditEntry } from '../lib/adminApi';
 import { getAdminDashboardKpis, resolveOverviewValue, type AdminDashboardKpi } from '../lib/adminDashboardApi';
@@ -9,6 +9,7 @@ import { AdminMediaVaultPage } from './AdminMediaVaultPage';
 import { AdminSectionPage } from './AdminSectionPage';
 import { FounderSupportAdminPage } from './FounderSupportAdminPage';
 import { JournalAdminPage } from './JournalAdminPage';
+import { JourneyCalendarAdminPage } from './JourneyCalendarAdminPage';
 import { OutreachAdminPage } from './OutreachAdminPage';
 import '../styles/outreachAdmin.css';
 
@@ -31,7 +32,7 @@ function writeSidebarCollapsed(collapsed: boolean) {
 }
 
 const iconMap: Record<string, LucideIcon> = {
-  activity: Activity, award: Sparkles, bookopentext: FileText, bot: Sparkles, circledotdashed: Sparkles, database: Database,
+  activity: Activity, award: Sparkles, bookopentext: FileText, bot: Sparkles, calendardays: CalendarDays, circledotdashed: Sparkles, database: Database,
   folder: FolderKanban, folderkanban: FolderKanban, funnel: Gauge, github: Database, image: Image, inbox: Bell,
   layoutdashboard: LayoutDashboard, lightbulb: Sparkles, map: MapIcon, mappinned: MapIcon, messagesquaretext: Bell,
   scrolltext: Activity, settings: Settings, shieldcheck: ShieldCheck, sparkles: Sparkles, users: Users,
@@ -174,7 +175,7 @@ export function AdminDashboardPage() {
     <main className="admin-main">
       <header className="admin-topbar"><button className="admin-icon-button admin-menu" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><div className="admin-search"><Search size={18} /><input placeholder={t('admin.search.global', 'Search content, people, media...')} /></div><div className="admin-topbar-actions"><button className="admin-icon-button"><Bell size={20} /></button><div className="admin-avatar">KD</div></div></header>
       <div className="admin-content">
-        {path === '/admin/outreach' ? <OutreachAdminPage /> : path === '/admin/journal' ? <JournalAdminPage /> : path === '/admin/media' ? <AdminMediaVaultPage /> : path === '/admin/ai' ? <AdminAiControlCenterPage /> : path === '/admin/support-messages' ? <FounderSupportAdminPage /> : !isOverview ? <AdminSectionPage path={path} /> : <>
+        {path === '/admin/outreach' ? <OutreachAdminPage /> : path === '/admin/journal' ? <JournalAdminPage /> : path === '/admin/calendar' ? <JourneyCalendarAdminPage /> : path === '/admin/media' ? <AdminMediaVaultPage /> : path === '/admin/ai' ? <AdminAiControlCenterPage /> : path === '/admin/support-messages' ? <FounderSupportAdminPage /> : !isOverview ? <AdminSectionPage path={path} /> : <>
           <section className="admin-heading"><div><p>{t('admin.dashboard.eyebrow', 'MISSION CONTROL')}</p><h1>{t('admin.dashboard.title', 'Admin overview')}</h1><span>{t('admin.dashboard.description', 'Live operational view of the Bankrupt to 1 Million platform.')}</span></div><div className="admin-health"><span /><strong>{error ? t('admin.connection.issue', 'Connection issue') : t('admin.connection.ok', 'Platform connected')}</strong></div></section>
           {loading && <div className="admin-loading"><LoaderCircle className="spin" /> {t('admin.dashboard.loading', 'Loading dashboard data…')}</div>}
           {error && <div className="admin-error"><CircleAlert size={20} /><div><strong>{t('admin.dashboard.partial_error', 'One or more live queries failed')}</strong><span>{error}</span></div></div>}

@@ -24,6 +24,7 @@ import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
 import { MediaVaultPage } from './pages/MediaVaultPage';
 import { OfferDetailPage } from './pages/OfferDetailPage';
 import { OffersPage } from './pages/OffersPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { PublicBuildRequestsPage } from './pages/PublicBuildRequestsPage';
 import './styles/breakpoints.css';
 import './styles/global.css';
@@ -49,6 +50,7 @@ import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/mediaVaultFrontendFixes.css';
 import './styles/offers.css';
+import './styles/calendar.css';
 import './styles/buildRequests.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
@@ -108,6 +110,8 @@ const rootPage = adminPage
             ? withSiteShell(<MediaVaultPage />)
             : path === '/offers'
               ? withSiteShell(<OffersPage />)
+              : path === '/calendar'
+                ? withSiteShell(<CalendarPage />)
               : offerSlug
                 ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
                 : path === '/journal'

@@ -1,0 +1,29 @@
+.calendar-page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 110px 28px 100px;
+}
+
+.calendar-page__hero {
+  margin-bottom: 2rem;
+}
+
+.calendar-page__hero h1 {
+  max-width: 900px;
+  margin: 0.35rem 0 1rem;
+  font-size: clamp(2.2rem, 5vw, 3.8rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+}
+
+.calendar-page__hero > p:last-child {
+  max-width: 720px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+@media (max-width: 720px) {
+  .calendar-page {
+    padding: 90px 20px 80px;
+  }
+}

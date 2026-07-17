@@ -20,6 +20,8 @@
     "src/pages/AdminSectionPage.tsx",
     "src/pages/FounderSupportAdminPage.tsx",
     "src/pages/JournalAdminPage.tsx",
+    "src/pages/JourneyCalendarAdminPage.tsx",
+    "src/pages/AdminMediaVaultPage.tsx",
     "src/components/JournalPublicationProgressPanel.tsx",
     "src/pages/OutreachAdminPage.tsx",
     "src/components/outreach/OutreachAdminEditor.tsx",
