@@ -1,5 +1,5 @@
 import { Menu, X } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { navGroups, primaryNavItems } from '../data/siteContent';
 import type { NavItem } from '../data/siteContent';
 import type { I18nManifest } from '../lib/i18nManifest';
@@ -37,6 +37,18 @@ function navigationItems(hrefs: string[]): NavItem[] {
   return hrefs
     .map((href) => navigationItemByHref.get(href))
     .filter((item): item is NavItem => Boolean(item));
+}
+
+function buildNavigationHref(href: string, currentSearch: string): string {
+  const target = new URL(href, window.location.origin);
+  const currentParams = new URLSearchParams(currentSearch);
+  const language = currentParams.get('lang');
+
+  if (language && !target.searchParams.has('lang')) {
+    target.searchParams.set('lang', language);
+  }
+
+  return `${target.pathname}${target.search}${target.hash}`;
 }
 
 const visiblePrimaryNavItems = navigationItems(['/#top']);
@@ -81,6 +93,12 @@ export function Header() {
   const mobileMenuId = 'mobile-navigation';
   const closeMobileMenu = () => setIsMenuOpen(false);
   const toggleMobileMenu = () => setIsMenuOpen((isOpen) => !isOpen);
+  const currentSearch = typeof window === 'undefined' ? '' : window.location.search;
+
+  const hrefFor = useMemo(
+    () => (href: string) => buildNavigationHref(href, currentSearch),
+    [currentSearch],
+  );
 
   useEffect(() => {
     if (!isMenuOpen) return undefined;
@@ -108,14 +126,14 @@ export function Header() {
     <header className="site-header">
       <div className="site-header__inner">
         <div className="site-header__bar">
-          <a className="brand" href="/#top" aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')} onClick={closeMobileMenu}>
+          <a className="brand" href={hrefFor('/#top')} aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')} onClick={closeMobileMenu}>
             <span className="brand__mark"><MissionLogo eager decorative /></span>
             <span className="brand__text">Bankrupt to 1 Million</span>
           </a>
           <nav className="site-nav site-nav--desktop" aria-label={t('header.primary_navigation_aria', 'Primary navigation')}>
             <div className="site-nav--primary">
               {visiblePrimaryNavItems.map((item) => (
-                <a key={item.href} href={item.href}>{t(item.translationKey, item.label)}</a>
+                <a key={item.href} href={hrefFor(item.href)}>{t(item.translationKey, item.label)}</a>
               ))}
               {visibleNavGroups.map((group) => (
                 <details key={group.id} className="site-nav__group">
@@ -124,7 +142,7 @@ export function Header() {
                   </summary>
                   <div className="site-nav__dropdown" role="list">
                     {group.items.map((item) => (
-                      <a key={item.href} href={item.href} role="listitem">{t(item.translationKey, item.label)}</a>
+                      <a key={item.href} href={hrefFor(item.href)} role="listitem">{t(item.translationKey, item.label)}</a>
                     ))}
                   </div>
                 </details>
@@ -143,7 +161,7 @@ export function Header() {
         <nav className="site-nav site-nav--mobile-groups" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
           <div className="site-nav__mobile-primary">
             {visiblePrimaryNavItems.map((item) => (
-              <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
+              <a key={item.href} href={hrefFor(item.href)} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
             ))}
           </div>
           {visibleNavGroups.map((group) => (
@@ -151,7 +169,7 @@ export function Header() {
               <summary>{t(group.labelKey, groupLabelFallbacks[group.labelKey] ?? group.id)}</summary>
               <div className="site-nav__mobile-group__links">
                 {group.items.map((item) => (
-                  <a key={item.href} href={item.href} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
+                  <a key={item.href} href={hrefFor(item.href)} onClick={closeMobileMenu}>{t(item.translationKey, item.label)}</a>
                 ))}
               </div>
             </details>
