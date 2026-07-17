@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Bell, ChevronRight, CircleAlert, Database, FileText, FolderKanban, Gauge, Image, LayoutDashboard, ListChecks, LoaderCircle, Map as MapIcon, Menu, Search, Settings, ShieldCheck, Sparkles, Users, X } from 'lucide-react';
+import { Activity, Bell, ChevronRight, CircleAlert, Database, FileText, FolderKanban, Gauge, Image, LayoutDashboard, ListChecks, LoaderCircle, Map as MapIcon, Menu, PanelLeft, PanelLeftClose, Search, Settings, ShieldCheck, Sparkles, Users, X } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { getAdminDashboardData, type AdminModule, type AdminNotification, type AdminTask, type AuditEntry } from '../lib/adminApi';
 import { getAdminDashboardKpis, resolveOverviewValue, type AdminDashboardKpi } from '../lib/adminDashboardApi';
@@ -10,6 +10,24 @@ import { FounderSupportAdminPage } from './FounderSupportAdminPage';
 import { JournalAdminPage } from './JournalAdminPage';
 import { OutreachAdminPage } from './OutreachAdminPage';
 import '../styles/outreachAdmin.css';
+
+const SIDEBAR_COLLAPSED_KEY = 'admin.sidebar.collapsed';
+
+function readSidebarCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
+  } catch {
+    return false;
+  }
+}
+
+function writeSidebarCollapsed(collapsed: boolean) {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSED_KEY, collapsed ? '1' : '0');
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
 
 const iconMap: Record<string, LucideIcon> = {
   activity: Activity, award: Sparkles, bookopentext: FileText, bot: Sparkles, circledotdashed: Sparkles, database: Database,
@@ -26,7 +44,19 @@ function ModuleIcon({ module }: { module: AdminModule }) {
   return <Icon size={18} strokeWidth={1.8} />;
 }
 
-function Sidebar({ modules, open, close }: { modules: AdminModule[]; open: boolean; close: () => void }) {
+function Sidebar({
+  modules,
+  open,
+  collapsed,
+  close,
+  onToggleCollapsed,
+}: {
+  modules: AdminModule[];
+  open: boolean;
+  collapsed: boolean;
+  close: () => void;
+  onToggleCollapsed: () => void;
+}) {
   const groups = useMemo(() => {
     const grouped = new Map<string, AdminModule[]>();
     modules.forEach((module) => {
@@ -36,12 +66,46 @@ function Sidebar({ modules, open, close }: { modules: AdminModule[]; open: boole
     return [...grouped.entries()];
   }, [modules]);
 
-  return <aside className={`admin-sidebar ${open ? 'is-open' : ''}`}>
-    <div className="admin-brand"><div className="admin-brand-mark"><Sparkles size={20} /></div><div><strong>Bankrupt to 1M</strong><span>Mission Control</span></div><button className="admin-icon-button admin-close" onClick={close}><X size={20} /></button></div>
+  const CollapseIcon = collapsed ? PanelLeft : PanelLeftClose;
+
+  return <aside className={`admin-sidebar ${open ? 'is-open' : ''} ${collapsed ? 'is-collapsed' : ''}`}>
+    <div className="admin-brand">
+      <div className="admin-brand-mark"><Sparkles size={20} /></div>
+      <div className="admin-brand-copy"><strong>Bankrupt to 1M</strong><span>Mission Control</span></div>
+      <button
+        type="button"
+        className="admin-icon-button admin-collapse"
+        onClick={onToggleCollapsed}
+        aria-label={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+        title={collapsed ? 'Expand navigation' : 'Collapse navigation'}
+      >
+        <CollapseIcon size={20} />
+      </button>
+      <button type="button" className="admin-icon-button admin-close" onClick={close} aria-label="Close navigation"><X size={20} /></button>
+    </div>
     <nav className="admin-nav">
-      {groups.map(([group, items]) => <section key={group} className="admin-nav-group"><p>{humanize(group)}</p>{items.map((module) => <a key={module.key} href={module.route} className={window.location.pathname === module.route ? 'active' : ''}><ModuleIcon module={module} /><span>{module.label}</span><ChevronRight size={14} className="admin-nav-arrow" /></a>)}</section>)}
+      {groups.map(([group, items]) => (
+        <section key={group} className="admin-nav-group">
+          <p>{humanize(group)}</p>
+          {items.map((module) => (
+            <a
+              key={module.key}
+              href={module.route}
+              className={window.location.pathname === module.route ? 'active' : ''}
+              title={module.label}
+            >
+              <ModuleIcon module={module} />
+              <span>{module.label}</span>
+              <ChevronRight size={14} className="admin-nav-arrow" />
+            </a>
+          ))}
+        </section>
+      ))}
     </nav>
-    <div className="admin-sidebar-footer"><ShieldCheck size={18} /><div><strong>Protected workspace</strong><span>Role-based admin access</span></div></div>
+    <div className="admin-sidebar-footer" title="Protected workspace">
+      <ShieldCheck size={18} />
+      <div className="admin-sidebar-footer-copy"><strong>Protected workspace</strong><span>Role-based admin access</span></div>
+    </div>
   </aside>;
 }
 
@@ -66,6 +130,7 @@ function AuditLog({ entries, failed }: { entries: AuditEntry[]; failed: boolean 
 export function AdminDashboardPage() {
   const { t } = useWebsiteI18n();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(readSidebarCollapsed);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<Awaited<ReturnType<typeof getAdminDashboardData>> | null>(null);
@@ -86,10 +151,24 @@ export function AdminDashboardPage() {
     }).finally(() => setLoading(false));
   }, []);
 
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((current) => {
+      const next = !current;
+      writeSidebarCollapsed(next);
+      return next;
+    });
+  };
+
   const quickActions = useMemo(() => (data?.modules || []).filter((module) => module.route !== '/admin').slice(0, 6), [data]);
 
-  return <div className="admin-root">
-    <Sidebar modules={data?.modules || []} open={sidebarOpen} close={() => setSidebarOpen(false)} />
+  return <div className={`admin-root ${sidebarCollapsed ? 'is-collapsed' : ''}`}>
+    <Sidebar
+      modules={data?.modules || []}
+      open={sidebarOpen}
+      collapsed={sidebarCollapsed}
+      close={() => setSidebarOpen(false)}
+      onToggleCollapsed={toggleSidebarCollapsed}
+    />
     {sidebarOpen && <button className="admin-backdrop" onClick={() => setSidebarOpen(false)} />}
     <main className="admin-main">
       <header className="admin-topbar"><button className="admin-icon-button admin-menu" onClick={() => setSidebarOpen(true)}><Menu size={21} /></button><div className="admin-search"><Search size={18} /><input placeholder={t('admin.search.global', 'Search content, people, media...')} /></div><div className="admin-topbar-actions"><button className="admin-icon-button"><Bell size={20} /></button><div className="admin-avatar">KD</div></div></header>
