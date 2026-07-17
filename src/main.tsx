@@ -75,8 +75,13 @@ function PublicUiInitializers() {
 
 function AppShell() {
   const [locationKey, setLocationKey] = useState(() => `${window.location.pathname}${window.location.search}${window.location.hash}`);
+  const previousPathRef = useRef(window.location.pathname);
 
   useEffect(() => {
+    if ('scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+
     const syncLocation = () => {
       setLocationKey(`${window.location.pathname}${window.location.search}${window.location.hash}`);
     };
@@ -107,12 +112,28 @@ function AppShell() {
   }, []);
 
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      window.requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
-    } else {
-      window.scrollTo({ top: 0, left: 0 });
-    }
+    const currentPath = window.location.pathname;
+    const pathChanged = previousPathRef.current !== currentPath;
+    previousPathRef.current = currentPath;
+
+    const scrollPage = () => {
+      if (pathChanged || !window.location.hash) {
+        window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+        return;
+      }
+
+      const targetId = decodeURIComponent(window.location.hash.slice(1));
+      document.getElementById(targetId)?.scrollIntoView({ block: 'start', behavior: 'auto' });
+    };
+
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const firstFrame = window.requestAnimationFrame(() => {
+      const secondFrame = window.requestAnimationFrame(scrollPage);
+      window.setTimeout(scrollPage, 120);
+      return () => window.cancelAnimationFrame(secondFrame);
+    });
+
+    return () => window.cancelAnimationFrame(firstFrame);
   }, [locationKey]);
 
   return (
