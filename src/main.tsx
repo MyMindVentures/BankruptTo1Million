@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useRef, useState } from 'react';
+import { StrictMode, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { initializeConceptMessageUi } from './lib/conceptMessageUi';
 import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
@@ -9,6 +9,7 @@ import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
+import { RouterProvider, useRouter } from './lib/clientRouter';
 import { resolvePublicPage } from './lib/publicRoutes';
 import { WebsiteI18nProvider, useWebsiteI18n } from './lib/websiteI18n';
 import { Header } from './components/Header';
@@ -73,53 +74,14 @@ function PublicUiInitializers() {
 }
 
 function AppShell() {
-  const [locationKey, setLocationKey] = useState(() => `${window.location.pathname}${window.location.search}${window.location.hash}`);
-
-  useEffect(() => {
-    const syncLocation = () => {
-      setLocationKey(`${window.location.pathname}${window.location.search}${window.location.hash}`);
-    };
-
-    const onDocumentClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target as Element | null;
-      const anchor = target?.closest<HTMLAnchorElement>('a[href]');
-      if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
-
-      const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
-
-      const samePath = url.pathname === window.location.pathname && url.search === window.location.search;
-      if (samePath && url.hash) return;
-
-      event.preventDefault();
-      window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
-      syncLocation();
-    };
-
-    window.addEventListener('popstate', syncLocation);
-    document.addEventListener('click', onDocumentClick);
-    return () => {
-      window.removeEventListener('popstate', syncLocation);
-      document.removeEventListener('click', onDocumentClick);
-    };
-  }, []);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      window.requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
-    } else {
-      window.scrollTo({ top: 0, left: 0 });
-    }
-  }, [locationKey]);
+  const { location } = useRouter();
 
   return (
     <>
       <PublicUiInitializers />
       <Header />
-      <div className="page-shell">
-        {resolvePublicPage(window.location.pathname)}
+      <div className="page-shell" key={location.pathname}>
+        {resolvePublicPage(location.pathname)}
       </div>
       <Footer />
     </>
@@ -129,7 +91,9 @@ function AppShell() {
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WebsiteI18nProvider>
-      <AppShell />
+      <RouterProvider>
+        <AppShell />
+      </RouterProvider>
     </WebsiteI18nProvider>
   </StrictMode>,
 );
