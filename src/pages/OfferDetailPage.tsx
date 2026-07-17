@@ -1,5 +1,5 @@
 import type { I18nManifest } from '../lib/i18nManifest';
-import { ArrowLeft, Camera, Check, Clock3, MapPin, Play, ShieldCheck, Sparkles, Users } from 'lucide-react';
+import { ArrowLeft, Camera, Check, Clock3, MapPin, ShieldCheck, Sparkles, Users } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOfferBySlug } from '../lib/offers';
 import type { OfferMediaItem, PublicOffer } from '../lib/offers';
@@ -9,20 +9,11 @@ import {
 } from '../lib/journeyOfferBookings';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { JourneyOfferBookingForm } from '../components/JourneyOfferBookingForm';
+import { OfferMediaCarousel } from '../components/OfferMediaCarousel';
 import '../components/JournalJourneyExperience.css';
 
 function founderLabel(offer: PublicOffer): string {
   return offer.founders.map((founder) => founder.displayName).join(' & ') || 'Kevin & Micha';
-}
-
-function MediaCard({ item, onOpen }: { item: OfferMediaItem; onOpen: () => void }) {
-  const preview = item.thumbnailUrl || (item.kind === 'image' ? item.url : '');
-  return <button className="offer-footage-card" type="button" onClick={onOpen} aria-label={`Open ${item.title || item.kind}`}>
-    {preview ? <img src={preview} alt={item.altText} loading="lazy" /> : <span className="offer-footage-card__placeholder">{item.kind === 'video' ? <Play size={34} /> : <Camera size={34} />}</span>}
-    <span className="offer-footage-card__shade" />
-    <span className="offer-footage-card__type">{item.kind === 'video' ? <><Play size={14} /> Video</> : <><Camera size={14} /> Photo</>}</span>
-    <span className="offer-footage-card__caption">{item.caption || item.title}</span>
-  </button>;
 }
 
 export const OFFER_DETAIL_PAGE_I18N_MANIFEST = {
@@ -144,10 +135,9 @@ export function OfferDetailPage({ slug }: { slug: string }) {
 
     <section className="offer-detail__footage" aria-labelledby="offer-footage-title">
       <div className="offer-detail__section-heading"><div><p className="eyebrow">Proof through footage</p><h2 id="offer-footage-title">Moments from earlier times we offered this.</h2></div><p>{offer.collections.length} collections · {footageCount} items</p></div>
-      {offer.collections.length ? offer.collections.map((collection) => <article className="offer-collection" key={collection.id}>
-        <header><div><h3>{collection.title}</h3><p>{collection.description}</p></div><div>{collection.location ? <span><MapPin size={14} /> {collection.location}</span> : null}{collection.occurredOn ? <span>{new Date(collection.occurredOn).toLocaleDateString()}</span> : null}</div></header>
-        <div className="offer-footage-grid">{collection.items.map((item) => <MediaCard key={item.id} item={item} onOpen={() => setSelected(item)} />)}</div>
-      </article>) : <div className="offer-footage-empty"><Camera size={30} /><h3>Footage collection coming next.</h3><p>The page is ready. Photos and videos from previous experiences can now be linked from the Media Vault.</p></div>}
+      {offer.collections.length
+        ? offer.collections.map((collection) => <OfferMediaCarousel key={collection.id} collection={collection} onOpen={setSelected} />)
+        : <div className="offer-footage-empty"><Camera size={30} /><h3>Footage collection coming next.</h3><p>The page is ready. Photos and videos from previous experiences can now be linked from the Media Vault.</p></div>}
     </section>
 
     <section className="offer-detail__cta">
@@ -155,9 +145,7 @@ export function OfferDetailPage({ slug }: { slug: string }) {
       <h2>{t('offers.detail.cta.title', 'Let’s turn this offer into a shared moment.')}</h2>
       <p>{t('offers.detail.cta.description', 'Share your preferred dates, group size and what you have in mind. We will follow up privately.')}</p>
       <div>
-        <button className="button button--primary" type="button" onClick={() => void openBooking()}>
-          {offer.ctaLabel || t('offers.detail.book', 'Book this offer')}
-        </button>
+        <button className="button button--primary" type="button" onClick={() => void openBooking()}>{offer.ctaLabel || t('offers.detail.book', 'Book this offer')}</button>
         <a className="button button--ghost" href="/offers">{offer.secondaryCtaLabel}</a>
       </div>
       {bookingError ? <p className="offers-state offers-state--error">{bookingError}</p> : null}
@@ -167,8 +155,6 @@ export function OfferDetailPage({ slug }: { slug: string }) {
       <button type="button" onClick={() => setSelected(null)} aria-label={t('offers.detail.close_media', 'Close media')}>×</button>
       <div onClick={(event) => event.stopPropagation()}>{selected.kind === 'video' ? <video src={selected.url} controls autoPlay /> : <img src={selected.url} alt={selected.altText} />}<p>{selected.caption || selected.description}</p></div>
     </div> : null}
-    {bookingContext ? (
-      <JourneyOfferBookingForm context={bookingContext} onClose={() => setBookingContext(null)} />
-    ) : null}
+    {bookingContext ? <JourneyOfferBookingForm context={bookingContext} onClose={() => setBookingContext(null)} /> : null}
   </main>;
 }
