@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ExternalLink, Filter, LoaderCircle, RefreshCw, Save, Search, X } from 'lucide-react';
+import { ExternalLink, Filter, LoaderCircle, Play, RefreshCw, Save, Search, X } from 'lucide-react';
 import {
   getAdminSectionDefinition,
   getAdminSectionRows,
@@ -8,13 +8,59 @@ import {
   type AdminSectionDefinition,
   type AdminSectionField,
 } from '../lib/adminApi';
+import { resolvePublicMediaUrl } from '../lib/journalFootage';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+type MediaPreview =
+  | { kind: 'image'; src: string }
+  | { kind: 'video'; src: string }
+  | { kind: 'none' };
 
 function text(value: unknown) {
   if (value === null || value === undefined || value === '') return '—';
   if (typeof value === 'boolean') return value ? 'Yes' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
+}
+
+function asText(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const next = String(value).trim();
+  return next || null;
+}
+
+function resolveMediaPreview(row: AdminRow, definition: AdminSectionDefinition): MediaPreview {
+  const thumbnail = asText(definition.imageField ? row[definition.imageField] : row.thumbnail_url);
+  const fromThumb = resolvePublicMediaUrl(thumbnail);
+  if (fromThumb) return { kind: 'image', src: fromThumb };
+
+  const storageUrl = resolvePublicMediaUrl(null, asText(row.storage_bucket), asText(row.storage_path));
+  if (!storageUrl) return { kind: 'none' };
+
+  const assetType = asText(row.asset_type)?.toLowerCase();
+  if (assetType === 'video') return { kind: 'video', src: storageUrl };
+  if (!assetType || assetType === 'image') return { kind: 'image', src: storageUrl };
+  return { kind: 'none' };
+}
+
+function MediaPreviewFrame({ preview, alt }: { preview: MediaPreview; alt?: string }) {
+  if (preview.kind === 'image') return <img src={preview.src} alt={alt || ''} />;
+  if (preview.kind === 'video') {
+    return (
+      <span className="admin-media-preview-video-wrap">
+        <video
+          className="admin-media-preview-video"
+          src={preview.src}
+          muted
+          playsInline
+          preload="metadata"
+          aria-label={alt || undefined}
+        />
+        <span className="admin-media-preview-play" aria-hidden="true"><Play size={18} /></span>
+      </span>
+    );
+  }
+  return <div className="admin-media-placeholder">MEDIA</div>;
 }
 
 function editorValue(value: unknown, field: AdminSectionField): string {
@@ -163,7 +209,10 @@ export function AdminSectionPage({ path }: { path: string }) {
 
       {error && <div className="admin-error">{error}</div>}
 
-      {definition.variant === 'media' && <div className="admin-media-grid">{filtered.map((row) => <article key={text(row[definition.primaryKey])} onClick={() => setEditing({ ...row })}>{definition.imageField && row[definition.imageField] ? <img src={String(row[definition.imageField])} alt="" /> : <div className="admin-media-placeholder">MEDIA</div>}<div><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span><small>{text(row[definition.statusField || ''])}</small></div></article>)}</div>}
+      {definition.variant === 'media' && <div className="admin-media-grid">{filtered.map((row) => {
+        const preview = resolveMediaPreview(row, definition);
+        return <article key={text(row[definition.primaryKey])} onClick={() => setEditing({ ...row })}><MediaPreviewFrame preview={preview} alt={text(row[definition.titleField])} /><div><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span><small>{text(row[definition.statusField || ''])}</small></div></article>;
+      })}</div>}
 
       {definition.variant === 'timeline' && <div className="admin-timeline-list">{filtered.map((row) => <button key={text(row[definition.primaryKey])} onClick={() => setEditing({ ...row })}><i /><div><time>{text(row[definition.dateField || ''])}</time><strong>{text(row[definition.titleField])}</strong><span>{text(row[definition.subtitleField || ''])}</span></div></button>)}</div>}
 

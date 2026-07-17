@@ -458,6 +458,69 @@ export async function appendJournalFootage(postId: string, files: File[], event:
   return assetIds;
 }
 
+function journalEventLocalNow() {
+  const date = new Date();
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 16);
+}
+
+export function journalEventDefaults(partial?: Partial<JournalEventPayload>): JournalEventPayload {
+  return {
+    subject_founder_ids: partial?.subject_founder_ids ?? [],
+    person_ids: partial?.person_ids ?? [],
+    event_type: partial?.event_type || 'daily_update',
+    occurred_at: partial?.occurred_at || journalEventLocalNow(),
+    timezone: partial?.timezone || 'Europe/Madrid',
+    journey_person: partial?.journey_person || 'together',
+    location_name: partial?.location_name || '',
+    address_text: partial?.address_text || '',
+    latitude: partial?.latitude || '',
+    longitude: partial?.longitude || '',
+    plus_code: partial?.plus_code || '',
+    featured_business_name: partial?.featured_business_name || '',
+    description: partial?.description || '',
+    show_on_map: partial?.show_on_map ?? false,
+    show_on_timeline: partial?.show_on_timeline ?? true,
+    is_public_location: partial?.is_public_location ?? true,
+  };
+}
+
+export async function deleteJournalFootage(postId: string, assetId: string): Promise<{
+  deleted: boolean;
+  unlinked: boolean;
+  cover_cleared?: boolean;
+}> {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/delete-journal-footage`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ post_id: postId, asset_id: assetId }),
+  });
+
+  const payload = await response.json().catch(() => null) as {
+    ok?: boolean;
+    deleted?: boolean;
+    unlinked?: boolean;
+    cover_cleared?: boolean;
+    error?: string;
+  } | null;
+
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.error || `Footage delete failed (${response.status}).`);
+  }
+
+  return {
+    deleted: Boolean(payload?.deleted),
+    unlinked: payload?.unlinked !== false,
+    cover_cleared: Boolean(payload?.cover_cleared),
+  };
+}
+
 export async function getJournalPublicationStatus(postId: string) {
   const payload = await request<unknown>('/rest/v1/rpc/admin_get_journal_publication_status', {
     method: 'POST',

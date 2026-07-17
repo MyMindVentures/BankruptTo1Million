@@ -254,3 +254,68 @@ export async function createAiPromptVersion(input: { edgeFunctionSlug: string; n
 export async function activateAiPromptVersion(promptVersionId: string): Promise<unknown> {
   return request('/rest/v1/rpc/admin_activate_ai_prompt_version', { method: 'POST', body: JSON.stringify({ p_prompt_version_id: promptVersionId }) });
 }
+
+export type AdminMediaVaultPostGroup = {
+  post_id: string;
+  title: string;
+  slug: string;
+  status: string;
+  asset_count: number;
+  cover_storage_bucket: string | null;
+  cover_storage_path: string | null;
+  cover_thumbnail_url: string | null;
+  cover_asset_type: string | null;
+  occurred_at: string | null;
+  event_timezone: string | null;
+  updated_at: string | null;
+};
+
+export type AdminMediaVaultAsset = {
+  asset_id: string;
+  asset_type: string;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  thumbnail_url: string | null;
+  mime_type: string | null;
+  alt_text: string | null;
+  caption: string | null;
+  display_order: number;
+  created_at: string;
+  original_filename: string | null;
+};
+
+export type AdminMediaVaultCategoryKey = 'journal_unlinked' | 'founders' | 'journey_events' | 'other';
+
+export type AdminMediaVaultCategoryGroup = {
+  key: AdminMediaVaultCategoryKey | string;
+  asset_count: number;
+  cover_storage_bucket: string | null;
+  cover_storage_path: string | null;
+  cover_thumbnail_url: string | null;
+  cover_asset_type: string | null;
+  assets: AdminMediaVaultAsset[];
+};
+
+export type AdminMediaVaultGroups = {
+  posts: AdminMediaVaultPostGroup[];
+  categories: AdminMediaVaultCategoryGroup[];
+};
+
+export async function listAdminMediaVaultGroups(signal?: AbortSignal): Promise<AdminMediaVaultGroups> {
+  const payload = await request<AdminMediaVaultGroups>('/rest/v1/rpc/admin_list_media_vault_groups', {
+    method: 'POST',
+    body: '{}',
+    signal,
+  });
+  if (!payload || !Array.isArray(payload.posts) || !Array.isArray(payload.categories)) {
+    throw new Error('Incomplete Media Vault groups payload.');
+  }
+  return {
+    posts: payload.posts,
+    categories: payload.categories.map((category) => ({
+      ...category,
+      asset_count: Number(category.asset_count) || (category.assets?.length ?? 0),
+      assets: Array.isArray(category.assets) ? category.assets : [],
+    })),
+  };
+}
