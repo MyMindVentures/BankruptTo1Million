@@ -1,6 +1,7 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { navGroups, primaryNavItems } from '../data/siteContent';
+import type { NavItem } from '../data/siteContent';
 import type { I18nManifest } from '../lib/i18nManifest';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { LanguageSelector } from './LanguageSelector';
@@ -25,34 +26,54 @@ export const HEADER_I18N_MANIFEST = {
 
 const groupLabelFallbacks: Record<string, string> = {
   'navigation.group.explore': 'Explore',
-  'navigation.group.community': 'Community',
-  'navigation.group.participate': 'Participate',
+  'navigation.group.community': 'People & work',
+  'navigation.group.participate': 'Join & support',
 };
 
-const activePublicNavigationHrefs = new Set([
-  '/#top',
-  '/#story',
-  '/#platform',
-  '/#roadmap',
-  '/journal',
-  '/founders',
-  '/offers',
-  '/media',
-  '/calendar',
-  '/proof-of-mind',
-  '/break-the-circle',
-  '/founder-support',
-  '/impact',
-  '/issues',
-]);
+const allNavigationItems = [...primaryNavItems, ...navGroups.flatMap((group) => group.items)];
+const navigationItemByHref = new Map(allNavigationItems.map((item) => [item.href, item]));
 
-const visiblePrimaryNavItems = primaryNavItems.filter((item) => activePublicNavigationHrefs.has(item.href));
-const visibleNavGroups = navGroups
-  .map((group) => ({
-    ...group,
-    items: group.items.filter((item) => activePublicNavigationHrefs.has(item.href)),
-  }))
-  .filter((group) => group.items.length > 0);
+function navigationItems(hrefs: string[]): NavItem[] {
+  return hrefs
+    .map((href) => navigationItemByHref.get(href))
+    .filter((item): item is NavItem => Boolean(item));
+}
+
+const visiblePrimaryNavItems = navigationItems(['/#top']);
+
+const visibleNavGroups = [
+  {
+    id: 'explore',
+    labelKey: 'navigation.group.explore',
+    items: navigationItems([
+      '/journal',
+      '/#story',
+      '/media',
+      '/calendar',
+      '/#platform',
+      '/#roadmap',
+    ]),
+  },
+  {
+    id: 'community',
+    labelKey: 'navigation.group.community',
+    items: navigationItems([
+      '/founders',
+      '/offers',
+      '/proof-of-mind',
+      '/impact',
+    ]),
+  },
+  {
+    id: 'participate',
+    labelKey: 'navigation.group.participate',
+    items: navigationItems([
+      '/break-the-circle',
+      '/founder-support',
+      '/issues',
+    ]),
+  },
+].filter((group) => group.items.length > 0);
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
