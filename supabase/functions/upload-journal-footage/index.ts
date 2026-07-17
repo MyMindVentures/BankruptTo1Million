@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { extractCapturedAtIso } from "../_shared/mediaCapturedAt.ts";
 
 const U = Deno.env.get("SUPABASE_URL")!;
 const S = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -73,16 +74,21 @@ Deno.serve(async (request: Request) => {
 
     const mimeType = file.type || "application/octet-stream";
     const extension = fileExtension(file.name, mimeType);
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const capturedAt = await extractCapturedAtIso(bytes, mimeType);
+
     const assetMetadata = {
       ...parseMetadata(form),
       original_client_filename: file.name,
       source: "journal_event_capture",
+      ...(capturedAt ? { captured_at: capturedAt } : {}),
     };
 
     const resolved = await user.rpc("admin_resolve_journal_footage_upload", {
       post_id: postId,
       mime_type: mimeType,
       file_extension: extension,
+      p_captured_at: capturedAt,
     });
     if (resolved.error) throw new Error(resolved.error.message);
 
@@ -104,7 +110,6 @@ Deno.serve(async (request: Request) => {
     }
 
     const storage = createClient(U, S, { auth: { persistSession: false } }).storage;
-    const bytes = new Uint8Array(await file.arrayBuffer());
     const upload = await storage.from(bucketName).upload(objectPath, bytes, {
       contentType: mimeType,
       upsert: false,
@@ -121,6 +126,7 @@ Deno.serve(async (request: Request) => {
       placement_name: displayIndex === 0 ? "hero" : "gallery",
       display_index: displayIndex,
       asset_metadata: assetMetadata,
+      captured_at: capturedAt,
     });
     if (register.error) {
       await storage.from(bucketName).remove([objectPath]);
@@ -135,6 +141,7 @@ Deno.serve(async (request: Request) => {
       storage_file_name: storageFileName,
       display_index: displayIndex,
       name_base: payload.name_base ?? null,
+      captured_at: capturedAt,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Footage upload failed.";

@@ -39,6 +39,7 @@ type MediaAssetRow = {
   duration_seconds: number | string | null;
   tags: string[] | null;
   metadata: unknown;
+  captured_at: string | null;
   published_at: string | null;
   created_at: string;
 };
@@ -83,7 +84,10 @@ function toPublicMediaAsset(row: MediaAssetRow): PublicMediaAsset {
     kind: toKind(row.asset_type),
     category,
     location: typeof metadata.location === 'string' ? metadata.location : '',
-    capturedAt: typeof metadata.captured_at === 'string' ? metadata.captured_at : row.published_at || row.created_at,
+    capturedAt: row.captured_at
+      || (typeof metadata.captured_at === 'string' ? metadata.captured_at : '')
+      || row.published_at
+      || row.created_at,
     imageUrl: thumbnailUrl || mediaUrl,
     mediaUrl,
     thumbnailUrl,
@@ -98,11 +102,11 @@ function toPublicMediaAsset(row: MediaAssetRow): PublicMediaAsset {
 
 export async function getPublicMediaAssets(): Promise<PublicMediaAsset[]> {
   const query = new URLSearchParams({
-    select: 'id,asset_type,title,description,alt_text,caption,storage_bucket,storage_path,thumbnail_url,mime_type,width,height,duration_seconds,tags,metadata,published_at,created_at',
+    select: 'id,asset_type,title,description,alt_text,caption,storage_bucket,storage_path,thumbnail_url,mime_type,width,height,duration_seconds,tags,metadata,captured_at,published_at,created_at',
     visibility: 'eq.public',
     status: 'eq.published',
     show_in_media_vault: 'eq.true',
-    order: 'published_at.desc.nullslast,created_at.desc',
+    order: 'captured_at.desc.nullslast,published_at.desc.nullslast,created_at.desc',
   });
 
   const response = await supabase.from('media_assets').request({ query: query.toString() });

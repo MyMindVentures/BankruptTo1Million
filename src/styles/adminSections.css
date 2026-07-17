@@ -19,6 +19,7 @@
 .admin-media-filter-chip.is-active,.admin-media-filter-chip:hover{border-color:rgba(214,255,105,.35);background:var(--admin-accent-soft);color:#eef7c8}
 .admin-media-filter-chip.is-active span{background:rgba(214,255,105,.22);color:#11170c}
 .admin-media-vault-event{display:block;margin-top:6px;color:#91a198;font-size:10px}
+.admin-media-vault-captured{display:block;margin-top:4px;color:#91a198;font-size:10px}
 
 .admin-media-preview-video-wrap{position:relative;display:block;width:100%;aspect-ratio:16/10;overflow:hidden;background:rgba(255,255,255,.035)}
 .admin-media-preview-video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;background:#0b1210}

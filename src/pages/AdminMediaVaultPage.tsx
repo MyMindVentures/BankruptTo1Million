@@ -112,6 +112,20 @@ function formatEventDateTime(
   });
 }
 
+function formatAssetCaptureLine(
+  t: (key: string, fallback: string, variables?: Record<string, string | number>) => string,
+  formatDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string,
+  asset: { captured_at?: string | null; created_at: string },
+): string {
+  const capturedAt = asset.captured_at?.trim() || '';
+  const datetime = formatEventDateTime(formatDate, capturedAt || asset.created_at, 'Europe/Madrid');
+  if (!datetime) return '';
+  if (capturedAt) {
+    return t('admin.media.captured_at', 'Captured {datetime}', { datetime });
+  }
+  return t('admin.media.uploaded_at', 'Uploaded {datetime}', { datetime });
+}
+
 function categoryFilterKey(key: string): MediaFilter | null {
   if (key === 'journal_unlinked') return 'journal';
   if (key === 'founders' || key === 'journey_events' || key === 'other') return key;
@@ -475,6 +489,7 @@ export function AdminMediaVaultPage() {
                   {detailAssets.map((asset) => {
                     const preview = assetPreview(asset);
                     const deleting = deletingAssetId === asset.asset_id;
+                    const captureLine = formatAssetCaptureLine(t, formatDate, asset);
                     return (
                       <article key={asset.asset_id} className="admin-media-vault-tile">
                         <div className="admin-media-vault-tile__preview">
@@ -496,6 +511,7 @@ export function AdminMediaVaultPage() {
                         </div>
                         <div>
                           <strong>{asset.original_filename || asset.caption || asset.asset_id}</strong>
+                          {captureLine ? <span className="admin-media-vault-captured">{captureLine}</span> : null}
                           <span>{asset.caption || asset.alt_text || '—'}</span>
                           <small>{asset.asset_type}</small>
                         </div>

@@ -144,6 +144,34 @@ const mediaDeleteMigration = readFileSync(new URL('../supabase/migrations/202607
 const deleteFootageEdge = readFileSync(new URL('../supabase/functions/delete-journal-footage/index.ts', import.meta.url), 'utf8');
 const journalAdminApi = readFileSync(new URL('../src/lib/journalAdminApi.ts', import.meta.url), 'utf8');
 
+test('media vault asset cards show capture timestamp and sort newest first', () => {
+  const mediaCapturedMigration = readFileSync(new URL('../supabase/migrations/20260719126000_media_assets_captured_at.sql', import.meta.url), 'utf8');
+  assert.match(mediaCapturedMigration, /add column if not exists captured_at/);
+  assert.match(mediaCapturedMigration, /ma\.captured_at/);
+  assert.match(mediaCapturedMigration, /order by ma\.captured_at desc nulls last/);
+  assert.match(mediaCapturedMigration, /'captured_at', c\.captured_at/);
+  assert.match(api, /captured_at: string \| null/);
+  assert.match(journalAdminApi, /captured_at: string \| null/);
+  assert.match(mediaVaultPage, /formatAssetCaptureLine/);
+  assert.match(mediaVaultPage, /admin\.media\.captured_at/);
+  assert.match(mediaVaultPage, /admin\.media\.uploaded_at/);
+  assert.match(mediaVaultPage, /admin-media-vault-captured/);
+  assert.match(css, /admin-media-vault-captured/);
+});
+
+test('journal footage upload and backfill extract capture timestamps from media files', () => {
+  const uploadEdge = readFileSync(new URL('../supabase/functions/upload-journal-footage/index.ts', import.meta.url), 'utf8');
+  const backfillEdge = readFileSync(new URL('../supabase/functions/backfill-media-captured-at/index.ts', import.meta.url), 'utf8');
+  const sharedParser = readFileSync(new URL('../supabase/functions/_shared/mediaCapturedAt.ts', import.meta.url), 'utf8');
+  assert.match(sharedParser, /extractCapturedAtIso/);
+  assert.match(sharedParser, /DateTimeOriginal/);
+  assert.match(sharedParser, /exifr/);
+  assert.match(uploadEdge, /extractCapturedAtIso/);
+  assert.match(uploadEdge, /captured_at: capturedAt/);
+  assert.match(backfillEdge, /extractCapturedAtIso/);
+  assert.match(backfillEdge, /captured_at: capturedAt/);
+});
+
 test('media vault post groups support upload and hard-delete footage', () => {
   assert.match(mediaDeleteMigration, /create or replace function public\.admin_delete_journal_footage/);
   assert.match(mediaDeleteMigration, /create or replace function public\.admin_finalize_journal_footage_delete/);

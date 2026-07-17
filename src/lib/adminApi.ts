@@ -281,6 +281,7 @@ export type AdminMediaVaultAsset = {
   caption: string | null;
   display_order: number;
   created_at: string;
+  captured_at: string | null;
   original_filename: string | null;
 };
 
