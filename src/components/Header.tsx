@@ -36,10 +36,33 @@ function buildNavigationHref(href: string, currentSearch: string): string {
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
+  const [openDesktopGroup, setOpenDesktopGroup] = useState<string | null>(null);
+  const [openMobileGroup, setOpenMobileGroup] = useState<string | null>(null);
   const { t } = useWebsiteI18n();
   const mobileMenuId = 'mobile-navigation';
-  const closeMobileMenu = () => setIsMenuOpen(false);
-  const toggleMobileMenu = () => setIsMenuOpen((isOpen) => !isOpen);
+
+  const closeAllGroups = () => {
+    setOpenDesktopGroup(null);
+    setOpenMobileGroup(null);
+  };
+
+  const closeMobileMenu = () => {
+    setIsMenuOpen(false);
+    setOpenMobileGroup(null);
+  };
+
+  const closeNavigation = () => {
+    closeAllGroups();
+    setIsMenuOpen(false);
+  };
+
+  const toggleMobileMenu = () => {
+    setIsMenuOpen((isOpen) => {
+      if (isOpen) setOpenMobileGroup(null);
+      return !isOpen;
+    });
+  };
+
   const currentSearch = typeof window === 'undefined' ? '' : window.location.search;
 
   const hrefFor = useMemo(
@@ -51,7 +74,7 @@ export function Header() {
     if (!isMenuOpen) return undefined;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') closeMobileMenu();
+      if (event.key === 'Escape') closeNavigation();
     };
     const onResize = () => {
       if (window.innerWidth > 1024) closeMobileMenu();
@@ -73,29 +96,37 @@ export function Header() {
     <header className="site-header">
       <div className="site-header__inner">
         <div className="site-header__bar">
-          <a className="brand" href={hrefFor(homeLink.href)} aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')} onClick={closeMobileMenu}>
+          <a className="brand" href={hrefFor(homeLink.href)} aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')} onClick={closeNavigation}>
             <span className="brand__mark"><MissionLogo eager decorative /></span>
             <span className="brand__text">Bankrupt to 1 Million</span>
           </a>
 
           <nav className="site-nav site-nav--desktop" aria-label={t('header.primary_navigation_aria', 'Primary navigation')}>
             <div className="site-nav--primary">
-              <a href={hrefFor(homeLink.href)}>{t(homeLink.translationKey, homeLink.label)}</a>
+              <a href={hrefFor(homeLink.href)} onClick={closeAllGroups}>{t(homeLink.translationKey, homeLink.label)}</a>
               {headerGroups.map((group) => (
-                <details key={group.id} className="site-nav__group">
+                <details
+                  key={group.id}
+                  className="site-nav__group"
+                  open={openDesktopGroup === group.id}
+                  onToggle={(event) => {
+                    const isOpen = event.currentTarget.open;
+                    setOpenDesktopGroup(isOpen ? group.id : (current) => current === group.id ? null : current);
+                  }}
+                >
                   <summary aria-label={t('header.nav_group_toggle_aria', 'Open {group} links', { group: t(group.translationKey, group.label) })}>
                     {t(group.translationKey, group.label)}
                   </summary>
                   <div className="site-nav__dropdown" role="list">
                     {group.links.filter((link) => link.showInHeader).map((link) => (
-                      <a key={link.id} href={hrefFor(link.href)} role="listitem">
+                      <a key={link.id} href={hrefFor(link.href)} role="listitem" onClick={closeAllGroups}>
                         {t(link.translationKey, link.label)}
                       </a>
                     ))}
                   </div>
                 </details>
               ))}
-              <a className="site-nav__cta" href={hrefFor(supportCta.href)}>
+              <a className="site-nav__cta" href={hrefFor(supportCta.href)} onClick={closeAllGroups}>
                 {t(supportCta.translationKey, supportCta.label)}
               </a>
             </div>
@@ -112,15 +143,23 @@ export function Header() {
       <div className="mobile-nav-panel" id={mobileMenuId} data-open={isMenuOpen} hidden={!isMenuOpen}>
         <nav className="site-nav site-nav--mobile-groups" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
           <div className="site-nav__mobile-primary">
-            <a href={hrefFor(homeLink.href)} onClick={closeMobileMenu}>{t(homeLink.translationKey, homeLink.label)}</a>
-            <a className="site-nav__cta" href={hrefFor(supportCta.href)} onClick={closeMobileMenu}>{t(supportCta.translationKey, supportCta.label)}</a>
+            <a href={hrefFor(homeLink.href)} onClick={closeNavigation}>{t(homeLink.translationKey, homeLink.label)}</a>
+            <a className="site-nav__cta" href={hrefFor(supportCta.href)} onClick={closeNavigation}>{t(supportCta.translationKey, supportCta.label)}</a>
           </div>
           {headerGroups.map((group) => (
-            <details key={group.id} className="site-nav__mobile-group">
+            <details
+              key={group.id}
+              className="site-nav__mobile-group"
+              open={openMobileGroup === group.id}
+              onToggle={(event) => {
+                const isOpen = event.currentTarget.open;
+                setOpenMobileGroup(isOpen ? group.id : (current) => current === group.id ? null : current);
+              }}
+            >
               <summary>{t(group.translationKey, group.label)}</summary>
               <div className="site-nav__mobile-group__links">
                 {group.links.filter((link) => link.showInHeader).map((link) => (
-                  <a key={link.id} href={hrefFor(link.href)} onClick={closeMobileMenu}>{t(link.translationKey, link.label)}</a>
+                  <a key={link.id} href={hrefFor(link.href)} onClick={closeNavigation}>{t(link.translationKey, link.label)}</a>
                 ))}
               </div>
             </details>
