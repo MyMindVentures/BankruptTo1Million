@@ -27,13 +27,27 @@ type OpenGroup =
   | { kind: 'category'; value: AdminMediaVaultCategoryGroup };
 type DetailAsset = AdminMediaVaultAsset | (AdminJournalFootageItem & { title?: string | null });
 type PreviewValue = { type: 'image' | 'video'; url: string } | null;
+type PreviewInput = {
+  thumbnail_url?: string | null;
+  storage_bucket?: string | null;
+  storage_path?: string | null;
+  asset_type?: string | null;
+  cover_thumbnail_url?: string | null;
+  cover_storage_bucket?: string | null;
+  cover_storage_path?: string | null;
+  cover_asset_type?: string | null;
+};
 
-function preview(input: { thumbnail_url?: string | null; storage_bucket?: string | null; storage_path?: string | null; asset_type?: string | null }): PreviewValue {
-  const thumbnail = resolvePublicMediaUrl(input.thumbnail_url);
+function preview(input: PreviewInput): PreviewValue {
+  const thumbnailUrl = input.thumbnail_url ?? input.cover_thumbnail_url;
+  const storageBucket = input.storage_bucket ?? input.cover_storage_bucket;
+  const storagePath = input.storage_path ?? input.cover_storage_path;
+  const assetType = input.asset_type ?? input.cover_asset_type;
+  const thumbnail = resolvePublicMediaUrl(thumbnailUrl);
   if (thumbnail) return { type: 'image', url: thumbnail };
-  const url = resolvePublicMediaUrl(null, input.storage_bucket, input.storage_path);
+  const url = resolvePublicMediaUrl(null, storageBucket, storagePath);
   if (!url) return null;
-  return { type: String(input.asset_type).toLowerCase() === 'video' ? 'video' : 'image', url };
+  return { type: String(assetType).toLowerCase() === 'video' ? 'video' : 'image', url };
 }
 
 function Preview({ value, alt }: { value: PreviewValue; alt: string }) {
