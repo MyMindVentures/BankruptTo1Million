@@ -1,0 +1,15 @@
+.site-nav--primary .site-nav__cta,
+.site-nav__mobile-primary .site-nav__cta {
+  border-color: rgba(215, 168, 79, 0.38);
+  background: rgba(215, 168, 79, 0.12);
+  color: var(--gold);
+  font-weight: 800;
+}
+
+.site-nav--primary .site-nav__cta:hover,
+.site-nav--primary .site-nav__cta:focus-visible,
+.site-nav__mobile-primary .site-nav__cta:hover,
+.site-nav__mobile-primary .site-nav__cta:focus-visible {
+  background: rgba(215, 168, 79, 0.2);
+  color: var(--text);
+}
