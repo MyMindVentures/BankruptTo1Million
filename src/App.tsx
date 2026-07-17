@@ -7,6 +7,7 @@ import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pag
 import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
+import { HomePage } from './pages/HomePage';
 import { FoundingHeroesFinancialSupport } from './components/FoundingHeroesFinancialSupport';
 import { supabase } from './lib/supabase';
 import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
@@ -15,7 +16,6 @@ import { foundingHeroRoles } from './data/siteContent';
 import { categoryById, getSupportOpportunities, opportunitiesForCategory, submitSupportOffer, supportCategories } from './lib/supportMission';
 import type { SupportOffer, SupportOpportunity } from './lib/supportMission';
 import { useWebsiteI18n } from './lib/websiteI18n';
-import { HomePage } from './pages/HomePage';
 import type { I18nManifest } from './lib/i18nManifest';
 
 export const APP_I18N_MANIFEST = {
@@ -248,7 +248,6 @@ function issueField(issue: GithubIssue, key: FilterKey) {
 function primaryClaim(issue: GithubIssue) { return issue.github_issue_developers?.find((d) => d.is_primary_claimant !== false && !['released', 'completed'].includes(normalize(d.contribution_status))) || null; }
 function claimProfile(claim: IssueDeveloper | null): PublicProfile | null { return Array.isArray(claim?.profiles) ? claim.profiles[0] || null : claim?.profiles || null; }
 function isClaimAvailable(issue: GithubIssue) { return normalize(issue.state) !== 'closed' && !primaryClaim(issue) && !['claimed', 'in-progress'].includes(normalize(issue.claim_status)); }
-function fmt(value?: string) { return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value)) : ''; }
 function markdown(text?: string) {
   const safe = String(text || 'No issue body was synchronized.').replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]!));
   return safe.replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h2>$1</h2>').replace(/^# (.*)$/gm, '<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\n/g, '<br />');
@@ -879,7 +878,7 @@ function BecomeFoundingHeroPage() {
 }
 
 
-function SupportMissionPage({ categoryId }: { categoryId?: string }) {
+export function SupportMissionPage({ categoryId }: { categoryId?: string }) {
   const { t } = useWebsiteI18n();
   const selectedCategory = categoryById(categoryId || '') || supportCategories[0];
   const [opportunities, setOpportunities] = useState<SupportOpportunity[]>([]);

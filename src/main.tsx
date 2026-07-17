@@ -1,10 +1,5 @@
 import { StrictMode, useEffect, useRef } from 'react';
-import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import App from './App.tsx';
-import { Footer } from './components/Footer';
-import { FounderSupportQrShare } from './components/FounderSupportQrShare';
-import { Header } from './components/Header';
 import { initializeConceptMessageUi } from './lib/conceptMessageUi';
 import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
 import { initializeFounderPostUi } from './lib/founderPostUi';
@@ -14,20 +9,10 @@ import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
+import { resolvePublicPage } from './lib/publicRoutes';
 import { WebsiteI18nProvider, useWebsiteI18n } from './lib/websiteI18n';
-import { AdminAuthGate } from './pages/AdminAuthGate';
-import { FounderProfilePage } from './pages/FounderProfilePage';
-import { FoundersOverviewPage } from './pages/FoundersOverviewPage';
-import { HomePage } from './pages/HomePage';
-import { ImpactResultsPage } from './pages/ImpactResultsPage';
-import { JournalLandingPage } from './pages/JournalLandingPage';
-import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
-import { LocalizedFounderSupportPage } from './pages/LocalizedFounderSupportPage';
-import { MediaVaultPage } from './pages/MediaVaultPage';
-import { OfferDetailPage } from './pages/OfferDetailPage';
-import { OffersPage } from './pages/OffersPage';
-import { CalendarPage } from './pages/CalendarPage';
-import { PublicBuildRequestsPage } from './pages/PublicBuildRequestsPage';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
 import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
@@ -65,7 +50,6 @@ import './styles/adminSections.css';
 import './styles/journalAdmin.css';
 import './styles/journalAi.css';
 import './styles/adminAiControlCenter.css';
-import { OutreachPrivatePage } from './pages/OutreachPrivatePage';
 import './styles/outreachPrivate.css';
 
 initializeJournalArticleEnhancements();
@@ -88,50 +72,17 @@ function PublicUiInitializers() {
   return null;
 }
 
-const path = window.location.pathname.replace(/\/$/, '') || '/';
-const founderSlug = path.startsWith('/founders/') ? decodeURIComponent(path.split('/')[2] || '') : '';
-const offerSlug = path.startsWith('/offers/') ? decodeURIComponent(path.split('/')[2] || '') : '';
-const outreachMatch = path.match(/^\/o\/([^/]+)\/([^/]+)$/);
-const outreachSlug = outreachMatch ? decodeURIComponent(outreachMatch[1]) : '';
-const outreachToken = outreachMatch ? decodeURIComponent(outreachMatch[2]) : '';
-const mediaPage = path === '/media' || path === '/media-vault';
-const adminPage = path === '/admin' || path.startsWith('/admin/');
-const withSiteShell = (page: ReactNode) => <><Header /><div className="page-shell">{page}</div><Footer /></>;
-const rootPage = adminPage
-  ? <AdminAuthGate />
-  : outreachSlug && outreachToken
-    ? <OutreachPrivatePage slug={outreachSlug} token={outreachToken} />
-    : path === '/'
-    ? withSiteShell(<HomePage />)
-    : path === '/founder-support'
-      ? withSiteShell(<><FounderSupportQrShare /><LocalizedFounderSupportPage /></>)
-    : path === '/legal'
-      ? <LegalTransparencyPage />
-      : path === '/impact'
-        ? <ImpactResultsPage />
-        : path === '/issues'
-          ? withSiteShell(<PublicBuildRequestsPage />)
-          : mediaPage
-            ? withSiteShell(<MediaVaultPage />)
-            : path === '/offers'
-              ? withSiteShell(<OffersPage />)
-              : path === '/calendar'
-                ? withSiteShell(<CalendarPage />)
-              : offerSlug
-                ? withSiteShell(<OfferDetailPage slug={offerSlug} />)
-                : path === '/journal'
-                  ? <JournalLandingPage />
-                  : path === '/founders'
-                    ? <FoundersOverviewPage />
-                    : founderSlug
-                      ? <FounderProfilePage slug={founderSlug} />
-                      : <App />;
+const rootPage = resolvePublicPage(window.location.pathname);
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <WebsiteI18nProvider>
       <PublicUiInitializers />
-      {rootPage}
+      <Header />
+      <div className="page-shell">
+        {rootPage}
+      </div>
+      <Footer />
     </WebsiteI18nProvider>
   </StrictMode>,
 );
