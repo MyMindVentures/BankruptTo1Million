@@ -108,7 +108,13 @@ export function AceternityContentCard({
         <div className={`aceternity-hover-card__media-band${hasFootage ? ' aceternity-hover-card__media-band--footage' : showCoverImage ? '' : ' aceternity-hover-card__media-band--brand'}`}>
           {hasFootage ? (
             <div className="aceternity-hover-card__media-overlay aceternity-hover-card__media-overlay--footage">
-              <JourneyFootageCarousel items={footage} title={title} embedInCard />
+              <JourneyFootageCarousel
+                items={footage}
+                title={title}
+                embedInCard
+                fallbackImageSrc={imageSrc}
+                fallbackImageAlt={imageAlt || title}
+              />
             </div>
           ) : showCoverImage ? (
             <>

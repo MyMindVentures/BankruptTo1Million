@@ -34,10 +34,14 @@ export function JourneyFootageCarousel({
   items,
   title,
   embedInCard = false,
+  fallbackImageSrc,
+  fallbackImageAlt,
 }: {
   items?: JourneyFootageItem[];
   title: string;
   embedInCard?: boolean;
+  fallbackImageSrc?: string;
+  fallbackImageAlt?: string;
 }) {
   const { t } = useWebsiteI18n();
   const footage = useMemo(
@@ -45,16 +49,52 @@ export function JourneyFootageCarousel({
     [items],
   );
   const [activeIndex, setActiveIndex] = useState(0);
+  const [failedIds, setFailedIds] = useState<Set<string>>(() => new Set());
+  const usableFootage = useMemo(
+    () => footage.filter((item) => !failedIds.has(item.id)),
+    [failedIds, footage],
+  );
 
-  useEffect(() => { setActiveIndex(0); }, [footage]);
   useEffect(() => {
-    if (footage.length < 2) return;
-    const timer = window.setInterval(() => setActiveIndex((index) => (index + 1) % footage.length), 3000);
-    return () => window.clearInterval(timer);
-  }, [footage.length]);
+    setActiveIndex(0);
+    setFailedIds(new Set());
+  }, [footage]);
 
-  if (!footage.length) return null;
-  const active = footage[activeIndex];
+  useEffect(() => {
+    if (activeIndex >= usableFootage.length) setActiveIndex(0);
+  }, [activeIndex, usableFootage.length]);
+
+  useEffect(() => {
+    if (usableFootage.length < 2) return;
+    const timer = window.setInterval(() => setActiveIndex((index) => (index + 1) % usableFootage.length), 3000);
+    return () => window.clearInterval(timer);
+  }, [usableFootage.length]);
+
+  const markFailed = (id: string) => {
+    setFailedIds((current) => {
+      if (current.has(id)) return current;
+      const next = new Set(current);
+      next.add(id);
+      return next;
+    });
+  };
+
+  if (!usableFootage.length) {
+    return fallbackImageSrc ? (
+      <div className={`journey-footage${embedInCard ? ' journey-footage--card' : ''}`}>
+        <div className="journey-footage__viewport">
+          <img
+            src={fallbackImageSrc}
+            alt={fallbackImageAlt || title}
+            loading={embedInCard ? 'eager' : 'lazy'}
+            decoding="async"
+          />
+        </div>
+      </div>
+    ) : null;
+  }
+
+  const active = usableFootage[activeIndex] || usableFootage[0];
   const label = active.alt_text || active.caption || t('journal.footage.default_alt', '{title} footage {number}', { title, number: activeIndex + 1 });
 
   return <div
@@ -63,13 +103,38 @@ export function JourneyFootageCarousel({
   >
     <div className="journey-footage__viewport">
       {isVideo(active)
-        ? <video key={active.id} src={active.url} poster={active.thumbnail_url || undefined} muted playsInline autoPlay loop preload="metadata" aria-label={label} />
-        : <img key={active.id} src={active.url} alt={label} loading="lazy" />}
+        ? <video
+          key={active.id}
+          src={active.url}
+          poster={active.thumbnail_url || undefined}
+          muted
+          playsInline
+          autoPlay
+          loop
+          preload="metadata"
+          aria-label={label}
+          onError={() => markFailed(active.id)}
+        />
+        : <img
+          key={active.id}
+          src={active.url}
+          alt={label}
+          loading={embedInCard ? 'eager' : 'lazy'}
+          decoding="async"
+          onError={(event) => {
+            const image = event.currentTarget;
+            if (active.thumbnail_url && image.src !== active.thumbnail_url) {
+              image.src = active.thumbnail_url;
+              return;
+            }
+            markFailed(active.id);
+          }}
+        />}
       <span className="journey-footage__badge">{t('journal.footage.badge', 'Footage')}</span>
       {active.caption ? <span className="journey-footage__caption">{active.caption}</span> : null}
     </div>
-    {footage.length > 1 ? <div className="journey-footage__controls" aria-label={t('journal.footage.slides_aria', 'Footage slides')}>
-      {footage.map((item, index) => <button
+    {usableFootage.length > 1 ? <div className="journey-footage__controls" aria-label={t('journal.footage.slides_aria', 'Footage slides')}>
+      {usableFootage.map((item, index) => <button
         key={item.id}
         type="button"
         className={index === activeIndex ? 'is-active' : ''}
