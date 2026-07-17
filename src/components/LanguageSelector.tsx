@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ComponentType, SVGProps } from 'react';
+import type { ComponentType, HTMLAttributes } from 'react';
 import type { I18nManifest } from '../lib/i18nManifest';
 import { Check, ChevronDown, Globe2 } from 'lucide-react';
 import AE from 'country-flag-icons/react/3x2/AE';
@@ -48,7 +48,7 @@ export const LANGUAGE_SELECTOR_I18N_MANIFEST = {
   ] as const,
 } as const satisfies I18nManifest;
 
-type FlagComponent = ComponentType<SVGProps<SVGSVGElement>>;
+type FlagComponent = ComponentType<HTMLAttributes<HTMLElement>>;
 
 const FLAG_BY_LANGUAGE: Record<string, FlagComponent> = {
   ar: SA,
