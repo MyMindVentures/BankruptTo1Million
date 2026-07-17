@@ -15,6 +15,7 @@ import { ImpactResultsPage } from '../pages/ImpactResultsPage';
 import { PublicBuildRequestsPage } from '../pages/PublicBuildRequestsPage';
 import { AdminAuthGate } from '../pages/AdminAuthGate';
 import { OutreachPrivatePage } from '../pages/OutreachPrivatePage';
+import { LegalPage } from '../pages/LegalPage';
 
 const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/': () => <HomePage />,
@@ -28,6 +29,7 @@ const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/offers': () => <OffersPage />,
   '/impact': () => <ImpactResultsPage />,
   '/issues': () => <PublicBuildRequestsPage />,
+  '/legal': () => <LegalPage />,
   '/admin': () => <AdminAuthGate />,
 };
 
