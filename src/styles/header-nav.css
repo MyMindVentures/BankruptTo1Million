@@ -1,3 +1,8 @@
+.site-header__inner {
+  width: min(100%, var(--max-width));
+  margin: 0 auto;
+}
+
 .site-header__tools {
   display: flex;
   align-items: center;
@@ -157,6 +162,10 @@
   font-weight: 700;
 }
 
+.mobile-nav-backdrop {
+  display: none;
+}
+
 @media (max-width: 1280px) {
   .site-nav--primary a,
   .site-nav__group > summary {
@@ -174,40 +183,86 @@
 }
 
 @media (max-width: 1024px) {
-  .site-nav--desktop {
+  .site-header__bar {
+    min-width: 0;
+    gap: 0.75rem;
+  }
+
+  .site-nav--desktop,
+  .site-header__tools {
     display: none !important;
+  }
+
+  .brand {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .brand__text {
+    max-width: none;
   }
 
   .menu-toggle {
     display: flex !important;
     flex: 0 0 auto;
+    position: relative;
+    z-index: 32;
+  }
+
+  .mobile-nav-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(3px);
   }
 
   .mobile-nav-panel {
+    position: fixed;
+    z-index: 30;
+    inset-inline: 0;
+    top: var(--header-height, 4.75rem);
     display: grid;
-    grid-template-rows: 0fr;
-    opacity: 0;
-    pointer-events: none;
-    transition: grid-template-rows 180ms ease, opacity 180ms ease, padding-top 180ms ease;
+    max-height: calc(100dvh - var(--header-height, 4.75rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1rem clamp(1rem, 4vw, 2rem) 1.5rem;
+    border-top: 1px solid var(--line);
+    background: rgba(16, 13, 10, 0.98);
+    box-shadow: 0 1.5rem 3rem rgba(0, 0, 0, 0.35);
   }
 
-  .mobile-nav-panel[data-open="true"] {
-    grid-template-rows: 1fr;
-    opacity: 1;
-    padding-top: 1rem;
-    pointer-events: auto;
+  .mobile-nav-panel[hidden] {
+    display: none !important;
   }
 
   .mobile-nav-panel > * {
-    overflow: hidden;
+    width: min(100%, var(--max-width));
+    margin-inline: auto;
+    overflow: visible;
   }
 }
 
 @media (max-width: 560px) {
-  .mobile-nav-panel[data-open="true"] {
-    max-height: calc(100dvh - var(--header-height));
-    overflow-y: auto;
-    overscroll-behavior: contain;
+  .site-header__bar {
+    gap: 0.5rem;
+  }
+
+  .brand__text {
+    display: block;
+    max-width: calc(100vw - 8rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mobile-nav-panel {
+    padding-inline: 0.75rem;
   }
 }
 
