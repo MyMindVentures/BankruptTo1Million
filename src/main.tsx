@@ -10,7 +10,7 @@ import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { RouterProvider, useRouter } from './lib/clientRouter';
-import { resolvePublicPage } from './lib/publicRoutes';
+import { canonicalizePublicPath, resolvePublicPage } from './lib/publicRoutes';
 import { WebsiteI18nProvider, useWebsiteI18n } from './lib/websiteI18n';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
@@ -74,14 +74,24 @@ function PublicUiInitializers() {
 }
 
 function AppShell() {
-  const { location } = useRouter();
+  const router = useRouter();
+  const canonicalPath = canonicalizePublicPath(router.location.pathname);
+
+  useEffect(() => {
+    if (canonicalPath === router.location.pathname) return;
+    router.navigate(`${canonicalPath}${router.location.search}${router.location.hash}`, {
+      replace: true,
+      preserveLanguage: false,
+      scroll: false,
+    });
+  }, [canonicalPath, router]);
 
   return (
     <>
       <PublicUiInitializers />
       <Header />
-      <div className="page-shell" key={location.pathname}>
-        {resolvePublicPage(location.pathname)}
+      <div className="page-shell" key={canonicalPath}>
+        {resolvePublicPage(canonicalPath)}
       </div>
       <Footer />
     </>
