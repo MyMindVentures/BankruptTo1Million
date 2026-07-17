@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CalendarDays, CheckCircle2, Filter, LoaderCircle, Mail, MapPin, Plus, RefreshCw, Search, Users, XCircle,
 } from 'lucide-react';
@@ -8,12 +8,16 @@ import {
   deleteJourneyCalendarEntry,
   listJourneyExchangeItems,
   listJourneyHostOffers,
+  listJourneyLookupOptions,
   requeueJourneyCalendarTranslations,
+  searchJournalPosts,
+  setJourneyCalendarExchangeItems,
   setJourneyCalendarFounders,
   slugifyTitle,
   updateJourneyHostOffer,
   upsertJourneyCalendarEntry,
   upsertJourneyExchangeItem,
+  upsertJourneyLookupOption,
   type CalendarEntry,
   type CalendarEntryPayload,
   type CalendarEntryStatus,
@@ -22,19 +26,55 @@ import {
   type ExchangeItem,
   type ExchangeItemPayload,
   type ExchangeItemStatus,
+  type ExchangePriority,
+  type ExchangeType,
   type HostOffer,
   type HostOfferStatus,
+  type HostRequestStatus,
+  type JournalPostSearchResult,
   type JourneyPerson,
+  type LookupKind,
+  type LookupOption,
   type TranslationSummary,
 } from '../lib/journeyCalendarAdminApi';
+import {
+  AdminField,
+  AdminMapPlacePicker,
+  DateRangeFields,
+  ISO_COUNTRIES,
+  NumberStepper,
+  SearchableMultiSelect,
+  SearchableSelect,
+  SegmentedControl,
+  countryNameForCode,
+} from '../components/admin/pickers';
+import '../components/admin/pickers/adminPickers.css';
 import '../styles/journeyCalendarAdmin.css';
 
 type TabKey = 'stops' | 'hosts' | 'exchange';
+type ToastTone = 'success' | 'error';
+type AdminToast = { id: number; tone: ToastTone; message: string };
+
+const TOAST_MS = 3500;
+const FLEXIBILITY_PRESETS = [0, 1, 3, 7, 14];
 
 const entryStatuses: CalendarEntryStatus[] = ['idea', 'planned', 'confirmed', 'travelling', 'completed', 'cancelled'];
 const hostStatuses: HostOfferStatus[] = ['new', 'reviewing', 'contacted', 'accepted', 'declined', 'withdrawn'];
 const exchangeStatuses: ExchangeItemStatus[] = ['draft', 'active', 'fulfilled', 'paused', 'archived'];
 const people: JourneyPerson[] = ['kevin', 'micha', 'together'];
+const hostRequestStatuses: HostRequestStatus[] = ['not_needed', 'open', 'offers_received', 'matched', 'closed'];
+const exchangePriorities: ExchangePriority[] = ['low', 'normal', 'high', 'urgent'];
+const exchangeTypes: ExchangeType[] = ['free', 'barter', 'donation', 'paid', 'mixed'];
+
+function allTimezones(): string[] {
+  try {
+    const supported = (Intl as unknown as { supportedValuesOf?: (key: string) => string[] }).supportedValuesOf?.('timeZone');
+    if (supported?.length) return supported;
+  } catch {
+    /* fallback below */
+  }
+  return ['UTC', 'Europe/Amsterdam', 'Europe/Madrid', 'Europe/London', 'America/New_York'];
+}
 
 function label(value: string | null | undefined) {
   if (!value) return '—';
@@ -79,12 +119,6 @@ function emptyEntryForm(): CalendarEntryPayload {
     display_order: 0,
     related_journal_post_id: null,
   };
-}
-
-function parseOptionalNumber(value: string): number | null {
-  if (value.trim() === '') return null;
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function entryToForm(entry: CalendarEntry): CalendarEntryPayload {
@@ -161,10 +195,45 @@ export function JourneyCalendarAdminPage() {
   const [translations, setTranslations] = useState<TranslationSummary | null>(null);
   const [exchangeForm, setExchangeForm] = useState<ExchangeItemPayload>(emptyExchangeForm());
   const [showExchangeForm, setShowExchangeForm] = useState(false);
+  const [showLinkExchange, setShowLinkExchange] = useState(false);
+  const [selectedExchangeIds, setSelectedExchangeIds] = useState<string[]>([]);
+  const [lookupOptions, setLookupOptions] = useState<LookupOption[]>([]);
+  const [allExchangeOptions, setAllExchangeOptions] = useState<ExchangeItem[]>([]);
+  const [journalResults, setJournalResults] = useState<JournalPostSearchResult[]>([]);
+  const [journalSearch, setJournalSearch] = useState('');
+  const [newLookupLabel, setNewLookupLabel] = useState('');
+  const [managingLookupKind, setManagingLookupKind] = useState<LookupKind | null>(null);
+  const [pickerLoadError, setPickerLoadError] = useState<string | null>(null);
+  const [journalSearchDirty, setJournalSearchDirty] = useState(false);
+  const [pinnedJournal, setPinnedJournal] = useState<JournalPostSearchResult | null>(null);
 
   const [selectedOffer, setSelectedOffer] = useState<HostOffer | null>(null);
   const [offerNotes, setOfferNotes] = useState('');
   const [selectedExchange, setSelectedExchange] = useState<ExchangeItem | null>(null);
+  const [toasts, setToasts] = useState<AdminToast[]>([]);
+  const toastTimers = useRef<Map<number, number>>(new Map());
+  const toastIdRef = useRef(0);
+
+  function dismissToast(id: number) {
+    const timer = toastTimers.current.get(id);
+    if (timer != null) {
+      window.clearTimeout(timer);
+      toastTimers.current.delete(id);
+    }
+    setToasts((current) => current.filter((toast) => toast.id !== id));
+  }
+
+  function pushToast(tone: ToastTone, message: string) {
+    const id = ++toastIdRef.current;
+    setToasts((current) => [...current, { id, tone, message }]);
+    const timer = window.setTimeout(() => dismissToast(id), TOAST_MS);
+    toastTimers.current.set(id, timer);
+  }
+
+  useEffect(() => () => {
+    for (const timer of toastTimers.current.values()) window.clearTimeout(timer);
+    toastTimers.current.clear();
+  }, []);
 
   async function loadStops() {
     const overview = await getJourneyCalendarOverview({ status: null, query: null });
@@ -252,30 +321,96 @@ export function JourneyCalendarAdminPage() {
     });
   }, [exchangeRows, query, status]);
 
+  async function loadEditorLookups() {
+    setPickerLoadError(null);
+    try {
+      const [lookups, exchange] = await Promise.all([
+        listJourneyLookupOptions({ includeInactive: false }),
+        listJourneyExchangeItems({ status: null, query: null }),
+      ]);
+      setLookupOptions(lookups);
+      setAllExchangeOptions(exchange.rows);
+      return { lookups, exchangeCount: exchange.rows.length };
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Could not load picker options from Supabase.';
+      setPickerLoadError(message);
+      setLookupOptions([]);
+      setAllExchangeOptions([]);
+      throw reason instanceof Error ? reason : new Error(message);
+    }
+  }
+
   async function openCreate() {
     setForm(emptyEntryForm());
     setSelectedFounderIds([]);
     setLinkedExchange([]);
+    setSelectedExchangeIds([]);
     setTranslations(null);
     setExchangeForm(emptyExchangeForm());
     setShowExchangeForm(false);
+    setShowLinkExchange(false);
+    setManagingLookupKind(null);
+    setNewLookupLabel('');
+    setJournalSearch('');
+    setJournalSearchDirty(false);
+    setPinnedJournal(null);
+    setJournalResults([]);
+    setPickerLoadError(null);
     setEditorOpen(true);
+    try {
+      await loadEditorLookups();
+      const posts = await searchJournalPosts({ query: '', limit: 25 });
+      setJournalResults(posts);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Could not load picker options.';
+      setPickerLoadError(message);
+      pushToast('error', message);
+    }
   }
 
   async function openEdit(row: CalendarOverviewRow) {
     setSaving(true);
     setError(null);
+    setPickerLoadError(null);
     try {
-      const detail = await getJourneyCalendarEntry(row.id);
+      const [detail] = await Promise.all([
+        getJourneyCalendarEntry(row.id),
+        loadEditorLookups(),
+      ]);
       setForm(entryToForm(detail.entry));
       setSelectedFounderIds(detail.founders.map((item) => item.founder_profile_id));
       setLinkedExchange(detail.exchange_items);
+      setSelectedExchangeIds(detail.exchange_items.map((item) => item.id));
       setTranslations(detail.translations);
       setExchangeForm(emptyExchangeForm(row.id));
       setShowExchangeForm(false);
+      setShowLinkExchange(false);
+      setManagingLookupKind(null);
+      setNewLookupLabel('');
+      setJournalSearch('');
+      setJournalSearchDirty(false);
+      const relatedId = detail.entry.related_journal_post_id;
+      if (relatedId) {
+        const posts = await searchJournalPosts({ query: relatedId, limit: 25 });
+        setJournalResults(posts);
+        setPinnedJournal(posts.find((post) => post.id === relatedId) || {
+          id: relatedId,
+          title: relatedId,
+          slug: '',
+          status: 'unknown',
+          published_at: null,
+          created_at: '',
+        });
+      } else {
+        const posts = await searchJournalPosts({ query: '', limit: 25 });
+        setJournalResults(posts);
+        setPinnedJournal(null);
+      }
       setEditorOpen(true);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not open calendar stop.');
+      const message = reason instanceof Error ? reason.message : 'Could not open calendar stop.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -285,7 +420,9 @@ export function JourneyCalendarAdminPage() {
     const hasLatitude = form.latitude != null;
     const hasLongitude = form.longitude != null;
     if (hasLatitude !== hasLongitude) {
-      setError('Latitude and longitude must both be set, or both left empty.');
+      const message = 'Latitude and longitude must both be set, or both left empty.';
+      setError(message);
+      pushToast('error', message);
       return;
     }
 
@@ -303,17 +440,28 @@ export function JourneyCalendarAdminPage() {
         longitude: form.longitude ?? null,
         accommodation_from: form.accommodation_from || null,
         accommodation_until: form.accommodation_until || null,
+        transport_mode: form.transport_mode?.trim() || null,
+        country_code: form.country_code?.trim() || null,
+        country_name: form.country_name?.trim() || null,
       };
       const saved = await upsertJourneyCalendarEntry(payload);
       await setJourneyCalendarFounders(saved.id, selectedFounderIds);
+      const linked = await setJourneyCalendarExchangeItems(saved.id, selectedExchangeIds);
+      setLinkedExchange(linked);
+      setSelectedExchangeIds(linked.map((item) => item.id));
       const detail = await getJourneyCalendarEntry(saved.id);
       setForm(entryToForm(detail.entry));
       setSelectedFounderIds(detail.founders.map((item) => item.founder_profile_id));
       setLinkedExchange(detail.exchange_items);
+      setSelectedExchangeIds(detail.exchange_items.map((item) => item.id));
       setTranslations(detail.translations);
       await loadStops();
+      setError(null);
+      pushToast('success', 'Stop saved');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not save calendar stop.');
+      const message = reason instanceof Error ? reason.message : 'Could not save calendar stop.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -333,10 +481,15 @@ export function JourneyCalendarAdminPage() {
       setForm(emptyEntryForm());
       setSelectedFounderIds([]);
       setLinkedExchange([]);
+      setSelectedExchangeIds([]);
       setTranslations(null);
       await loadStops();
+      setError(null);
+      pushToast('success', 'Stop deleted');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not delete calendar stop.');
+      const message = reason instanceof Error ? reason.message : 'Could not delete calendar stop.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -344,26 +497,35 @@ export function JourneyCalendarAdminPage() {
 
   async function saveLinkedExchange() {
     if (!form.id && !exchangeForm.calendar_entry_id) {
-      setError('Save the stop first, then add needs/offers.');
+      const message = 'Save the stop first, then add needs/offers.';
+      setError(message);
+      pushToast('error', message);
       return;
     }
     setSaving(true);
     setError(null);
     try {
       const entryId = form.id || exchangeForm.calendar_entry_id;
-      await upsertJourneyExchangeItem({
+      const created = await upsertJourneyExchangeItem({
         ...exchangeForm,
         calendar_entry_id: entryId,
       });
+      const nextIds = Array.from(new Set([...selectedExchangeIds, created.id]));
       if (entryId) {
-        const detail = await getJourneyCalendarEntry(entryId);
-        setLinkedExchange(detail.exchange_items);
+        const linked = await setJourneyCalendarExchangeItems(entryId, nextIds);
+        setLinkedExchange(linked);
+        setSelectedExchangeIds(linked.map((item) => item.id));
       }
       setExchangeForm(emptyExchangeForm(entryId));
       setShowExchangeForm(false);
+      await loadEditorLookups();
       await loadStops();
+      setError(null);
+      pushToast('success', 'Exchange item saved');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not save exchange item.');
+      const message = reason instanceof Error ? reason.message : 'Could not save exchange item.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -371,14 +533,20 @@ export function JourneyCalendarAdminPage() {
 
   async function requeueTranslations() {
     if (!form.id) return;
+    const confirmed = window.confirm('Confirm requeueing translations for this stop?');
+    if (!confirmed) return;
     setSaving(true);
     setError(null);
     try {
       await requeueJourneyCalendarTranslations({ entityType: 'journey_calendar_entry', entityId: form.id });
       const detail = await getJourneyCalendarEntry(form.id);
       setTranslations(detail.translations);
+      setError(null);
+      pushToast('success', 'Translations requeued');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not requeue translations.');
+      const message = reason instanceof Error ? reason.message : 'Could not requeue translations.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -386,6 +554,14 @@ export function JourneyCalendarAdminPage() {
 
   async function moderateOffer(nextStatus: HostOfferStatus) {
     if (!selectedOffer) return;
+    if (nextStatus === 'accepted') {
+      const confirmed = window.confirm('Confirm accepting this host offer?');
+      if (!confirmed) return;
+    }
+    if (nextStatus === 'declined') {
+      const confirmed = window.confirm('Confirm declining this host offer?');
+      if (!confirmed) return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -396,8 +572,12 @@ export function JourneyCalendarAdminPage() {
       });
       setSelectedOffer({ ...selectedOffer, ...updated });
       await loadHosts();
+      setError(null);
+      pushToast('success', `Host offer marked ${nextStatus}`);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not update host offer.');
+      const message = reason instanceof Error ? reason.message : 'Could not update host offer.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -427,8 +607,12 @@ export function JourneyCalendarAdminPage() {
       });
       setSelectedExchange(null);
       await loadExchange();
+      setError(null);
+      pushToast('success', 'Exchange item saved');
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not save exchange item.');
+      const message = reason instanceof Error ? reason.message : 'Could not save exchange item.';
+      setError(message);
+      pushToast('error', message);
     } finally {
       setSaving(false);
     }
@@ -440,11 +624,176 @@ export function JourneyCalendarAdminPage() {
     ));
   }
 
+  async function addLookupOption(kind: LookupKind) {
+    const labelText = newLookupLabel.trim();
+    if (!labelText) return;
+    setSaving(true);
+    try {
+      await upsertJourneyLookupOption({
+        kind,
+        option_key: labelText,
+        label: labelText,
+        sort_order: 200,
+        is_active: true,
+      });
+      setNewLookupLabel('');
+      setLookupOptions(await listJourneyLookupOptions({ includeInactive: false }));
+      pushToast('success', 'Option added');
+    } catch (reason) {
+      pushToast('error', reason instanceof Error ? reason.message : 'Could not add option.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deactivateLookupOption(option: LookupOption) {
+    setSaving(true);
+    try {
+      await upsertJourneyLookupOption({
+        id: option.id,
+        kind: option.kind,
+        option_key: option.option_key,
+        label: option.label,
+        sort_order: option.sort_order,
+        is_active: false,
+      });
+      setLookupOptions(await listJourneyLookupOptions({ includeInactive: false }));
+      pushToast('success', 'Option removed');
+    } catch (reason) {
+      pushToast('error', reason instanceof Error ? reason.message : 'Could not remove option.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!editorOpen || !journalSearchDirty) return;
+    const handle = window.setTimeout(() => {
+      void searchJournalPosts({ query: journalSearch, limit: 25 })
+        .then((posts) => {
+          setJournalResults(posts);
+          if (form.related_journal_post_id) {
+            const pinned = posts.find((post) => post.id === form.related_journal_post_id);
+            if (pinned) setPinnedJournal(pinned);
+          }
+        })
+        .catch((reason) => {
+          pushToast('error', reason instanceof Error ? reason.message : 'Journal search failed.');
+        });
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [journalSearch, journalSearchDirty, editorOpen, form.related_journal_post_id]);
+
+  const transportOptions = useMemo(() => {
+    const rows = lookupOptions.filter((item) => item.kind === 'transport_mode');
+    const current = form.transport_mode?.trim();
+    if (current && !rows.some((item) => item.option_key === current)) {
+      return [
+        ...rows,
+        {
+          id: `pinned-transport-${current}`,
+          kind: 'transport_mode' as const,
+          option_key: current,
+          label: current,
+          sort_order: 999,
+          is_active: true,
+        },
+      ];
+    }
+    return rows;
+  }, [lookupOptions, form.transport_mode]);
+  const categoryOptions = useMemo(() => {
+    const rows = lookupOptions.filter((item) => item.kind === 'exchange_category');
+    const current = exchangeForm.category?.trim();
+    if (current && !rows.some((item) => item.option_key === current)) {
+      return [
+        ...rows,
+        {
+          id: `pinned-category-${current}`,
+          kind: 'exchange_category' as const,
+          option_key: current,
+          label: current,
+          sort_order: 999,
+          is_active: true,
+        },
+      ];
+    }
+    return rows;
+  }, [lookupOptions, exchangeForm.category]);
+  const timezonePresetKeys = useMemo(
+    () => new Set(lookupOptions.filter((item) => item.kind === 'timezone_preset').map((item) => item.option_key)),
+    [lookupOptions],
+  );
+  const timezoneOptions = useMemo(() => {
+    const zones = allTimezones();
+    const presetFirst = [
+      ...lookupOptions.filter((item) => item.kind === 'timezone_preset').map((item) => item.option_key),
+      ...zones.filter((zone) => !timezonePresetKeys.has(zone)),
+    ];
+    if (form.timezone) presetFirst.unshift(form.timezone);
+    return Array.from(new Set(presetFirst)).map((zone) => ({ value: zone, label: zone }));
+  }, [lookupOptions, timezonePresetKeys, form.timezone]);
+  const countryOptions = useMemo(
+    () => ISO_COUNTRIES.map((item) => ({ value: item.code, label: `${item.name} (${item.code})` })),
+    [],
+  );
+  const journalOptions = useMemo(() => {
+    const byId = new Map(journalResults.map((post) => [post.id, {
+      value: post.id,
+      label: post.title,
+      description: `${post.slug} · ${post.status}`,
+    }]));
+    if (pinnedJournal) {
+      byId.set(pinnedJournal.id, {
+        value: pinnedJournal.id,
+        label: pinnedJournal.title,
+        description: `${pinnedJournal.slug} · ${pinnedJournal.status}`,
+      });
+    }
+    return Array.from(byId.values());
+  }, [journalResults, pinnedJournal]);
+  const exchangeLinkOptions = useMemo(
+    () => allExchangeOptions.map((item) => ({
+      value: item.id,
+      label: item.title,
+      description: `${label(item.item_type)} · ${label(item.category)} · ${label(item.status)}`,
+      warning: item.calendar_entry_id && item.calendar_entry_id !== form.id
+        ? `Linked to another stop: ${item.calendar_entry_title || item.calendar_entry_id}`
+        : undefined,
+    })),
+    [allExchangeOptions, form.id],
+  );
+  const displayedLinkedExchange = useMemo(() => {
+    const byId = new Map<string, ExchangeItem>();
+    for (const item of linkedExchange) byId.set(item.id, item);
+    for (const item of allExchangeOptions) byId.set(item.id, item);
+    return selectedExchangeIds
+      .map((id) => byId.get(id))
+      .filter((item): item is ExchangeItem => Boolean(item));
+  }, [selectedExchangeIds, linkedExchange, allExchangeOptions]);
+
   const statusOptions = tab === 'stops' ? entryStatuses : tab === 'hosts' ? hostStatuses : exchangeStatuses;
   const kpiSource = tab === 'stops' ? counts : tab === 'hosts' ? hostCounts : exchangeCounts;
 
   return (
     <div className="admin-section-page journey-calendar-admin">
+      <div className="journey-calendar-admin__toasts" role="status" aria-live="polite" aria-relevant="additions">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`journey-calendar-admin__toast journey-calendar-admin__toast--${toast.tone}`}
+          >
+            <span>{toast.message}</span>
+            <button
+              type="button"
+              aria-label="Dismiss notification"
+              onClick={() => dismissToast(toast.id)}
+            >
+              <XCircle size={16} />
+            </button>
+          </div>
+        ))}
+      </div>
       <div className="admin-section-heading">
         <div>
           <p>CONTENT</p>
@@ -615,6 +964,14 @@ export function JourneyCalendarAdminPage() {
             </header>
 
             <div className="journey-calendar-admin__editor-body">
+              {pickerLoadError ? (
+                <div className="admin-error" style={{ marginBottom: '0.75rem' }}>
+                  <p>{pickerLoadError}</p>
+                  <button type="button" onClick={() => void loadEditorLookups().catch(() => undefined)} disabled={saving}>
+                    Retry loading pickers
+                  </button>
+                </div>
+              ) : null}
               <fieldset className="journey-calendar-admin__section">
                 <legend>Basics</legend>
                 <div className="journey-calendar-admin__fields">
@@ -636,82 +993,109 @@ export function JourneyCalendarAdminPage() {
                     <span>Slug</span>
                     <input value={form.slug} onChange={(event) => setForm((current) => ({ ...current, slug: event.target.value }))} />
                   </label>
-                  <label>
-                    <span>Status</span>
-                    <select value={form.status} onChange={(event) => setForm((current) => ({ ...current, status: event.target.value as CalendarEntryStatus }))}>
-                      {entryStatuses.map((item) => <option key={item} value={item}>{label(item)}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Person</span>
-                    <select value={form.journey_person} onChange={(event) => setForm((current) => ({ ...current, journey_person: event.target.value as JourneyPerson }))}>
-                      {people.map((item) => <option key={item} value={item}>{label(item)}</option>)}
-                    </select>
-                  </label>
-                  <label>
-                    <span>Display order</span>
-                    <input type="number" value={form.display_order ?? 0} onChange={(event) => setForm((current) => ({ ...current, display_order: Number(event.target.value) || 0 }))} />
-                  </label>
-                  <label>
-                    <span>Public</span>
+                  <AdminField label="Status" className="journey-calendar-admin__span-full">
+                    <SegmentedControl
+                      ariaLabel="Status"
+                      value={form.status}
+                      options={entryStatuses.map((item) => ({ value: item, label: label(item) }))}
+                      onChange={(statusValue) => setForm((current) => ({ ...current, status: statusValue }))}
+                    />
+                  </AdminField>
+                  <AdminField label="Person" className="journey-calendar-admin__span-full">
+                    <SegmentedControl
+                      ariaLabel="Person"
+                      value={form.journey_person}
+                      options={people.map((item) => ({ value: item, label: label(item) }))}
+                      onChange={(person) => setForm((current) => ({ ...current, journey_person: person }))}
+                    />
+                  </AdminField>
+                  <AdminField label="Display order">
+                    <NumberStepper
+                      value={form.display_order ?? 0}
+                      onChange={(value) => setForm((current) => ({ ...current, display_order: value ?? 0 }))}
+                    />
+                  </AdminField>
+                  <AdminField label="Public">
                     <button type="button" className={`admin-toggle ${form.is_public ? 'on' : ''}`} onClick={() => setForm((current) => ({ ...current, is_public: !current.is_public }))}>
                       <i />{form.is_public ? 'Public' : 'Hidden'}
                     </button>
-                  </label>
-                  <label>
-                    <span>Featured</span>
+                  </AdminField>
+                  <AdminField label="Featured">
                     <button type="button" className={`admin-toggle ${form.is_featured ? 'on' : ''}`} onClick={() => setForm((current) => ({ ...current, is_featured: !current.is_featured }))}>
                       <i />{form.is_featured ? 'Featured' : 'Not featured'}
                     </button>
-                  </label>
+                  </AdminField>
                 </div>
               </fieldset>
 
               <fieldset className="journey-calendar-admin__section">
                 <legend>Schedule</legend>
                 <div className="journey-calendar-admin__fields">
-                  <label>
-                    <span>Starts on</span>
-                    <input type="date" value={form.starts_on} onChange={(event) => setForm((current) => ({ ...current, starts_on: event.target.value }))} />
-                  </label>
-                  <label>
-                    <span>Ends on</span>
-                    <input type="date" value={form.ends_on || ''} onChange={(event) => setForm((current) => ({ ...current, ends_on: event.target.value || null }))} />
-                  </label>
-                  <label>
-                    <span>Date flexibility (days)</span>
-                    <input
-                      type="number"
+                  <DateRangeFields
+                    start={form.starts_on}
+                    end={form.ends_on || null}
+                    onStartChange={(starts_on) => setForm((current) => ({ ...current, starts_on }))}
+                    onEndChange={(ends_on) => setForm((current) => ({ ...current, ends_on }))}
+                  />
+                  <AdminField label="Date flexibility (days)">
+                    <div className="admin-picker-flexibility">
+                      {FLEXIBILITY_PRESETS.map((days) => (
+                        <button
+                          key={days}
+                          type="button"
+                          className={(form.date_flexibility_days ?? 0) === days ? 'is-active' : ''}
+                          onClick={() => setForm((current) => ({ ...current, date_flexibility_days: days }))}
+                        >
+                          {days}
+                        </button>
+                      ))}
+                    </div>
+                    <NumberStepper
                       min={0}
                       value={form.date_flexibility_days ?? 0}
-                      onChange={(event) => setForm((current) => ({
-                        ...current,
-                        date_flexibility_days: Math.max(0, Number(event.target.value) || 0),
-                      }))}
+                      onChange={(value) => setForm((current) => ({ ...current, date_flexibility_days: Math.max(0, value ?? 0) }))}
                     />
-                  </label>
-                  <label>
-                    <span>Timezone</span>
-                    <input
-                      value={form.timezone || ''}
-                      placeholder="e.g. Europe/Amsterdam"
-                      onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value || null }))}
+                  </AdminField>
+                  <AdminField label="Timezone">
+                    <SearchableSelect
+                      value={form.timezone || null}
+                      options={timezoneOptions}
+                      placeholder="Search timezones…"
+                      onChange={(timezone) => setForm((current) => ({ ...current, timezone }))}
                     />
-                  </label>
+                  </AdminField>
                 </div>
               </fieldset>
 
               <fieldset className="journey-calendar-admin__section">
                 <legend>Place</legend>
                 <div className="journey-calendar-admin__fields">
-                  <label>
-                    <span>Country code</span>
-                    <input value={form.country_code || ''} onChange={(event) => setForm((current) => ({ ...current, country_code: event.target.value }))} />
-                  </label>
-                  <label>
-                    <span>Country</span>
-                    <input value={form.country_name || ''} onChange={(event) => setForm((current) => ({ ...current, country_name: event.target.value }))} />
-                  </label>
+                  <AdminMapPlacePicker
+                    latitude={form.latitude ?? null}
+                    longitude={form.longitude ?? null}
+                    onChange={(place) => setForm((current) => ({
+                      ...current,
+                      latitude: place.latitude,
+                      longitude: place.longitude,
+                      country_code: place.country_code ?? current.country_code,
+                      country_name: place.country_name ?? current.country_name,
+                      region_name: place.region_name ?? current.region_name,
+                      city_name: place.city_name ?? current.city_name,
+                      location_name: place.location_name ?? current.location_name,
+                    }))}
+                  />
+                  <AdminField label="Country">
+                    <SearchableSelect
+                      value={form.country_code || null}
+                      options={countryOptions}
+                      placeholder="Select country…"
+                      onChange={(code) => setForm((current) => ({
+                        ...current,
+                        country_code: code,
+                        country_name: countryNameForCode(code) || current.country_name,
+                      }))}
+                    />
+                  </AdminField>
                   <label>
                     <span>Region</span>
                     <input value={form.region_name || ''} onChange={(event) => setForm((current) => ({ ...current, region_name: event.target.value }))} />
@@ -723,24 +1107,6 @@ export function JourneyCalendarAdminPage() {
                   <label className="journey-calendar-admin__span-full">
                     <span>Location</span>
                     <input value={form.location_name || ''} onChange={(event) => setForm((current) => ({ ...current, location_name: event.target.value }))} />
-                  </label>
-                  <label>
-                    <span>Latitude</span>
-                    <input
-                      type="number"
-                      step="any"
-                      value={form.latitude ?? ''}
-                      onChange={(event) => setForm((current) => ({ ...current, latitude: parseOptionalNumber(event.target.value) }))}
-                    />
-                  </label>
-                  <label>
-                    <span>Longitude</span>
-                    <input
-                      type="number"
-                      step="any"
-                      value={form.longitude ?? ''}
-                      onChange={(event) => setForm((current) => ({ ...current, longitude: parseOptionalNumber(event.target.value) }))}
-                    />
                   </label>
                 </div>
               </fieldset>
@@ -756,21 +1122,64 @@ export function JourneyCalendarAdminPage() {
                     <span>Purpose</span>
                     <textarea rows={3} value={form.purpose || ''} onChange={(event) => setForm((current) => ({ ...current, purpose: event.target.value }))} />
                   </label>
-                  <label>
-                    <span>Transport</span>
-                    <input value={form.transport_mode || ''} onChange={(event) => setForm((current) => ({ ...current, transport_mode: event.target.value }))} />
-                  </label>
-                  <label className="journey-calendar-admin__span-full">
-                    <span>Related journal post ID</span>
-                    <input
-                      value={form.related_journal_post_id || ''}
-                      placeholder="UUID"
-                      onChange={(event) => setForm((current) => ({
-                        ...current,
-                        related_journal_post_id: event.target.value.trim() || null,
-                      }))}
+                  <AdminField label="Transport">
+                    <SearchableSelect
+                      value={form.transport_mode || null}
+                      options={transportOptions.map((item) => ({ value: item.option_key, label: item.label }))}
+                      placeholder="Select transport…"
+                      onChange={(transport_mode) => setForm((current) => ({ ...current, transport_mode: transport_mode || '' }))}
                     />
-                  </label>
+                    <div className="admin-picker-lookup-manage">
+                      <button type="button" onClick={() => setManagingLookupKind(managingLookupKind === 'transport_mode' ? null : 'transport_mode')}>
+                        Manage options
+                      </button>
+                    </div>
+                    {managingLookupKind === 'transport_mode' ? (
+                      <div className="admin-picker-lookup-manage">
+                        <input
+                          value={newLookupLabel}
+                          placeholder="Add transport…"
+                          onChange={(event) => setNewLookupLabel(event.target.value)}
+                        />
+                        <button type="button" disabled={saving || !newLookupLabel.trim()} onClick={() => void addLookupOption('transport_mode')}>Add</button>
+                        {transportOptions.filter((option) => !option.id.startsWith('pinned-')).map((option) => (
+                          <button key={option.id} type="button" onClick={() => void deactivateLookupOption(option)}>
+                            Remove {option.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </AdminField>
+                  <AdminField label="Related journal post" className="journey-calendar-admin__span-full">
+                    <input
+                      value={journalSearch}
+                      placeholder="Search journal posts…"
+                      onChange={(event) => {
+                        setJournalSearchDirty(true);
+                        setJournalSearch(event.target.value);
+                      }}
+                      style={{ marginBottom: '0.45rem' }}
+                    />
+                    <SearchableSelect
+                      value={form.related_journal_post_id || null}
+                      options={journalOptions}
+                      selectedOption={pinnedJournal ? {
+                        value: pinnedJournal.id,
+                        label: pinnedJournal.title,
+                        description: `${pinnedJournal.slug} · ${pinnedJournal.status}`,
+                      } : null}
+                      placeholder="Select a journal post…"
+                      onChange={(related_journal_post_id) => {
+                        setForm((current) => ({ ...current, related_journal_post_id }));
+                        if (related_journal_post_id) {
+                          const match = journalResults.find((post) => post.id === related_journal_post_id) || pinnedJournal;
+                          if (match && match.id === related_journal_post_id) setPinnedJournal(match);
+                        } else {
+                          setPinnedJournal(null);
+                        }
+                      }}
+                    />
+                  </AdminField>
                 </div>
               </fieldset>
 
@@ -783,28 +1192,40 @@ export function JourneyCalendarAdminPage() {
                       <i />{form.accommodation_needed ? 'Needed' : 'Not needed'}
                     </button>
                   </label>
-                  <label>
+                  <label className="journey-calendar-admin__span-full">
                     <span>Host request status</span>
-                    <select value={form.host_request_status || 'not_needed'} onChange={(event) => setForm((current) => ({ ...current, host_request_status: event.target.value as CalendarEntryPayload['host_request_status'] }))}>
-                      {['not_needed', 'open', 'offers_received', 'matched', 'closed'].map((item) => <option key={item} value={item}>{label(item)}</option>)}
-                    </select>
+                    <SegmentedControl
+                      ariaLabel="Host request status"
+                      value={form.host_request_status || 'not_needed'}
+                      options={hostRequestStatuses.map((item) => ({ value: item, label: label(item) }))}
+                      onChange={(host_request_status) => setForm((current) => ({ ...current, host_request_status }))}
+                    />
                   </label>
                   <label>
                     <span>Guests</span>
-                    <input type="number" min={1} value={form.guests_count ?? 1} onChange={(event) => setForm((current) => ({ ...current, guests_count: Number(event.target.value) || 1 }))} />
+                    <NumberStepper
+                      min={1}
+                      value={form.guests_count ?? 1}
+                      onChange={(value) => setForm((current) => ({ ...current, guests_count: Math.max(1, value ?? 1) }))}
+                    />
                   </label>
                   <label>
                     <span>Nights needed</span>
-                    <input type="number" min={0} value={form.nights_needed ?? ''} onChange={(event) => setForm((current) => ({ ...current, nights_needed: event.target.value === '' ? null : Number(event.target.value) }))} />
+                    <NumberStepper
+                      min={0}
+                      allowNull
+                      value={form.nights_needed ?? null}
+                      onChange={(value) => setForm((current) => ({ ...current, nights_needed: value }))}
+                    />
                   </label>
-                  <label>
-                    <span>Accommodation from</span>
-                    <input type="date" value={form.accommodation_from || ''} onChange={(event) => setForm((current) => ({ ...current, accommodation_from: event.target.value || null }))} />
-                  </label>
-                  <label>
-                    <span>Accommodation until</span>
-                    <input type="date" value={form.accommodation_until || ''} onChange={(event) => setForm((current) => ({ ...current, accommodation_until: event.target.value || null }))} />
-                  </label>
+                  <DateRangeFields
+                    start={form.accommodation_from || ''}
+                    end={form.accommodation_until || null}
+                    startLabel="Accommodation from"
+                    endLabel="Accommodation until"
+                    onStartChange={(accommodation_from) => setForm((current) => ({ ...current, accommodation_from: accommodation_from || null }))}
+                    onEndChange={(accommodation_until) => setForm((current) => ({ ...current, accommodation_until }))}
+                  />
                   <label className="journey-calendar-admin__span-full">
                     <span>Host request message</span>
                     <textarea rows={3} value={form.host_request_message || ''} onChange={(event) => setForm((current) => ({ ...current, host_request_message: event.target.value }))} />
@@ -814,17 +1235,21 @@ export function JourneyCalendarAdminPage() {
 
               <div className="journey-calendar-admin__panel">
                 <h3><Users size={16} /> Founders on this stop</h3>
-                <div className="journey-calendar-admin__founder-list">
-                  {founders.map((founder) => (
-                    <label key={founder.id}>
-                      <input
-                        type="checkbox"
-                        checked={selectedFounderIds.includes(founder.id)}
-                        onChange={() => toggleFounder(founder.id)}
-                      />
-                      <span>{founder.display_name}</span>
-                    </label>
-                  ))}
+                <div className="admin-picker-founder-cards">
+                  {founders.map((founder) => {
+                    const selected = selectedFounderIds.includes(founder.id);
+                    return (
+                      <button
+                        key={founder.id}
+                        type="button"
+                        className={selected ? 'is-active' : ''}
+                        onClick={() => toggleFounder(founder.id)}
+                      >
+                        <i>{founder.display_name.slice(0, 1)}</i>
+                        <span>{founder.display_name}</span>
+                      </button>
+                    );
+                  })}
                   {founders.length === 0 && <p>No founder profiles available.</p>}
                 </div>
               </div>
@@ -832,20 +1257,62 @@ export function JourneyCalendarAdminPage() {
               <div className="journey-calendar-admin__panel">
                 <div className="journey-calendar-admin__panel-header">
                   <h3>Linked needs & offers</h3>
-                  <button type="button" onClick={() => setShowExchangeForm((value) => !value)} disabled={!form.id && !saving}>
-                    <Plus size={14} /> Add
-                  </button>
+                  <div className="journey-calendar-admin__actions">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowLinkExchange((value) => !value);
+                        setShowExchangeForm(false);
+                      }}
+                      disabled={saving}
+                    >
+                      <Search size={14} /> Link existing
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExchangeForm((value) => !value);
+                        setShowLinkExchange(false);
+                      }}
+                      disabled={!form.id || saving}
+                    >
+                      <Plus size={14} /> Create new
+                    </button>
+                  </div>
                 </div>
-                {!form.id && <p className="journey-calendar-admin__hint">Save the stop before linking exchange items.</p>}
-                <ul className="journey-calendar-admin__list">
-                  {linkedExchange.map((item) => (
-                    <li key={item.id}>
-                      <strong>{item.title}</strong>
-                      <span>{label(item.item_type)} · {label(item.status)} · {label(item.priority)}</span>
-                    </li>
-                  ))}
-                  {linkedExchange.length === 0 && <li>No linked exchange items yet.</li>}
-                </ul>
+                {!form.id && <p className="journey-calendar-admin__hint">Linked items apply on Save. Create new requires saving the stop first.</p>}
+                {showLinkExchange ? (
+                  <SearchableMultiSelect
+                    values={selectedExchangeIds}
+                    options={exchangeLinkOptions}
+                    placeholder="Search needs and offers…"
+                    onChange={(ids) => {
+                      setSelectedExchangeIds(ids);
+                      setLinkedExchange(allExchangeOptions.filter((item) => ids.includes(item.id)));
+                    }}
+                  />
+                ) : (
+                  <ul className="journey-calendar-admin__list">
+                    {(() => {
+                      const byId = new Map<string, ExchangeItem>();
+                      for (const item of linkedExchange) byId.set(item.id, item);
+                      for (const item of allExchangeOptions) byId.set(item.id, item);
+                      const ids = selectedExchangeIds.length
+                        ? selectedExchangeIds
+                        : linkedExchange.map((item) => item.id);
+                      const rows = ids.map((id) => byId.get(id)).filter((item): item is ExchangeItem => Boolean(item));
+                      if (rows.length === 0) {
+                        return <li>No linked exchange items yet.</li>;
+                      }
+                      return rows.map((item) => (
+                        <li key={item.id}>
+                          <strong>{item.title}</strong>
+                          <span>{label(item.item_type)} · {label(item.status)} · {label(item.priority)}</span>
+                        </li>
+                      ));
+                    })()}
+                  </ul>
+                )}
                 {showExchangeForm && (
                   <div className="journey-calendar-admin__nested-form">
                     <label>
@@ -854,14 +1321,81 @@ export function JourneyCalendarAdminPage() {
                     </label>
                     <label>
                       <span>Type</span>
-                      <select value={exchangeForm.item_type} onChange={(event) => setExchangeForm((current) => ({ ...current, item_type: event.target.value as ExchangeItem['item_type'] }))}>
-                        <option value="need">Need</option>
-                        <option value="offer">Offer</option>
-                      </select>
+                      <SegmentedControl
+                        ariaLabel="Exchange type need or offer"
+                        value={exchangeForm.item_type}
+                        options={[
+                          { value: 'need' as const, label: 'Need' },
+                          { value: 'offer' as const, label: 'Offer' },
+                        ]}
+                        onChange={(item_type) => setExchangeForm((current) => ({ ...current, item_type }))}
+                      />
                     </label>
                     <label>
                       <span>Category</span>
-                      <input value={exchangeForm.category || ''} onChange={(event) => setExchangeForm((current) => ({ ...current, category: event.target.value }))} />
+                      <SearchableSelect
+                        value={exchangeForm.category || null}
+                        options={categoryOptions.map((item) => ({ value: item.option_key, label: item.label }))}
+                        placeholder="Select category…"
+                        allowClear={false}
+                        onChange={(category) => setExchangeForm((current) => ({ ...current, category: category || 'other' }))}
+                      />
+                      <div className="admin-picker-lookup-manage">
+                        <button type="button" onClick={() => setManagingLookupKind(managingLookupKind === 'exchange_category' ? null : 'exchange_category')}>
+                          Manage categories
+                        </button>
+                      </div>
+                      {managingLookupKind === 'exchange_category' ? (
+                        <div className="admin-picker-lookup-manage">
+                          <input
+                            value={newLookupLabel}
+                            placeholder="Add category…"
+                            onChange={(event) => setNewLookupLabel(event.target.value)}
+                          />
+                          <button type="button" disabled={saving || !newLookupLabel.trim()} onClick={() => void addLookupOption('exchange_category')}>Add</button>
+                          {categoryOptions.map((option) => (
+                            <button key={option.id} type="button" onClick={() => void deactivateLookupOption(option)}>
+                              Remove {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      ) : null}
+                    </label>
+                    <label>
+                      <span>Priority</span>
+                      <SegmentedControl
+                        ariaLabel="Priority"
+                        value={exchangeForm.priority || 'normal'}
+                        options={exchangePriorities.map((item) => ({ value: item, label: label(item) }))}
+                        onChange={(priority) => setExchangeForm((current) => ({ ...current, priority }))}
+                      />
+                    </label>
+                    <label>
+                      <span>Status</span>
+                      <SegmentedControl
+                        ariaLabel="Exchange status"
+                        value={exchangeForm.status || 'active'}
+                        options={exchangeStatuses.map((item) => ({ value: item, label: label(item) }))}
+                        onChange={(statusValue) => setExchangeForm((current) => ({ ...current, status: statusValue }))}
+                      />
+                    </label>
+                    <label>
+                      <span>Person</span>
+                      <SegmentedControl
+                        ariaLabel="Exchange person"
+                        value={exchangeForm.journey_person || 'together'}
+                        options={people.map((item) => ({ value: item, label: label(item) }))}
+                        onChange={(journey_person) => setExchangeForm((current) => ({ ...current, journey_person }))}
+                      />
+                    </label>
+                    <label>
+                      <span>Exchange type</span>
+                      <SegmentedControl
+                        ariaLabel="Exchange compensation"
+                        value={exchangeForm.exchange_type || 'free'}
+                        options={exchangeTypes.map((item) => ({ value: item, label: label(item) }))}
+                        onChange={(exchange_type) => setExchangeForm((current) => ({ ...current, exchange_type }))}
+                      />
                     </label>
                     <label className="journey-calendar-admin__span-full">
                       <span>Description</span>

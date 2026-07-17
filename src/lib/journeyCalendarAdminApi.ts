@@ -393,6 +393,71 @@ export async function requeueJourneyCalendarTranslations(input: {
   });
 }
 
+export type LookupKind = 'transport_mode' | 'exchange_category' | 'timezone_preset';
+
+export type LookupOption = {
+  id: string;
+  kind: LookupKind;
+  option_key: string;
+  label: string;
+  sort_order: number;
+  is_active: boolean;
+  metadata?: Record<string, unknown>;
+  updated_at?: string;
+};
+
+export type JournalPostSearchResult = {
+  id: string;
+  title: string;
+  slug: string;
+  status: string;
+  published_at: string | null;
+  created_at: string;
+};
+
+export async function listJourneyLookupOptions(input?: {
+  kind?: LookupKind | null;
+  includeInactive?: boolean;
+}): Promise<LookupOption[]> {
+  const payload = asRecord(await rpc('admin_list_journey_lookup_options', {
+    p_kind: input?.kind || null,
+    p_include_inactive: Boolean(input?.includeInactive),
+  }));
+  return asArray<LookupOption>(payload.rows);
+}
+
+export async function upsertJourneyLookupOption(payload: {
+  id?: string;
+  kind: LookupKind;
+  option_key: string;
+  label: string;
+  sort_order?: number;
+  is_active?: boolean;
+}): Promise<LookupOption> {
+  return rpc('admin_upsert_journey_lookup_option', { p_payload: payload });
+}
+
+export async function setJourneyCalendarExchangeItems(
+  entryId: string,
+  itemIds: string[],
+): Promise<ExchangeItem[]> {
+  return asArray(await rpc('admin_set_journey_calendar_exchange_items', {
+    p_entry_id: entryId,
+    p_item_ids: itemIds,
+  }));
+}
+
+export async function searchJournalPosts(input?: {
+  query?: string | null;
+  limit?: number;
+}): Promise<JournalPostSearchResult[]> {
+  const payload = asRecord(await rpc('admin_search_journal_posts', {
+    p_query: input?.query || null,
+    p_limit: input?.limit ?? 25,
+  }));
+  return asArray<JournalPostSearchResult>(payload.rows);
+}
+
 export function slugifyTitle(title: string): string {
   return title
     .toLowerCase()

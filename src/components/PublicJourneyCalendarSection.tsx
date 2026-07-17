@@ -2,6 +2,7 @@ import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, HandHeart, MapPin, Navigation, Sparkles } from 'lucide-react';
 import {
+  entriesForFounderFilter,
   getLocalizedPublicJourneyCalendar,
   isActiveOnOrAfter,
   type JourneyPerson,
@@ -9,6 +10,7 @@ import {
   type PublicJourneyCalendarFounder,
 } from '../lib/journeyCalendar';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+import { CurrentLocationMap } from './CurrentLocationMap';
 import { JourneyHostOfferForm } from './JourneyHostOfferForm';
 import { Badge, Card } from './ui/card';
 import { Button } from './ui/button';
@@ -231,14 +233,6 @@ function preferredEntryId(entries: PublicJourneyCalendarEntry[], now = new Date(
   return best.id;
 }
 
-function entriesForFounderFilter(
-  entries: PublicJourneyCalendarEntry[],
-  founderId: 'all' | string,
-): PublicJourneyCalendarEntry[] {
-  if (founderId === 'all') return entries;
-  return entries.filter((entry) => entry.founders.some((founder) => founder.id === founderId));
-}
-
 /** When filtering to a founder, prefer their travelling stop so cards actually change. */
 function preferredEntryIdForFounderFilter(
   entries: PublicJourneyCalendarEntry[],
@@ -254,9 +248,14 @@ function preferredEntryIdForFounderFilter(
 type PublicJourneyCalendarSectionProps = {
   /** When false, hide the section eyebrow/title (page already has a hero). Default true for embeds. */
   showIntro?: boolean;
+  /** Compact live map of Kevin/Micha current journal pins. Opt-in so journal embeds stay single-map. */
+  showCurrentLocationMap?: boolean;
 };
 
-export function PublicJourneyCalendarSection({ showIntro = true }: PublicJourneyCalendarSectionProps) {
+export function PublicJourneyCalendarSection({
+  showIntro = true,
+  showCurrentLocationMap = false,
+}: PublicJourneyCalendarSectionProps) {
   const { language, t, formatDate } = useWebsiteI18n();
   const [calendar, setCalendar] = useState<PublicJourneyCalendarEntry[]>([]);
   const [selectedId, setSelectedId] = useState<string>();
@@ -405,6 +404,7 @@ export function PublicJourneyCalendarSection({ showIntro = true }: PublicJourney
             </div>
           </div>
         ) : null}
+        {showCurrentLocationMap ? <CurrentLocationMap /> : null}
         {filterChips}
         <div className="impact-state">
           {t('journey_calendar.filter.empty', 'No stops match this founder filter.')}
@@ -485,6 +485,8 @@ export function PublicJourneyCalendarSection({ showIntro = true }: PublicJourney
           ) : null}
         </div>
       ) : null}
+
+      {showCurrentLocationMap ? <CurrentLocationMap /> : null}
 
       {filterChips}
 

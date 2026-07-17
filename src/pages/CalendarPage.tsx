@@ -50,7 +50,7 @@ export function CalendarPage() {
           )}
         </p>
       </section>
-      <PublicJourneyCalendarSection showIntro={false} />
+      <PublicJourneyCalendarSection showIntro={false} showCurrentLocationMap />
     </main>
   );
 }

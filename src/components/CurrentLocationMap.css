@@ -1,0 +1,44 @@
+.current-location-map {
+  position: relative;
+  margin: 1.1rem 0 0.35rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.current-location-map--state {
+  display: grid;
+  place-items: center;
+  min-height: 240px;
+  padding: 1.25rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.current-location-map--error {
+  color: #f0b4b4;
+}
+
+.current-location-map__canvas {
+  width: 100%;
+  min-height: 240px;
+  height: clamp(240px, 36vw, 320px);
+}
+
+.current-location-map__overlay {
+  position: absolute;
+  inset: auto 0.75rem 0.75rem;
+  padding: 0.65rem 0.85rem;
+  border-radius: 12px;
+  background: rgba(20, 16, 12, 0.88);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 720px) {
+  .current-location-map__canvas,
+  .current-location-map--state {
+    min-height: 220px;
+    height: clamp(220px, 55vw, 280px);
+  }
+}

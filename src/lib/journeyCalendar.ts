@@ -182,6 +182,43 @@ export function isActiveOnOrAfter(
   return entry.ends_on == null || entry.ends_on >= asOfDate;
 }
 
+/** Map a founder profile slug to the calendar journey_person key (kevin / micha). */
+export function journeyPersonForFounderSlug(slug: string): JourneyPerson | null {
+  const normalized = slug.toLowerCase();
+  if (normalized.includes('kevin')) return 'kevin';
+  if (normalized.includes('micha')) return 'micha';
+  return null;
+}
+
+/**
+ * Filter calendar stops for a founder chip.
+ * Known founders (Kevin/Micha) match by journey_person so dual-linked
+ * "people involved" rows do not make Kevin/Micha chips identical to Everyone.
+ * Unknown founders fall back to founders[] membership.
+ */
+export function entriesForFounderFilter(
+  entries: PublicJourneyCalendarEntry[],
+  founderId: 'all' | string,
+): PublicJourneyCalendarEntry[] {
+  if (founderId === 'all') return entries;
+
+  let selected: PublicJourneyCalendarFounder | undefined;
+  for (const entry of entries) {
+    selected = entry.founders.find((founder) => founder.id === founderId);
+    if (selected) break;
+  }
+  if (!selected) return [];
+
+  const person = journeyPersonForFounderSlug(selected.slug);
+  if (person) {
+    return entries.filter(
+      (entry) => entry.journey_person === person || entry.journey_person === 'together',
+    );
+  }
+
+  return entries.filter((entry) => entry.founders.some((founder) => founder.id === founderId));
+}
+
 export async function getLocalizedPublicJourneyCalendar(
   language: string,
   asOfDate?: string,
