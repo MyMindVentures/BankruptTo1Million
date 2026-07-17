@@ -16,7 +16,7 @@ const adminEditor = readFileSync(new URL('../src/components/outreach/OutreachAdm
 const aiMigration = readFileSync(new URL('../supabase/migrations/20260717190000_outreach_ai_premium.sql', import.meta.url), 'utf8');
 const edgeFunction = readFileSync(new URL('../supabase/functions/generate-outreach-ai-content/index.ts', import.meta.url), 'utf8');
 const privatePage = readFileSync(new URL('../src/pages/OutreachPrivatePage.tsx', import.meta.url), 'utf8');
-const mainEntry = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+const publicRoutes = readFileSync(new URL('../src/lib/publicRoutes.tsx', import.meta.url), 'utf8');
 
 test('migration stores only token hashes and exposes public/admin outreach RPCs', () => {
   assert.match(migration, /outreach_access_tokens[\s\S]*?token_hash text not null unique/);
@@ -103,10 +103,10 @@ test('public outreach api uses token-gated RPCs', () => {
   assert.match(publicApi, /record_outreach_engagement/);
 });
 
-test('main router mounts private outreach pages at /o/:slug/:token', () => {
-  assert.match(mainEntry, /OutreachPrivatePage/);
-  assert.match(mainEntry, /outreachMatch/);
-  assert.match(mainEntry, /outreachSlug && outreachToken/);
+test('public router mounts private outreach pages at /o/:slug/:token', () => {
+  assert.match(publicRoutes, /OutreachPrivatePage/);
+  assert.match(publicRoutes, /const outreachMatch = path\.match/);
+  assert.match(publicRoutes, /kind: 'outreach'/);
 });
 
 test('admin page distinguishes loading, error and empty-success states', () => {

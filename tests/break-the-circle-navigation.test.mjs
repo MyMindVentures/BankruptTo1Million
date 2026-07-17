@@ -7,7 +7,7 @@ const header = readFileSync(new URL('../src/components/Header.tsx', import.meta.
 const siteContent = readFileSync(new URL('../src/data/siteContent.ts', import.meta.url), 'utf8');
 const page = readFileSync(new URL('../src/pages/BreakTheCirclePages.tsx', import.meta.url), 'utf8');
 const server = readFileSync(new URL('../server.mjs', import.meta.url), 'utf8');
-const main = readFileSync(new URL('../src/main.tsx', import.meta.url), 'utf8');
+const publicRoutes = readFileSync(new URL('../src/lib/publicRoutes.tsx', import.meta.url), 'utf8');
 
 test('public navigation exposes the canonical Break the Circle link only', () => {
   assert.match(siteContent, /label: 'Break the Circle'[\s\S]*?href: '\/break-the-circle'/);
@@ -26,7 +26,8 @@ test('desktop and mobile navigation render grouped navigation links', () => {
 test('Founder Support navigation uses the clean route mounted by the primary dispatcher', () => {
   assert.match(siteContent, /label: 'Founder Support'[\s\S]*?href: '\/founder-support'/);
   assert.doesNotMatch(siteContent, /href: '\/founder-support\.html'/);
-  assert.match(main, /path === '\/founder-support'[\s\S]*?<LocalizedFounderSupportPage \/>/);
+  assert.match(publicRoutes, /path === '\/founder-support'[\s\S]*?return \{ kind: 'founder_support' \}/);
+  assert.match(publicRoutes, /case 'founder_support':[\s\S]*?<LocalizedFounderSupportPage \/>/);
 });
 
 test('canonical /break-the-circle routes render the public page and articles', () => {
