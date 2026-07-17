@@ -116,6 +116,9 @@ function AppShell() {
     } else {
       window.scrollTo({ top: 0, left: 0 });
     }
+
+    const frame = window.requestAnimationFrame(() => { void initializeMediaVaultGroupsUi(); });
+    return () => window.cancelAnimationFrame(frame);
   }, [locationKey]);
 
   return (
