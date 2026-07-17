@@ -1,6 +1,7 @@
 import { Camera, ChevronLeft, ChevronRight, MapPin, Play } from 'lucide-react';
 import { useRef } from 'react';
 import type { OfferMediaCollection, OfferMediaItem } from '../lib/offers';
+import './OfferMediaCarousel.css';
 
 type OfferMediaCarouselProps = {
   collection: OfferMediaCollection;
