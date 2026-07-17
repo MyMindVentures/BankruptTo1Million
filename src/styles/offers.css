@@ -3,3 +3,4 @@
 @media(max-width:1180px){.offers-toolbar{grid-template-columns:minmax(200px,1fr) minmax(140px,1fr) minmax(140px,1fr)}}
 @media(max-width:900px){.offers-toolbar{grid-template-columns:1fr}}
 @media(max-width:1024px){.offers-hero__content,.offer-detail__hero-content{padding-top:clamp(5rem,14vw,6.5rem)}.offers-hero,.offer-detail__hero{min-height:clamp(320px,42vh,520px)}}
+.offer-card__actions{display:flex;flex-wrap:wrap;gap:.65rem;align-items:center;margin-top:.85rem}.offer-card__actions .button{margin:0}

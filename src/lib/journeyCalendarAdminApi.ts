@@ -4,6 +4,7 @@ export type CalendarEntryStatus = 'idea' | 'planned' | 'confirmed' | 'travelling
 export type JourneyPerson = 'kevin' | 'micha' | 'together';
 export type HostRequestStatus = 'not_needed' | 'open' | 'offers_received' | 'matched' | 'closed';
 export type HostOfferStatus = 'new' | 'reviewing' | 'contacted' | 'accepted' | 'declined' | 'withdrawn';
+export type OfferBookingStatus = 'new' | 'reviewed' | 'accepted' | 'declined' | 'cancelled';
 export type ExchangeItemType = 'need' | 'offer';
 export type ExchangeItemStatus = 'draft' | 'active' | 'fulfilled' | 'paused' | 'archived';
 export type ExchangePriority = 'low' | 'normal' | 'high' | 'urgent';
@@ -41,6 +42,7 @@ export type CalendarOverviewRow = {
 
 export type CalendarStatusCounts = Record<CalendarEntryStatus | 'all', number>;
 export type HostOfferCounts = Record<HostOfferStatus | 'all', number>;
+export type OfferBookingCounts = Record<OfferBookingStatus | 'all', number>;
 export type ExchangeStatusCounts = Record<ExchangeItemStatus | 'all', number>;
 
 export type CalendarOverview = {
@@ -165,6 +167,33 @@ export type HostOffer = {
   calendar_entry_city?: string | null;
 };
 
+export type OfferBooking = {
+  id: string;
+  exchange_item_id: string;
+  offer_id: string | null;
+  calendar_entry_id: string;
+  full_name: string;
+  email: string;
+  phone: string | null;
+  preferred_from: string | null;
+  preferred_until: string | null;
+  group_size: number | null;
+  message: string;
+  consent_to_contact: boolean;
+  status: OfferBookingStatus;
+  internal_notes: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+  exchange_item_title?: string;
+  exchange_item_slug?: string | null;
+  offer_title?: string | null;
+  offer_slug?: string | null;
+  calendar_entry_title?: string;
+  calendar_entry_slug?: string;
+  calendar_entry_city?: string | null;
+};
+
 export type CalendarEntryPayload = {
   id?: string;
   title: string;
@@ -269,6 +298,7 @@ function asCounts<T extends string>(value: unknown, keys: readonly T[]): Record<
 
 const entryStatuses = ['idea', 'planned', 'confirmed', 'travelling', 'completed', 'cancelled'] as const;
 const hostStatuses = ['new', 'reviewing', 'contacted', 'accepted', 'declined', 'withdrawn'] as const;
+const offerBookingStatuses = ['new', 'reviewed', 'accepted', 'declined', 'cancelled'] as const;
 const exchangeStatuses = ['draft', 'active', 'fulfilled', 'paused', 'archived'] as const;
 
 export async function getJourneyCalendarOverview(input?: {
@@ -364,6 +394,34 @@ export async function updateJourneyHostOffer(input: {
 }): Promise<HostOffer> {
   return rpc('admin_update_journey_host_offer', {
     p_offer_id: input.offerId,
+    p_status: input.status,
+    p_internal_notes: input.internalNotes ?? null,
+  });
+}
+
+export async function listJourneyOfferBookings(input?: {
+  status?: string | null;
+  calendarEntryId?: string | null;
+  query?: string | null;
+}): Promise<{ rows: OfferBooking[]; counts: OfferBookingCounts }> {
+  const payload = asRecord(await rpc('admin_list_journey_offer_bookings', {
+    p_status: input?.status || null,
+    p_calendar_entry_id: input?.calendarEntryId || null,
+    p_query: input?.query || null,
+  }));
+  return {
+    rows: asArray<OfferBooking>(payload.rows),
+    counts: asCounts(payload.counts, offerBookingStatuses),
+  };
+}
+
+export async function updateJourneyOfferBooking(input: {
+  bookingId: string;
+  status: OfferBookingStatus;
+  internalNotes?: string | null;
+}): Promise<OfferBooking> {
+  return rpc('admin_update_journey_offer_booking', {
+    p_booking_id: input.bookingId,
     p_status: input.status,
     p_internal_notes: input.internalNotes ?? null,
   });

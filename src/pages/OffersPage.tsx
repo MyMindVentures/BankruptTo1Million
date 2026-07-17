@@ -3,7 +3,13 @@ import { ArrowRight, Camera, Clock3, Compass, MapPin, Search, Users } from 'luci
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOffers } from '../lib/offers';
 import type { PublicOffer } from '../lib/offers';
+import {
+  resolveOfferBookingContextFromOfferId,
+  type JourneyOfferBookingContext,
+} from '../lib/journeyOfferBookings';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+import { JourneyOfferBookingForm } from '../components/JourneyOfferBookingForm';
+import '../components/JournalJourneyExperience.css';
 
 function founderLabel(offer: PublicOffer, fallback: string): string {
   const names = offer.founders.map((founder) => founder.displayName);
@@ -37,6 +43,7 @@ export const OFFERS_PAGE_I18N_MANIFEST = {
     'offers.page.featured',
     'offers.page.offered_by',
     'offers.page.view_offer',
+    'offers.page.book',
     'offers.page.empty_filters',
     'offers.page.open_offer_aria',
   ] as const,
@@ -49,6 +56,8 @@ export function OffersPage() {
   const [query, setQuery] = useState('');
   const [founder, setFounder] = useState('all');
   const [category, setCategory] = useState('all');
+  const [bookingContext, setBookingContext] = useState<JourneyOfferBookingContext | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
   const foundersFallback = t('offers.page.filter.all_founders', 'Kevin & Micha');
 
   useEffect(() => {
@@ -69,6 +78,20 @@ export function OffersPage() {
       return founderMatch && categoryMatch && textMatch;
     });
   }, [category, founder, offers, query]);
+
+  async function openBooking(offer: PublicOffer) {
+    setBookingError(null);
+    try {
+      const context = await resolveOfferBookingContextFromOfferId(offer.id);
+      if (!context) {
+        setBookingError(t('journey_calendar.booking.unavailable', 'This offer is not available to book right now.'));
+        return;
+      }
+      setBookingContext(context);
+    } catch {
+      setBookingError(t('journey_calendar.booking.unavailable', 'This offer is not available to book right now.'));
+    }
+  }
 
   return <main className="offers-page">
     <section className="offers-hero">
@@ -124,12 +147,21 @@ export function OffersPage() {
               {offer.durationMinutes ? <span><Clock3 size={15} /> {offer.durationMinutes} min</span> : null}
               {offer.locationText ? <span><MapPin size={15} /> {offer.locationText}</span> : null}
             </div>
-            <a className="offer-card__link" href={`/offers/${offer.slug}`}>{t('offers.page.view_offer', 'View offer')} <ArrowRight size={17} /></a>
+            <div className="offer-card__actions">
+              <a className="offer-card__link" href={`/offers/${offer.slug}`}>{t('offers.page.view_offer', 'View offer')} <ArrowRight size={17} /></a>
+              <button className="button button--primary" type="button" onClick={() => void openBooking(offer)}>
+                {t('offers.page.book', 'Book')}
+              </button>
+            </div>
           </div>
         </article>)}
       </div> : null}
 
       {status === 'ready' && !filtered.length ? <div className="offers-state">{t('offers.page.empty_filters', 'No offers match these filters.')}</div> : null}
+      {bookingError ? <div className="offers-state offers-state--error">{bookingError}</div> : null}
     </section>
+    {bookingContext ? (
+      <JourneyOfferBookingForm context={bookingContext} onClose={() => setBookingContext(null)} />
+    ) : null}
   </main>;
 }
