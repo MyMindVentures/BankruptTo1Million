@@ -47,9 +47,19 @@ type MediaAssetRow = {
 type MediaMetadata = {
   category?: unknown;
   location?: unknown;
+  location_name?: unknown;
   captured_at?: unknown;
+  occurred_at?: unknown;
   featured?: unknown;
+  event_name?: unknown;
+  event_title?: unknown;
+  journal_post_id?: unknown;
+  journal_post_slug?: unknown;
+  event_type?: unknown;
+  featured_business_name?: unknown;
 };
+
+type JournalTitleRow = { id: string; title: string };
 
 function storagePublicUrl(bucket: string | null, path: string | null): string {
   if (!bucket || !path) return '';
@@ -66,38 +76,74 @@ function toKind(assetType: MediaAssetRow['asset_type']): MediaVaultKind {
   return assetType;
 }
 
-function toPublicMediaAsset(row: MediaAssetRow): PublicMediaAsset {
+function text(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function humanize(value: string): string {
+  return value.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function resolveEventTitle(row: MediaAssetRow, journalTitles: Map<string, string>): string {
+  const metadata = asMetadata(row.metadata);
+  const journalPostId = text(metadata.journal_post_id);
+  return text(metadata.event_name)
+    || text(metadata.event_title)
+    || (journalPostId ? journalTitles.get(journalPostId) || '' : '')
+    || (text(metadata.journal_post_slug) ? humanize(text(metadata.journal_post_slug)) : '')
+    || text(metadata.featured_business_name)
+    || text(metadata.location_name)
+    || humanize(text(metadata.event_type))
+    || 'Journey moment';
+}
+
+function toPublicMediaAsset(row: MediaAssetRow, journalTitles: Map<string, string>): PublicMediaAsset {
   const metadata = asMetadata(row.metadata);
   const mediaUrl = storagePublicUrl(row.storage_bucket, row.storage_path);
   const thumbnailUrl = row.thumbnail_url || (row.asset_type === 'image' ? mediaUrl : '');
   const tags = Array.isArray(row.tags) ? row.tags.filter((tag): tag is string => typeof tag === 'string' && tag.trim().length > 0) : [];
+  const eventTitle = resolveEventTitle(row, journalTitles);
+  const location = text(metadata.location_name) || text(metadata.location);
+  const eventType = text(metadata.event_type);
   const category = typeof metadata.category === 'string' && metadata.category.trim()
     ? metadata.category.trim()
-    : tags[0] || (row.asset_type === 'video' ? 'Video' : row.asset_type === 'document' ? 'Documents' : 'Photography');
+    : eventType ? humanize(eventType) : tags[0] || (row.asset_type === 'video' ? 'Video' : row.asset_type === 'document' ? 'Documents' : 'Photography');
 
   return {
     id: row.id,
-    title: row.title,
+    title: eventTitle,
     description: row.description || '',
-    altText: row.alt_text || row.title,
+    altText: row.alt_text || eventTitle,
     caption: row.caption || '',
     kind: toKind(row.asset_type),
     category,
-    location: typeof metadata.location === 'string' ? metadata.location : '',
+    location,
     capturedAt: row.captured_at
-      || (typeof metadata.captured_at === 'string' ? metadata.captured_at : '')
+      || text(metadata.captured_at)
+      || text(metadata.occurred_at)
       || row.published_at
       || row.created_at,
     imageUrl: thumbnailUrl || mediaUrl,
     mediaUrl,
     thumbnailUrl,
     durationSeconds: row.duration_seconds === null ? null : Number(row.duration_seconds),
-    tags,
+    tags: Array.from(new Set([eventTitle, category, location, ...tags].filter(Boolean))),
     featured: metadata.featured === true,
     width: row.width,
     height: row.height,
     mimeType: row.mime_type || '',
   };
+}
+
+async function getJournalTitles(rows: MediaAssetRow[]): Promise<Map<string, string>> {
+  const ids = Array.from(new Set(rows.map((row) => text(asMetadata(row.metadata).journal_post_id)).filter(Boolean)));
+  if (!ids.length) return new Map();
+  const encodedIds = ids.map((id) => `"${id}"`).join(',');
+  const query = new URLSearchParams({ select: 'id,title', id: `in.(${encodedIds})` });
+  const response = await supabase.from('journal_posts').request({ query: query.toString() });
+  if (!response.ok) return new Map();
+  const records = await response.json() as JournalTitleRow[];
+  return new Map(records.map((record) => [record.id, record.title]));
 }
 
 export async function getPublicMediaAssets(): Promise<PublicMediaAsset[]> {
@@ -110,10 +156,9 @@ export async function getPublicMediaAssets(): Promise<PublicMediaAsset[]> {
   });
 
   const response = await supabase.from('media_assets').request({ query: query.toString() });
-  if (!response.ok) {
-    throw new Error(`Media Vault could not be loaded (${response.status}).`);
-  }
+  if (!response.ok) throw new Error(`Media Vault could not be loaded (${response.status}).`);
 
   const rows = await response.json() as MediaAssetRow[];
-  return rows.map(toPublicMediaAsset).filter((item) => item.mediaUrl);
+  const journalTitles = await getJournalTitles(rows);
+  return rows.map((row) => toPublicMediaAsset(row, journalTitles)).filter((item) => item.mediaUrl);
 }
