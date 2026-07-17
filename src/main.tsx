@@ -18,6 +18,7 @@ import './styles/breakpoints.css';
 import './styles/global.css';
 import './styles/i18n.css';
 import './styles/header-nav.css';
+import './styles/router-navigation.css';
 import './styles/responsive-utils.css';
 import './styles/discovery-responsive.css';
 import './styles/conceptOwnership.css';
