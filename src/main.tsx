@@ -36,6 +36,7 @@ import './styles/siteMedia.css';
 import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/mediaVaultFrontendFixes.css';
+import './styles/mediaVaultUpgrade.css';
 import './styles/offers.css';
 import './styles/calendar.css';
 import './styles/buildRequests.css';
