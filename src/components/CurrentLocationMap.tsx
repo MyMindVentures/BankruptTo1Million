@@ -149,17 +149,34 @@ function wireMarkerHover(markers: MarkerRecord[], record: MarkerRecord) {
   };
 }
 
-export function CurrentLocationMap({ entries }: { entries: PublicJourneyCalendarEntry[] }) {
+export type CurrentLocationFocusPerson = 'kevin' | 'micha';
+
+type CurrentLocationMapProps = {
+  entries: PublicJourneyCalendarEntry[];
+  /** When set, select the pin whose journey_person matches and fly to it. */
+  focusPerson?: CurrentLocationFocusPerson | null;
+  /** Fired when the user activates a pin (click). */
+  onFocusPersonChange?: (person: CurrentLocationFocusPerson) => void;
+};
+
+export function CurrentLocationMap({
+  entries,
+  focusPerson = null,
+  onFocusPersonChange,
+}: CurrentLocationMapProps) {
   const { t, formatDate, language } = useWebsiteI18n();
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
   const markersRef = useRef<MarkerRecord[]>([]);
   const activeIdRef = useRef<string | undefined>(undefined);
+  const mappedRef = useRef<PremiumJourneyPoint[]>([]);
+  const onFocusPersonChangeRef = useRef(onFocusPersonChange);
 
   const [mapError, setMapError] = useState('');
   const [activeId, setActiveId] = useState<string>();
 
   activeIdRef.current = activeId;
+  onFocusPersonChangeRef.current = onFocusPersonChange;
 
   const mapPinI18n = useMemo(() => ({ t, formatDate }), [t, formatDate]);
   const mapped = useMemo(
@@ -168,6 +185,7 @@ export function CurrentLocationMap({ entries }: { entries: PublicJourneyCalendar
       .map(calendarEntryToMapPoint),
     [entries],
   );
+  mappedRef.current = mapped;
   const mapMarkerKey = useMemo(
     () => `${language}:${mapped.map((point) => `${point.journey_entry_id}:${point.latitude}:${point.longitude}`).join(',')}`,
     [language, mapped],
@@ -184,6 +202,15 @@ export function CurrentLocationMap({ entries }: { entries: PublicJourneyCalendar
   }, [activeId, mapped]);
 
   useEffect(() => {
+    if (focusPerson !== 'kevin' && focusPerson !== 'micha') return;
+    const match = mapped.find((point) => point.journey_person === focusPerson);
+    if (!match) return;
+    if (match.journey_entry_id !== activeId) {
+      setActiveId(match.journey_entry_id);
+    }
+  }, [focusPerson, mapped, activeId]);
+
+  useEffect(() => {
     if (!containerRef.current || !mapped.length) return undefined;
 
     let cancelled = false;
@@ -198,6 +225,11 @@ export function CurrentLocationMap({ entries }: { entries: PublicJourneyCalendar
 
     const selectPoint = (journeyEntryId: string) => {
       setActiveId(journeyEntryId);
+      const point = mappedRef.current.find((entry) => entry.journey_entry_id === journeyEntryId);
+      const person = point?.journey_person;
+      if (person === 'kevin' || person === 'micha') {
+        onFocusPersonChangeRef.current?.(person);
+      }
     };
 
     loadMapLibre()

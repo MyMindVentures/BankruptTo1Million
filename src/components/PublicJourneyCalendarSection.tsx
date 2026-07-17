@@ -10,7 +10,7 @@ import {
   type PublicJourneyCalendarFounder,
 } from '../lib/journeyCalendar';
 import { useWebsiteI18n } from '../lib/websiteI18n';
-import { CurrentLocationMap } from './CurrentLocationMap';
+import { CurrentLocationMap, type CurrentLocationFocusPerson } from './CurrentLocationMap';
 import { JourneyHostOfferForm } from './JourneyHostOfferForm';
 import { Badge, Card } from './ui/card';
 import { Button } from './ui/button';
@@ -353,6 +353,24 @@ export function PublicJourneyCalendarSection({
     : undefined;
   const locationCallouts = currentLocationEntries(filteredCalendar);
   const nowEntryId = preferredEntryId(filteredCalendar);
+  const selectedCallout = locationCallouts.find((entry) => entry.id === selectedId);
+  const mapFocusPerson: CurrentLocationFocusPerson | null =
+    selectedCallout?.journey_person === 'kevin' || selectedCallout?.journey_person === 'micha'
+      ? selectedCallout.journey_person
+      : null;
+
+  function handleMapFocusPerson(person: CurrentLocationFocusPerson) {
+    const match = locationCallouts.find((entry) => entry.journey_person === person);
+    if (match) setSelectedId(match.id);
+  }
+
+  const currentLocationMap = showCurrentLocationMap ? (
+    <CurrentLocationMap
+      entries={locationCallouts}
+      focusPerson={mapFocusPerson}
+      onFocusPersonChange={handleMapFocusPerson}
+    />
+  ) : null;
 
   const filterChips = (
     <div
@@ -404,7 +422,7 @@ export function PublicJourneyCalendarSection({
             </div>
           </div>
         ) : null}
-        {showCurrentLocationMap ? <CurrentLocationMap entries={locationCallouts} /> : null}
+        {currentLocationMap}
         {filterChips}
         <div className="impact-state">
           {t('journey_calendar.filter.empty', 'No stops match this founder filter.')}
@@ -486,7 +504,7 @@ export function PublicJourneyCalendarSection({
         </div>
       ) : null}
 
-      {showCurrentLocationMap ? <CurrentLocationMap entries={locationCallouts} /> : null}
+      {currentLocationMap}
 
       {filterChips}
 
