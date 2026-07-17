@@ -1,1 +1,1 @@
-export { AdminMediaVaultEntry as AdminMediaVaultPage } from './AdminMediaVaultEntry';
+export { AdminMediaVaultOffersPage as AdminMediaVaultPage } from './AdminMediaVaultOffersPage';
