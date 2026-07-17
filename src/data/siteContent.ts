@@ -108,7 +108,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Support', translationKey: 'navigation.support', href: '/support' },
       { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
       { label: 'Profile', translationKey: 'navigation.profile', href: '/profile/issues' },
-      { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support.html' },
+      { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support' },
     ],
   },
 ];
@@ -123,7 +123,7 @@ export const navItems: NavItem[] = [
   { label: 'Calendar', translationKey: 'navigation.calendar', href: '/calendar' },
   { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
-  { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support.html' },
+  { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support' },
   { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
   { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
   { label: 'Impact', translationKey: 'navigation.impact', href: '/impact' },

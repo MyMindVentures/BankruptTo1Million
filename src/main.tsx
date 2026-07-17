@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.tsx';
 import { Footer } from './components/Footer';
+import { FounderSupportQrShare } from './components/FounderSupportQrShare';
 import { Header } from './components/Header';
 import { initializeConceptMessageUi } from './lib/conceptMessageUi';
 import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
@@ -21,6 +22,7 @@ import { HomePage } from './pages/HomePage';
 import { ImpactResultsPage } from './pages/ImpactResultsPage';
 import { JournalLandingPage } from './pages/JournalLandingPage';
 import { LegalTransparencyPage } from './pages/LegalTransparencyPage';
+import { LocalizedFounderSupportPage } from './pages/LocalizedFounderSupportPage';
 import { MediaVaultPage } from './pages/MediaVaultPage';
 import { OfferDetailPage } from './pages/OfferDetailPage';
 import { OffersPage } from './pages/OffersPage';
@@ -54,6 +56,7 @@ import './styles/calendar.css';
 import './styles/buildRequests.css';
 import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
+import './styles/founder-support.css';
 import './styles/journalArticle.css';
 import './styles/journalArticleFullContentFix.css';
 import './styles/adminDashboard.css';
@@ -100,6 +103,8 @@ const rootPage = adminPage
     ? <OutreachPrivatePage slug={outreachSlug} token={outreachToken} />
     : path === '/'
     ? withSiteShell(<HomePage />)
+    : path === '/founder-support'
+      ? withSiteShell(<><FounderSupportQrShare /><LocalizedFounderSupportPage /></>)
     : path === '/legal'
       ? <LegalTransparencyPage />
       : path === '/impact'
