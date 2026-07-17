@@ -1,4 +1,4 @@
-import { Cloud, CloudRain, CloudSun, ExternalLink, Globe, Instagram, LoaderCircle, MapPin, Snowflake, Sun, Wind } from 'lucide-react';
+import { ChevronDown, Cloud, CloudRain, CloudSun, ExternalLink, Globe, Instagram, LoaderCircle, MapPin, Snowflake, Sun, Wind } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   getJournalCurrentWeather,
@@ -238,14 +238,18 @@ export function JournalPlaceContextSection({ slug }: { slug: string }) {
           {context.pois.length ? (
             <div className="journal-place-context__pois">
               <h4>{t('journal.place_context.poi.heading', 'Points of interest nearby')}</h4>
-              <ol className="journal-place-context__poi-list">
-                {context.pois.map((poi) => (
-                  <li key={`${poi.display_order}-${poi.title}`}>
-                    <strong>{poi.title}</strong>
+              <div className="journal-place-context__poi-list">
+                {context.pois.map((poi, index) => (
+                  <details className="journal-place-context__poi" key={`${poi.display_order}-${poi.title}`}>
+                    <summary>
+                      <span className="journal-place-context__poi-number">{index + 1}</span>
+                      <strong>{poi.title}</strong>
+                      <ChevronDown className="journal-place-context__poi-chevron" size={18} aria-hidden="true" />
+                    </summary>
                     <p>{poi.description}</p>
-                  </li>
+                  </details>
                 ))}
-              </ol>
+              </div>
               {context.pois.some(poiHasMapCoordinate)
                 && context.latitude != null
                 && context.longitude != null ? (
