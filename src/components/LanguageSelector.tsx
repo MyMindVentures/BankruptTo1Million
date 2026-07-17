@@ -2,44 +2,42 @@ import { useEffect, useRef, useState } from 'react';
 import type { ComponentType, SVGProps } from 'react';
 import type { I18nManifest } from '../lib/i18nManifest';
 import { Check, ChevronDown, Globe2 } from 'lucide-react';
-import {
-  AE,
-  BG,
-  CN,
-  CZ,
-  DE,
-  DK,
-  EE,
-  ES,
-  FI,
-  FR,
-  GB,
-  GR,
-  HR,
-  HU,
-  IE,
-  IN,
-  IT,
-  JP,
-  KR,
-  LT,
-  LV,
-  MA,
-  MT,
-  NL,
-  NO,
-  PL,
-  PT,
-  RO,
-  RS,
-  RU,
-  SA,
-  SE,
-  SI,
-  SK,
-  TR,
-  UA,
-} from 'country-flag-icons/react/3x2';
+import AE from 'country-flag-icons/react/3x2/AE';
+import BG from 'country-flag-icons/react/3x2/BG';
+import CN from 'country-flag-icons/react/3x2/CN';
+import CZ from 'country-flag-icons/react/3x2/CZ';
+import DE from 'country-flag-icons/react/3x2/DE';
+import DK from 'country-flag-icons/react/3x2/DK';
+import EE from 'country-flag-icons/react/3x2/EE';
+import ES from 'country-flag-icons/react/3x2/ES';
+import FI from 'country-flag-icons/react/3x2/FI';
+import FR from 'country-flag-icons/react/3x2/FR';
+import GB from 'country-flag-icons/react/3x2/GB';
+import GR from 'country-flag-icons/react/3x2/GR';
+import HR from 'country-flag-icons/react/3x2/HR';
+import HU from 'country-flag-icons/react/3x2/HU';
+import IE from 'country-flag-icons/react/3x2/IE';
+import IN from 'country-flag-icons/react/3x2/IN';
+import IT from 'country-flag-icons/react/3x2/IT';
+import JP from 'country-flag-icons/react/3x2/JP';
+import KR from 'country-flag-icons/react/3x2/KR';
+import LT from 'country-flag-icons/react/3x2/LT';
+import LV from 'country-flag-icons/react/3x2/LV';
+import MA from 'country-flag-icons/react/3x2/MA';
+import MT from 'country-flag-icons/react/3x2/MT';
+import NL from 'country-flag-icons/react/3x2/NL';
+import NO from 'country-flag-icons/react/3x2/NO';
+import PL from 'country-flag-icons/react/3x2/PL';
+import PT from 'country-flag-icons/react/3x2/PT';
+import RO from 'country-flag-icons/react/3x2/RO';
+import RS from 'country-flag-icons/react/3x2/RS';
+import RU from 'country-flag-icons/react/3x2/RU';
+import SA from 'country-flag-icons/react/3x2/SA';
+import SE from 'country-flag-icons/react/3x2/SE';
+import SI from 'country-flag-icons/react/3x2/SI';
+import SK from 'country-flag-icons/react/3x2/SK';
+import TR from 'country-flag-icons/react/3x2/TR';
+import UA from 'country-flag-icons/react/3x2/UA';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
 export const LANGUAGE_SELECTOR_I18N_MANIFEST = {
@@ -106,12 +104,12 @@ function cleanLanguageLabel(nativeName: string) {
   return nativeName.replace(FLAG_PREFIX, '').trim();
 }
 
-function LanguageFlag({ code, label }: { code: string; label: string }) {
+function LanguageFlag({ code }: { code: string }) {
   const Flag = getFlagForLanguage(code);
 
   return (
     <span className="language-selector__flag" aria-hidden="true" data-i18n-ignore="true">
-      {Flag ? <Flag className="language-selector__flag-svg" title={label} /> : <Globe2 size={16} />}
+      {Flag ? <Flag className="language-selector__flag-svg" /> : <Globe2 size={16} />}
     </span>
   );
 }
@@ -152,7 +150,7 @@ export function LanguageSelector() {
         onClick={() => setIsOpen((current) => !current)}
       >
         <Globe2 aria-hidden="true" size={17} />
-        <LanguageFlag code={language} label={selectedName} />
+        <LanguageFlag code={language} />
         <span className="language-selector__name" data-i18n-ignore="true">
           {selectedName}
         </span>
@@ -176,7 +174,7 @@ export function LanguageSelector() {
                   setIsOpen(false);
                 }}
               >
-                <LanguageFlag code={item.code} label={optionName} />
+                <LanguageFlag code={item.code} />
                 <span className="language-selector__option-name" data-i18n-ignore="true">
                   {optionName}
                 </span>
