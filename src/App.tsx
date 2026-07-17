@@ -2,6 +2,12 @@ import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, Gift, GitPullRequ
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
 import { SectionHeading } from './components/SectionHeading';
+import { Header } from './components/Header';
+import { Footer } from './components/Footer';
+import { BreakTheCircleArticlePage, BreakTheCirclePage, AdminBreakTheCirclePage, AdminBreakTheCircleEditorPage, AdminBreakTheCirclePreviewPage } from './pages/BreakTheCirclePages';
+import { HomePage } from './pages/HomePage';
+import { JournalArticlePage, JournalPage, AdminJournalCommentsPage } from './pages/JournalPages';
+import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { FoundingHeroesFinancialSupport } from './components/FoundingHeroesFinancialSupport';
 import { supabase } from './lib/supabase';
 import { getPublishedFoundingHeroes } from './lib/foundingHeroes';
@@ -242,7 +248,6 @@ function issueField(issue: GithubIssue, key: FilterKey) {
 function primaryClaim(issue: GithubIssue) { return issue.github_issue_developers?.find((d) => d.is_primary_claimant !== false && !['released', 'completed'].includes(normalize(d.contribution_status))) || null; }
 function claimProfile(claim: IssueDeveloper | null): PublicProfile | null { return Array.isArray(claim?.profiles) ? claim.profiles[0] || null : claim?.profiles || null; }
 function isClaimAvailable(issue: GithubIssue) { return normalize(issue.state) !== 'closed' && !primaryClaim(issue) && !['claimed', 'in-progress'].includes(normalize(issue.claim_status)); }
-function fmt(value?: string) { return value ? new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(value)) : ''; }
 function markdown(text?: string) {
   const safe = String(text || 'No issue body was synchronized.').replace(/[&<>]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]!));
   return safe.replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h2>$1</h2>').replace(/^# (.*)$/gm, '<h1>$1</h1>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\n/g, '<br />');
@@ -875,7 +880,7 @@ export function BecomeFoundingHeroPage() {
 }
 
 
-function SupportMissionPage({ categoryId }: { categoryId?: string }) {
+export function SupportMissionPage({ categoryId }: { categoryId?: string }) {
   const { t } = useWebsiteI18n();
   const selectedCategory = categoryById(categoryId || '') || supportCategories[0];
   const [opportunities, setOpportunities] = useState<SupportOpportunity[]>([]);
