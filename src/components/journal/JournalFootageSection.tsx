@@ -13,13 +13,27 @@ type LoadState = 'loading' | 'empty' | 'ready' | 'error';
 
 function FootageThumbnail({ item }: { item: JournalFootageItem }) {
   const isVideo = isVideoFootage(item);
-  const previewSrc = item.thumbnail_url || (isVideo ? null : item.url);
 
   return (
     <>
-      {previewSrc
-        ? <img src={previewSrc} alt="" loading="lazy" decoding="async" />
-        : <span className="journal-footage__placeholder" aria-hidden="true" />}
+      {item.thumbnail_url
+        ? <img src={item.thumbnail_url} alt="" loading="lazy" decoding="async" />
+        : isVideo
+          ? <video
+            src={item.url}
+            muted
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+            tabIndex={-1}
+            onLoadedMetadata={(event) => {
+              const video = event.currentTarget;
+              if (video.duration > 0.1) video.currentTime = 0.1;
+            }}
+          />
+          : item.url
+            ? <img src={item.url} alt="" loading="lazy" decoding="async" />
+            : <span className="journal-footage__placeholder" aria-hidden="true" />}
       {isVideo ? <span className="journal-footage__play" aria-hidden="true"><Play size={22} /></span> : null}
       {item.caption ? <span className="journal-footage__caption">{item.caption}</span> : null}
     </>
