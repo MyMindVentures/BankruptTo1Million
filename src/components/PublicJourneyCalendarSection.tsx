@@ -9,9 +9,14 @@ import {
   type PublicJourneyCalendarEntry,
   type PublicJourneyCalendarFounder,
 } from '../lib/journeyCalendar';
+import {
+  getCatalogueOffersByExchangeItemIds,
+  type JourneyOfferBookingContext,
+} from '../lib/journeyOfferBookings';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import { CurrentLocationMap, type CurrentLocationFocusPerson } from './CurrentLocationMap';
 import { JourneyHostOfferForm } from './JourneyHostOfferForm';
+import { JourneyOfferBookingForm } from './JourneyOfferBookingForm';
 import { Badge, Card } from './ui/card';
 import { Button } from './ui/button';
 import './PublicJourneyCalendarSection.css';
@@ -69,6 +74,8 @@ export const PUBLIC_JOURNEY_CALENDAR_SECTION_I18N_MANIFEST = {
     'journey_calendar.offers.eyebrow',
     'journey_calendar.offers.title',
     'journey_calendar.offers.empty',
+    'journey_calendar.offers.book',
+    'journey_calendar.offers.view_catalogue',
     'journey_calendar.meta.nights_needed',
     'journey_calendar.meta.nights_needed_some',
     'journey_calendar.meta.accommodation_arranged',
@@ -262,6 +269,10 @@ export function PublicJourneyCalendarSection({
   const [selectedFounderId, setSelectedFounderId] = useState<'all' | string>('all');
   const [state, setState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [hostEntry, setHostEntry] = useState<PublicJourneyCalendarEntry>();
+  const [bookingContext, setBookingContext] = useState<JourneyOfferBookingContext>();
+  const [catalogueByExchangeId, setCatalogueByExchangeId] = useState<
+    Map<string, { id: string; slug: string }>
+  >(() => new Map());
   const activeDayRef = useRef<HTMLButtonElement | null>(null);
   const asOfDate = useMemo(() => localTodayIso(), []);
 
@@ -269,7 +280,7 @@ export function PublicJourneyCalendarSection({
     let cancelled = false;
     setState((prev) => (prev === 'ready' ? 'ready' : 'loading'));
     getLocalizedPublicJourneyCalendar(language, asOfDate)
-      .then((rows) => {
+      .then(async (rows) => {
         if (cancelled) return;
         const activeRows = rows.filter((row) => isActiveOnOrAfter(row, asOfDate));
         setCalendar(activeRows);
@@ -277,11 +288,19 @@ export function PublicJourneyCalendarSection({
           if (current && activeRows.some((row) => row.id === current)) return current;
           return preferredEntryId(activeRows);
         });
+        const exchangeIds = activeRows.flatMap((entry) => entry.offers.map((offer) => offer.id));
+        try {
+          const catalogue = await getCatalogueOffersByExchangeItemIds(exchangeIds);
+          if (!cancelled) setCatalogueByExchangeId(catalogue);
+        } catch {
+          if (!cancelled) setCatalogueByExchangeId(new Map());
+        }
         setState('ready');
       })
       .catch(() => {
         if (cancelled) return;
         setCalendar([]);
+        setCatalogueByExchangeId(new Map());
         setState('error');
       });
     return () => {
@@ -639,20 +658,49 @@ export function PublicJourneyCalendarSection({
           </div>
           <div className="journey-calendar-exchange-list">
             {selected.offers.length ? (
-              selected.offers.map((item) => (
-                <article key={item.id}>
-                  <div>
-                    <strong>{item.title}</strong>
-                  </div>
-                  {item.description ? <p>{item.description}</p> : null}
-                  <small>
-                    {t('journey_calendar.exchange.meta', '{person} · {category}', {
-                      person: personLabel(item.journey_person, t),
-                      category: categoryLabel(item.category, t),
-                    })}
-                  </small>
-                </article>
-              ))
+              selected.offers.map((item) => {
+                const catalogue = catalogueByExchangeId.get(item.id);
+                const stopLabel = selected.location_name || selected.city_name || selected.title;
+                return (
+                  <article key={item.id}>
+                    <div>
+                      <strong>{item.title}</strong>
+                    </div>
+                    {item.description ? <p>{item.description}</p> : null}
+                    <small>
+                      {t('journey_calendar.exchange.meta', '{person} · {category}', {
+                        person: personLabel(item.journey_person, t),
+                        category: categoryLabel(item.category, t),
+                      })}
+                    </small>
+                    <div className="journey-calendar-offer-actions">
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() =>
+                          setBookingContext({
+                            exchangeItemId: item.id,
+                            offerId: catalogue?.id ?? null,
+                            calendarEntryId: selected.id,
+                            offerTitle: item.title,
+                            stopLabel,
+                            preferredFrom: selected.starts_on,
+                            preferredUntil: selected.ends_on || selected.starts_on,
+                            catalogueSlug: catalogue?.slug ?? null,
+                          })
+                        }
+                      >
+                        {t('journey_calendar.offers.book', 'Book')}
+                      </Button>
+                      {catalogue?.slug ? (
+                        <a className="button button--ghost" href={`/offers/${catalogue.slug}`}>
+                          {t('journey_calendar.offers.view_catalogue', 'View offer page')}
+                        </a>
+                      ) : null}
+                    </div>
+                  </article>
+                );
+              })
             ) : (
               <p className="journey-calendar-empty">
                 {t('journey_calendar.offers.empty', 'No offer has been published for this day yet.')}
@@ -663,6 +711,9 @@ export function PublicJourneyCalendarSection({
       </div>
 
       {hostEntry ? <JourneyHostOfferForm entry={hostEntry} onClose={() => setHostEntry(undefined)} /> : null}
+      {bookingContext ? (
+        <JourneyOfferBookingForm context={bookingContext} onClose={() => setBookingContext(undefined)} />
+      ) : null}
     </section>
   );
 }

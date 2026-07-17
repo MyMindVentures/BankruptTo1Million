@@ -616,33 +616,49 @@ export async function publishJournalPost(
   let status = await getJournalPublicationStatus(postId);
   onProgress?.(status);
 
-  await invokeStoryEdge(postId, 'english');
-  status = await getJournalPublicationStatus(postId);
-  onProgress?.(status);
-  const storyEnglishFailure = failedPublicationStep(status);
-  if (storyEnglishFailure) {
-    throw new Error(storyEnglishFailure.last_error || 'English story generation failed.');
+  const stepStatus = (stepKey: string) => (
+    status.steps.find((step) => step.step_key === stepKey)?.status ?? null
+  );
+
+  if (stepStatus('story_english') !== 'completed') {
+    await invokeStoryEdge(postId, 'english');
+    status = await getJournalPublicationStatus(postId);
+    onProgress?.(status);
+    const storyEnglishFailure = failedPublicationStep(status);
+    if (storyEnglishFailure) {
+      throw new Error(storyEnglishFailure.last_error || 'English story generation failed.');
+    }
   }
 
   if (eventHasPlaceContext) {
-    await invokePlaceEdge(postId, 'place_english');
-    status = await getJournalPublicationStatus(postId);
-    onProgress?.(status);
-    const placeFailure = failedPublicationStep(status);
-    if (placeFailure) throw new Error(placeFailure.last_error || 'Place English generation failed.');
+    if (stepStatus('place_english') !== 'completed') {
+      await invokePlaceEdge(postId, 'place_english');
+      status = await getJournalPublicationStatus(postId);
+      onProgress?.(status);
+      const placeFailure = failedPublicationStep(status);
+      if (placeFailure) throw new Error(placeFailure.last_error || 'Place English generation failed.');
+    }
 
-    await invokePlaceEdge(postId, 'area_english');
-    status = await getJournalPublicationStatus(postId);
-    onProgress?.(status);
-    const areaFailure = failedPublicationStep(status);
-    if (areaFailure) throw new Error(areaFailure.last_error || 'Area English generation failed.');
+    if (stepStatus('area_english') !== 'completed') {
+      await invokePlaceEdge(postId, 'area_english');
+      status = await getJournalPublicationStatus(postId);
+      onProgress?.(status);
+      const areaFailure = failedPublicationStep(status);
+      if (areaFailure) throw new Error(areaFailure.last_error || 'Area English generation failed.');
+    }
 
-    await invokePlaceEdge(postId, 'thank_you_english');
-    status = await getJournalPublicationStatus(postId);
-    onProgress?.(status);
-    const thankYouFailure = failedPublicationStep(status);
-    if (thankYouFailure) throw new Error(thankYouFailure.last_error || 'Thank-you English generation failed.');
+    if (stepStatus('thank_you_english') !== 'completed') {
+      await invokePlaceEdge(postId, 'thank_you_english');
+      status = await getJournalPublicationStatus(postId);
+      onProgress?.(status);
+      const thankYouFailure = failedPublicationStep(status);
+      if (thankYouFailure) throw new Error(thankYouFailure.last_error || 'Thank-you English generation failed.');
+    }
   }
+
+  // Refresh after optional english skips so pending translate detection is current.
+  status = await getJournalPublicationStatus(postId);
+  onProgress?.(status);
 
   let safety = 0;
   while (publicationHasPendingTranslateSteps(status) && safety < 40) {
@@ -673,5 +689,62 @@ export async function publishJournalPost(
   }
 
   return status;
+}
+
+export type JournalSocialCreative = {
+  id: string;
+  journal_post_id: string;
+  source_media_asset_id: string;
+  status: 'pending' | 'generating' | 'ready' | 'failed';
+  hook_text: string | null;
+  caption_instagram_feed: string | null;
+  caption_instagram_story: string | null;
+  caption_x: string | null;
+  model_image: string | null;
+  model_caption: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+  image_ig_feed_url: string | null;
+  image_ig_story_url: string | null;
+  image_x_url: string | null;
+  source_image_url: string | null;
+};
+
+export async function getJournalSocialCreatives(postId: string) {
+  return request<JournalSocialCreative[]>('/rest/v1/rpc/admin_get_journal_social_creatives', {
+    method: 'POST',
+    body: JSON.stringify({ p_post_id: postId }),
+  });
+}
+
+export async function generateJournalSocialCreative(postId: string, sourceMediaAssetId: string) {
+  if (!supabaseUrl || !anonKey) throw new Error('Supabase configuration is missing.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/generate-journal-social-creative`, {
+    method: 'POST',
+    headers: {
+      apikey: anonKey,
+      Authorization: `Bearer ${token()}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      post_id: postId,
+      source_media_asset_id: sourceMediaAssetId,
+    }),
+  });
+
+  const payload = await response.json().catch(() => null) as {
+    ok?: boolean;
+    creative_id?: string;
+    status?: string;
+    error?: string;
+  } | null;
+
+  if (!response.ok || payload?.ok === false) {
+    throw new Error(payload?.error || `Social creative generation failed (${response.status}).`);
+  }
+
+  return payload;
 }
 
