@@ -192,6 +192,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   });
   const navigation = useMemo(() => getMapNavigation(points, activeId), [points, activeId]);
   const { mapped, active, activeIndex, previous, next, isActiveIdValid } = navigation;
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const routeStops = useMemo(() => ({
     kevin: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'kevin')).map(coordinates)),
     micha: dedupeCoordinates(mapped.filter((point) => pointBelongsTo(point, 'micha')).map(coordinates)),
@@ -249,7 +251,9 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
   }, [mapped.length, routeStops]);
 
   useEffect(() => {
-    if (!containerRef.current || !mapped.length || !active) return;
+    if (!containerRef.current || !mapped.length) return;
+    const initialActive = activeRef.current || mapped[mapped.length - 1];
+    if (!initialActive) return;
     let cancelled = false;
     let map: any = null;
     let resizeObserver: ResizeObserver | null = null;
@@ -263,7 +267,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
     loadMapLibre().then((maplibregl) => {
       if (cancelled || !containerRef.current) return;
       setMapError('');
-      map = new maplibregl.Map({ container: containerRef.current, style: POI_MAP_STYLE, center: coordinates(active), zoom: 10.5, pitch: 32, bearing: -4, attributionControl: false, cooperativeGestures: true });
+      map = new maplibregl.Map({ container: containerRef.current, style: POI_MAP_STYLE, center: coordinates(initialActive), zoom: 10.5, pitch: 32, bearing: -4, attributionControl: false, cooperativeGestures: true });
       mapRef.current = map;
       map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
       map.addControl(new maplibregl.FullscreenControl(), 'top-right');
@@ -283,9 +287,10 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
           map.addLayer({ id: `journey-route-${key}-line`, type: 'line', source: `journey-route-${key}`, paint: { 'line-color': key === 'kevin' ? '#e2b45f' : '#6687d8', 'line-width': 5, 'line-opacity': 0.95 } });
         });
 
+        const activeIdAtMount = activeRef.current?.journey_entry_id || initialActive.journey_entry_id;
         const markerRecords: MarkerRecord[] = [];
         mapped.forEach((point) => {
-          const pin = mountJourneyMapPin(point, point.journey_entry_id === active.journey_entry_id, onSelect, mapPinI18n);
+          const pin = mountJourneyMapPin(point, point.journey_entry_id === activeIdAtMount, onSelect, mapPinI18n);
           const popup = new maplibregl.Popup({ offset: 34, closeButton: false, closeOnClick: false }).setDOMContent(pin.popupElement);
           const marker = new maplibregl.Marker({ element: pin.element, anchor: 'center' })
             .setLngLat(coordinates(point))
@@ -303,7 +308,7 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
         if (mapped.length > 1) {
           map.fitBounds(mapBounds(mapped), { padding: 60, maxZoom: 11, duration: 700, pitch: 32, bearing: -4 });
         } else {
-          map.flyTo({ center: coordinates(active), zoom: 10.5, pitch: 32, duration: 700, essential: true });
+          map.flyTo({ center: coordinates(initialActive), zoom: 10.5, pitch: 32, duration: 700, essential: true });
         }
       });
     }).catch(() => { if (!cancelled) setMapError(t('journal.map.error.load_failed', 'The interactive map could not load. Check the connection and refresh.')); });
@@ -324,7 +329,8 @@ export function PremiumJourneyMap({ points, activeId, onSelect }: { points: Prem
       if (map) map.remove();
       mapRef.current = null;
     };
-  }, [active, mapMarkerKey, mapPinI18n, onSelect, t]);
+  // Remount only when the mapped point set or language changes — not on Previous/Next active changes.
+  }, [mapMarkerKey, mapPinI18n, onSelect, t]);
 
   useEffect(() => {
     const map = mapRef.current;

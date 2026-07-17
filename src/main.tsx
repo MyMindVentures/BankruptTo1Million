@@ -9,7 +9,6 @@ import { initializeConceptOwnershipUi } from './lib/conceptOwnershipUi';
 import { initializeFounderPostUi } from './lib/founderPostUi';
 import { initializeFounderPostOpportunitiesUi } from './lib/founderPostOpportunitiesUi';
 import { initializeJournalArticleEnhancements } from './lib/journalArticleEnhancements';
-import { initializeJournalMapMarkerMediaUi } from './lib/journalMapMarkerMediaUi';
 import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
@@ -77,7 +76,6 @@ function PublicUiInitializers() {
     initializeConceptMessageUi(t);
     initializeFounderPostUi(t);
     initializeFounderPostOpportunitiesUi(t);
-    initializeJournalMapMarkerMediaUi(t);
     initializeJournalMetadataUi(t);
     initializeLatestThreeUi(t);
     initializeSiteMediaUi(t);

@@ -33,7 +33,6 @@
     "src/lib/conceptOwnershipUi.ts",
     "src/lib/founderPostUi.ts",
     "src/lib/founderPostOpportunitiesUi.ts",
-    "src/lib/journalMapMarkerMediaUi.ts",
     "src/lib/journalMetadataUi.ts",
     "src/lib/latestThreeUi.ts",
     "src/lib/siteMediaUi.ts"
@@ -49,7 +48,6 @@
     "src/lib/conceptOwnershipUi.ts",
     "src/lib/founderPostUi.ts",
     "src/lib/founderPostOpportunitiesUi.ts",
-    "src/lib/journalMapMarkerMediaUi.ts",
     "src/lib/journalMetadataUi.ts",
     "src/lib/latestThreeUi.ts",
     "src/lib/siteMediaUi.ts"
