@@ -7,6 +7,7 @@ import { initializeFounderPostOpportunitiesUi } from './lib/founderPostOpportuni
 import { initializeJournalArticleEnhancements } from './lib/journalArticleEnhancements';
 import { initializeJournalMetadataUi } from './lib/journalMetadataUi';
 import { initializeLatestThreeUi } from './lib/latestThreeUi';
+import { initializeMediaVaultGroupsUi } from './lib/mediaVaultGroupsUi';
 import { initializePlatformUpdatesUi } from './lib/platformUpdatesUi';
 import { initializeSiteMediaUi } from './lib/siteMediaUi';
 import { resolvePublicPage } from './lib/publicRoutes';
@@ -37,6 +38,7 @@ import './components/PremiumJourneyMapPins.css';
 import './styles/mediaVault.css';
 import './styles/mediaVaultFrontendFixes.css';
 import './styles/mediaVaultUpgrade.css';
+import './styles/mediaVaultGroups.css';
 import './styles/offers.css';
 import './styles/calendar.css';
 import './styles/buildRequests.css';
@@ -69,6 +71,7 @@ function PublicUiInitializers() {
     initializeJournalMetadataUi(t);
     initializeLatestThreeUi(t);
     initializeSiteMediaUi(t);
+    void initializeMediaVaultGroupsUi();
   }, [t]);
   return null;
 }
