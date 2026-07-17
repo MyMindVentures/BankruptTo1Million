@@ -1,5 +1,6 @@
 import { Menu, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { headerGroups, homeLink, supportCta } from '../data/siteMap';
 import type { SiteLink } from '../data/siteMap';
 import type { I18nManifest } from '../lib/i18nManifest';
@@ -35,7 +36,7 @@ function isLinkActive(link: SiteLink, currentPath: string): boolean {
   return normalizedCurrent === targetPath || normalizedCurrent.startsWith(`${targetPath}/`);
 }
 
-function handleLinkListKeys(event: React.KeyboardEvent<HTMLDivElement>) {
+function handleLinkListKeys(event: ReactKeyboardEvent<HTMLDivElement>) {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
   const links = Array.from(event.currentTarget.querySelectorAll<HTMLAnchorElement>('a[href]'));
   if (!links.length) return;
