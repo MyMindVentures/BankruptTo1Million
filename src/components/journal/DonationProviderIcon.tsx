@@ -4,6 +4,8 @@ type DonationProviderIconProps = {
   className?: string;
 };
 
+const PAYPAL_EMAIL = '90990809@proton.me';
+
 const BRAND_ICONS = {
   stripe: {
     viewBox: '0 0 24 24',
@@ -32,11 +34,24 @@ export const DONATION_PROVIDER_ICON_I18N_MANIFEST = {
 export function DonationProviderIcon({ slug, className = 'donation-provider-icon' }: DonationProviderIconProps) {
   const brand = BRAND_ICONS[slug as keyof typeof BRAND_ICONS];
   if (brand) {
-    return (
+    const icon = (
       <svg className={className} viewBox={brand.viewBox} aria-hidden="true" focusable="false">
         <path fill={brand.fill} d={brand.path} />
       </svg>
     );
+
+    if (slug === 'paypal') {
+      return (
+        <span style={{ display: 'grid', justifyItems: 'center', gap: '0.45rem' }}>
+          {icon}
+          <span style={{ color: 'var(--muted)', fontSize: '0.72rem', lineHeight: 1.3, overflowWrap: 'anywhere' }}>
+            {PAYPAL_EMAIL}
+          </span>
+        </span>
+      );
+    }
+
+    return icon;
   }
 
   switch (slug) {
