@@ -4,7 +4,7 @@ type DonationProviderIconProps = {
   className?: string;
 };
 
-const PAYPAL_EMAIL = '90990809@proton.me';
+const PAYPAL_EMAIL = 'hello@mymindventures.io';
 
 const BRAND_ICONS = {
   stripe: {
