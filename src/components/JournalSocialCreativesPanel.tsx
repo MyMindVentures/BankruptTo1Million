@@ -1,24 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Copy, Download, ImageIcon, LoaderCircle, Sparkles } from 'lucide-react';
+import { Check, Copy, Download, ImageIcon, LoaderCircle, Sparkles, TextQuote } from 'lucide-react';
 import { resolvePublicMediaUrl } from '../lib/journalFootage';
 import {
-  generateJournalSocialCreative,
   getJournalSocialCreatives,
   type AdminJournalFootageItem,
   type JournalSocialCreative,
 } from '../lib/journalAdminApi';
+import {
+  generateJournalInstagramCaption,
+  generateJournalInstagramImage,
+} from '../lib/journalInstagramCreativeApi';
 
 type Props = {
   postId: string | null;
   footage: AdminJournalFootageItem[];
-};
-
-type PlatformCard = {
-  key: 'instagram_feed' | 'instagram_story' | 'x';
-  label: string;
-  caption: string | null;
-  imagePath: string | null;
-  fileName: string;
 };
 
 function mediaUrl(path: string | null | undefined) {
@@ -26,23 +21,19 @@ function mediaUrl(path: string | null | undefined) {
 }
 
 export function JournalSocialCreativesPanel({ postId, footage }: Props) {
-  const imageFootage = useMemo(
-    () => footage.filter((item) => item.asset_type === 'image'),
-    [footage],
-  );
-  const [selectedAssetId, setSelectedAssetId] = useState<string>('');
+  const imageFootage = useMemo(() => footage.filter((item) => item.asset_type === 'image'), [footage]);
+  const [selectedAssetId, setSelectedAssetId] = useState('');
   const [creatives, setCreatives] = useState<JournalSocialCreative[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [generating, setGenerating] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingCaption, setGeneratingCaption] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const latest = creatives?.[0] ?? null;
 
   useEffect(() => {
-    if (!selectedAssetId && imageFootage[0]?.asset_id) {
-      setSelectedAssetId(imageFootage[0].asset_id);
-    }
+    if (!selectedAssetId && imageFootage[0]?.asset_id) setSelectedAssetId(imageFootage[0].asset_id);
   }, [imageFootage, selectedAssetId]);
 
   useEffect(() => {
@@ -51,7 +42,6 @@ export function JournalSocialCreativesPanel({ postId, footage }: Props) {
       setError(null);
       return;
     }
-
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -60,64 +50,77 @@ export function JournalSocialCreativesPanel({ postId, footage }: Props) {
         if (!cancelled) setCreatives(rows);
       })
       .catch((reason) => {
-        if (!cancelled) {
-          setCreatives(null);
-          setError(reason instanceof Error ? reason.message : 'Failed to load social creatives.');
-        }
+        if (!cancelled) setError(reason instanceof Error ? reason.message : 'Failed to load Instagram creative.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-
     return () => {
       cancelled = true;
     };
   }, [postId]);
 
   async function refresh() {
-    if (!postId) return;
+    if (!postId) return null;
     const rows = await getJournalSocialCreatives(postId);
     setCreatives(rows);
+    return rows[0] ?? null;
   }
 
-  async function onGenerate() {
+  async function onGenerateImage() {
     if (!postId || !selectedAssetId) {
-      setError('Select a journal photo before generating social creatives.');
+      setError('Select a journal photo first.');
       return;
     }
-
-    setGenerating(true);
+    setGeneratingImage(true);
     setError(null);
     try {
-      await generateJournalSocialCreative(postId, selectedAssetId);
+      const result = await generateJournalInstagramImage(postId, selectedAssetId);
       await refresh();
+      return result.creative_id;
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Social creative generation failed.');
-      try {
-        await refresh();
-      } catch {
-        // Keep the generation error as primary.
-      }
+      setError(reason instanceof Error ? reason.message : 'Instagram image generation failed.');
+      await refresh().catch(() => null);
+      return null;
     } finally {
-      setGenerating(false);
+      setGeneratingImage(false);
     }
   }
 
-  async function copyCaption(key: string, value: string | null) {
-    if (!value) return;
-    await navigator.clipboard.writeText(value);
-    setCopiedKey(key);
-    window.setTimeout(() => setCopiedKey((current) => (current === key ? null : current)), 1600);
+  async function onGenerateCaption() {
+    const creativeId = latest?.id;
+    if (!creativeId || !latest.image_ig_feed_url) {
+      setError('Generate the Instagram image first.');
+      return;
+    }
+    setGeneratingCaption(true);
+    setError(null);
+    try {
+      await generateJournalInstagramCaption(creativeId);
+      await refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Instagram caption generation failed.');
+      await refresh().catch(() => null);
+    } finally {
+      setGeneratingCaption(false);
+    }
   }
 
-  async function downloadImage(url: string, fileName: string) {
+  async function copyCaption() {
+    if (!latest?.caption_instagram_feed) return;
+    await navigator.clipboard.writeText(latest.caption_instagram_feed);
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1600);
+  }
+
+  async function downloadImage(url: string) {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`Download failed (${response.status}).`);
     const blob = await response.blob();
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = objectUrl;
-    anchor.download = fileName;
+    anchor.download = `${latest?.id || 'journal'}-instagram.png`;
     anchor.click();
     URL.revokeObjectURL(objectUrl);
   }
@@ -128,8 +131,8 @@ export function JournalSocialCreativesPanel({ postId, footage }: Props) {
         <div className="event-panel-heading">
           <span>07</span>
           <div>
-            <h3>Social creatives</h3>
-            <p>Save the journal event first, then generate Instagram and X creatives from a photo.</p>
+            <h3>Instagram creative</h3>
+            <p>Save the journal event first, then generate the image and caption separately.</p>
           </div>
           <ImageIcon size={20} />
         </div>
@@ -137,45 +140,21 @@ export function JournalSocialCreativesPanel({ postId, footage }: Props) {
     );
   }
 
-  const cards: PlatformCard[] = latest && latest.status === 'ready'
-    ? [
-        {
-          key: 'instagram_feed',
-          label: 'Instagram feed (1:1)',
-          caption: latest.caption_instagram_feed,
-          imagePath: latest.image_ig_feed_url,
-          fileName: `${latest.id}-ig-feed.png`,
-        },
-        {
-          key: 'instagram_story',
-          label: 'Instagram story (9:16)',
-          caption: latest.caption_instagram_story,
-          imagePath: latest.image_ig_story_url,
-          fileName: `${latest.id}-ig-story.png`,
-        },
-        {
-          key: 'x',
-          label: 'X post (16:9)',
-          caption: latest.caption_x,
-          imagePath: latest.image_x_url,
-          fileName: `${latest.id}-x.png`,
-        },
-      ]
-    : [];
+  const image = mediaUrl(latest?.image_ig_feed_url);
 
   return (
     <section className="event-panel journal-social-creatives-panel">
       <div className="event-panel-heading">
         <span>07</span>
         <div>
-          <h3>Social creatives</h3>
-          <p>One click builds IG feed, IG story, and X images with captions you can copy and download.</p>
+          <h3>Instagram creative</h3>
+          <p>Generate the square post image first, then create the caption in a separate faster step.</p>
         </div>
         <Sparkles size={20} />
       </div>
 
       {imageFootage.length === 0 ? (
-        <div className="journal-social-empty">Add at least one journal photo to generate social creatives.</div>
+        <div className="journal-social-empty">Add at least one journal photo first.</div>
       ) : (
         <>
           <div className="journal-social-picker">
@@ -196,57 +175,45 @@ export function JournalSocialCreativesPanel({ postId, footage }: Props) {
           </div>
 
           <div className="journal-social-actions">
-            <button type="button" className="primary" disabled={generating || !selectedAssetId} onClick={() => void onGenerate()}>
-              {generating ? <LoaderCircle className="spin" size={16} /> : <Sparkles size={16} />}
-              {generating ? 'Generating social creatives…' : latest ? 'Regenerate social creatives' : 'Generate social creatives'}
+            <button type="button" className="primary" disabled={generatingImage || !selectedAssetId} onClick={() => void onGenerateImage()}>
+              {generatingImage ? <LoaderCircle className="spin" size={16} /> : <ImageIcon size={16} />}
+              {generatingImage ? 'Generating Instagram image…' : image ? 'Regenerate Instagram image' : 'Generate Instagram image'}
+            </button>
+            <button type="button" disabled={generatingCaption || !image} onClick={() => void onGenerateCaption()}>
+              {generatingCaption ? <LoaderCircle className="spin" size={16} /> : <TextQuote size={16} />}
+              {generatingCaption ? 'Writing caption…' : latest?.caption_instagram_feed ? 'Rewrite caption' : 'Generate caption'}
             </button>
           </div>
         </>
       )}
 
-      {loading && <div className="journal-social-status">Loading saved social creatives…</div>}
+      {loading && <div className="journal-social-status">Loading saved Instagram creative…</div>}
       {error && <div className="admin-error">{error}</div>}
-      {!loading && latest?.status === 'generating' && (
-        <div className="journal-social-status">Generation is still marked in progress. Try regenerate if this stays stuck.</div>
-      )}
-      {!loading && latest?.status === 'failed' && (
-        <div className="admin-error">{latest.error_message || 'The latest social creative run failed.'}</div>
-      )}
 
-      {cards.length > 0 && (
+      {(image || latest?.caption_instagram_feed) && (
         <div className="journal-social-results">
-          {latest?.hook_text && <p className="journal-social-hook">On-image hook: <strong>{latest.hook_text}</strong></p>}
-          <div className="journal-social-cards">
-            {cards.map((card) => {
-              const imageUrl = mediaUrl(card.imagePath);
-              return (
-                <article key={card.key} className={`journal-social-card format-${card.key}`}>
-                  <p>{card.label}</p>
-                  {imageUrl ? <img src={imageUrl} alt={card.label} /> : <div className="journal-social-missing">Image missing</div>}
-                  <textarea readOnly rows={6} value={card.caption || ''} />
-                  <div className="journal-social-card-actions">
-                    <button type="button" disabled={!card.caption} onClick={() => void copyCaption(card.key, card.caption)}>
-                      {copiedKey === card.key ? <Check size={14} /> : <Copy size={14} />}
-                      {copiedKey === card.key ? 'Copied' : 'Copy caption'}
-                    </button>
-                    <button
-                      type="button"
-                      disabled={!imageUrl}
-                      onClick={() => {
-                        if (!imageUrl) return;
-                        void downloadImage(imageUrl, card.fileName).catch((reason) => {
-                          setError(reason instanceof Error ? reason.message : 'Download failed.');
-                        });
-                      }}
-                    >
-                      <Download size={14} />
-                      Download
-                    </button>
-                  </div>
-                </article>
-              );
-            })}
-          </div>
+          <article className="journal-social-card format-instagram_feed">
+            <p>Instagram feed (1:1)</p>
+            {image ? <img src={image} alt="Instagram feed creative" /> : <div className="journal-social-missing">Image missing</div>}
+            <textarea readOnly rows={8} value={latest?.caption_instagram_feed || ''} placeholder="Generate the caption after the image is ready." />
+            <div className="journal-social-card-actions">
+              <button type="button" disabled={!latest?.caption_instagram_feed} onClick={() => void copyCaption()}>
+                {copied ? <Check size={14} /> : <Copy size={14} />}
+                {copied ? 'Copied' : 'Copy caption'}
+              </button>
+              <button
+                type="button"
+                disabled={!image}
+                onClick={() => {
+                  if (!image) return;
+                  void downloadImage(image).catch((reason) => setError(reason instanceof Error ? reason.message : 'Download failed.'));
+                }}
+              >
+                <Download size={14} />
+                Download image
+              </button>
+            </div>
+          </article>
         </div>
       )}
     </section>
