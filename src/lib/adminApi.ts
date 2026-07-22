@@ -32,7 +32,22 @@ export type AdminConceptSummary = {
   source_text: string | null;
   concept_status: string;
   ai_orchestration_status: string;
+  source_version_number: number;
+  active_source_version_id: string | null;
   updated_at: string;
+};
+
+export type AdminConceptVersion = {
+  id: string;
+  concept_id: string;
+  version_number: number;
+  title: string | null;
+  source_text: string;
+  source_language: string;
+  change_summary: string | null;
+  is_active: boolean;
+  ai_orchestration_status: string;
+  created_at: string;
 };
 
 export type AdminSectionField = {
@@ -243,7 +258,11 @@ export async function deleteAdminRow(table: string, key: string, value: string):
 }
 
 export async function getAdminConcepts(): Promise<AdminConceptSummary[]> {
-  return request<AdminConceptSummary[]>('/rest/v1/proof_of_mind_concepts?select=id,title,slug,source_text,concept_status,ai_orchestration_status,updated_at&order=updated_at.desc&limit=250');
+  return request<AdminConceptSummary[]>('/rest/v1/proof_of_mind_concepts?select=id,title,slug,source_text,concept_status,ai_orchestration_status,source_version_number,active_source_version_id,updated_at&order=updated_at.desc&limit=250');
+}
+
+export async function getConceptVersions(conceptId: string): Promise<AdminConceptVersion[]> {
+  return request<AdminConceptVersion[]>(`/rest/v1/proof_of_mind_concept_versions?select=id,concept_id,version_number,title,source_text,source_language,change_summary,is_active,ai_orchestration_status,created_at&concept_id=eq.${encodeURIComponent(conceptId)}&order=version_number.desc`);
 }
 
 export async function createConceptFromSourceText(input: { sourceText: string; title: string; originalLanguage: string }): Promise<string> {
@@ -257,24 +276,16 @@ export async function createConceptFromSourceText(input: { sourceText: string; t
   });
 }
 
-export async function updateConceptSourceText(conceptId: string, input: { sourceText: string; title?: string }): Promise<void> {
-  const patch: AdminRow = {
-    source_text: input.sourceText,
-    source_payload: { source_text: input.sourceText },
-    ai_orchestration_status: 'queued',
-    ai_enrichment_status: 'pending',
-    ai_enrichment_error: null,
-    updated_at: new Date().toISOString(),
-  };
-  if (input.title) patch.title = input.title;
-  await request<AdminRow[]>(`/rest/v1/proof_of_mind_concepts?id=eq.${encodeURIComponent(conceptId)}`, {
-    method: 'PATCH',
-    headers: { Prefer: 'return=representation' },
-    body: JSON.stringify(patch),
-  });
-  await request<number>('/rest/v1/rpc/queue_concept_ai_field_jobs', {
+export async function saveConceptSourceVersion(conceptId: string, input: { sourceText: string; title?: string; sourceLanguage?: string; changeSummary?: string }): Promise<string> {
+  return request<string>('/rest/v1/rpc/save_concept_source_version', {
     method: 'POST',
-    body: JSON.stringify({ p_concept_id: conceptId, p_field_groups: [], p_overwrite_mode: 'ai_only' }),
+    body: JSON.stringify({
+      p_concept_id: conceptId,
+      p_source_text: input.sourceText,
+      p_title: input.title || null,
+      p_source_language: input.sourceLanguage || null,
+      p_change_summary: input.changeSummary || null,
+    }),
   });
 }
 
