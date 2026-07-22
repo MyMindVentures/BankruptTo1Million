@@ -17,6 +17,7 @@ export const SITE_CONTENT_I18N_MANIFEST = {
     'home.roadmap.items.momentum',
     'home.roadmap.items.storytelling',
     'navigation.apply',
+    'navigation.breakfast_for_a_story',
     'navigation.break_the_circle',
     'navigation.calendar',
     'navigation.founder_support',
@@ -104,6 +105,7 @@ export const navGroups: NavGroup[] = [
     id: 'participate',
     labelKey: 'navigation.group.participate',
     items: [
+      { label: 'Breakfast for a Story', translationKey: 'navigation.breakfast_for_a_story', href: '/breakfast-for-a-story' },
       { label: 'Apply', translationKey: 'navigation.apply', href: '/become-a-founding-hero' },
       { label: 'Support', translationKey: 'navigation.support', href: '/support' },
       { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
@@ -123,6 +125,7 @@ export const navItems: NavItem[] = [
   { label: 'Calendar', translationKey: 'navigation.calendar', href: '/calendar' },
   { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
   { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
+  { label: 'Breakfast for a Story', translationKey: 'navigation.breakfast_for_a_story', href: '/breakfast-for-a-story' },
   { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support' },
   { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
   { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
