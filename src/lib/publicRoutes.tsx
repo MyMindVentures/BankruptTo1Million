@@ -5,6 +5,7 @@ import { BreakTheCircleArticlePage, BreakTheCirclePage } from '../pages/BreakThe
 import { ProofOfMindDetailPage, ProofOfMindPage } from '../pages/ProofOfMindPages';
 import { JournalArticlePage, JournalPage } from '../pages/JournalPages';
 import { LocalizedFounderSupportPage } from '../pages/LocalizedFounderSupportPage';
+import { BreakfastForAStoryPage } from '../pages/BreakfastForAStoryPage';
 import { FoundersOverviewPage } from '../pages/FoundersOverviewPage';
 import { FounderProfilePage } from '../pages/FounderProfilePage';
 import { MediaVaultPage } from '../pages/MediaVaultPage';
@@ -23,6 +24,7 @@ const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/proof-of-mind': () => <ProofOfMindPage />,
   '/journal': () => <JournalPage />,
   '/founder-support': () => <LocalizedFounderSupportPage />,
+  '/breakfast-for-a-story': () => <BreakfastForAStoryPage />,
   '/founders': () => <FoundersOverviewPage />,
   '/media': () => <MediaVaultPage />,
   '/calendar': () => <CalendarPage />,
