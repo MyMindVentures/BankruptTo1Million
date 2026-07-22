@@ -61,7 +61,7 @@ const footerGroups = [
       { label: 'Ownership & IP Notice', key: 'footer.links.ownership_ip_notice', href: '/legal#ownership' },
       { label: 'Terms of Use', key: 'footer.links.terms_of_use', href: '/legal#terms' },
       { label: 'Privacy Policy', key: 'footer.links.privacy_policy', href: '/legal#privacy' },
-      { label: 'Public Mission Statement', key: 'footer.links.public_mission_statement', href: '/legal#mission' },
+      { label: 'Mission Statement', key: 'footer.links.public_mission_statement', href: '/mission-statement' },
       { label: 'Source Repository', key: 'footer.links.source_repository', href: 'https://github.com/MyMindVentures/BankruptTo1Million', external: true },
     ],
   },
@@ -74,55 +74,27 @@ export function Footer() {
   return (
     <footer className="site-footer" aria-labelledby="footer-title">
       <div className="site-footer__ambient" aria-hidden="true" />
-
       <div className="site-footer__inner">
         <section className="site-footer__brand-panel">
           <p className="site-footer__kicker">{t('footer.mission.kicker', 'A public rebuild in motion')}</p>
-
-          <a
-            className="site-footer__brand"
-            href="/#top"
-            aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')}
-          >
+          <a className="site-footer__brand" href="/#top" aria-label={t('header.brand_home_aria', 'Bankrupt to 1 Million home')}>
             <span className="brand__mark site-footer__logo-mark" aria-hidden="true">B1M</span>
             <span className="site-footer__brand-copy">
               <strong id="footer-title">Bankrupt to 1 Million</strong>
               <small>{t('footer.mission.tagline', 'From financial rock bottom to freedom — built in public.')}</small>
             </span>
           </a>
-
-          <p className="site-footer__mission">{t(
-            'footer.mission.description',
-            'A transparent founder journey, venture archive and community mission by Kevin De Vlieger and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.',
-          )}</p>
-
+          <p className="site-footer__mission">{t('footer.mission.description', 'A transparent founder journey, venture archive and community mission by Kevin De Vlieger and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.')}</p>
           <div className="site-footer__primary-links">
-            <a href="/support">
-              {t('footer.actions.support', 'Support the mission')}
-              <ArrowRight size={16} aria-hidden="true" />
-            </a>
-            <a href="/proof-of-mind">
-              {t('footer.actions.explore_concepts', 'Explore the concepts')}
-              <ArrowRight size={16} aria-hidden="true" />
-            </a>
+            <a href="/support">{t('footer.actions.support', 'Support the mission')}<ArrowRight size={16} aria-hidden="true" /></a>
+            <a href="/proof-of-mind">{t('footer.actions.explore_concepts', 'Explore the concepts')}<ArrowRight size={16} aria-hidden="true" /></a>
           </div>
-
           <div className="site-footer__trust">
-            <a href="/legal#ownership">
-              <ShieldCheck size={15} aria-hidden="true" />
-              {t('footer.trust.original_concepts', 'Original concepts protected')}
-            </a>
-            <span>
-              <MapPin size={15} aria-hidden="true" />
-              {t('footer.trust.location', 'Based in Alicante, Spain')}
-            </span>
+            <a href="/legal#ownership"><ShieldCheck size={15} aria-hidden="true" />{t('footer.trust.original_concepts', 'Original concepts protected')}</a>
+            <span><MapPin size={15} aria-hidden="true" />{t('footer.trust.location', 'Based in Alicante, Spain')}</span>
           </div>
         </section>
-
-        <nav
-          className="site-footer__sitemap"
-          aria-label={t('footer.accessibility.sitemap_aria', 'Complete website sitemap')}
-        >
+        <nav className="site-footer__sitemap" aria-label={t('footer.accessibility.sitemap_aria', 'Complete website sitemap')}>
           {footerGroups.map((group) => {
             const groupId = `footer-${group.titleKey.replace(/[^a-z0-9]+/g, '-')}`;
             return (
@@ -131,10 +103,7 @@ export function Footer() {
                 <ul>
                   {group.links.map((link) => (
                     <li key={`${group.titleKey}-${link.href}`}>
-                      <a
-                        href={link.href}
-                        {...('external' in link && link.external ? { target: '_blank', rel: 'noreferrer' } : {})}
-                      >
+                      <a href={link.href} {...('external' in link && link.external ? { target: '_blank', rel: 'noreferrer' } : {})}>
                         <span>{t(link.key, link.label)}</span>
                         {'external' in link && link.external ? <ArrowUpRight size={13} aria-hidden="true" /> : null}
                       </a>
@@ -146,22 +115,12 @@ export function Footer() {
           })}
         </nav>
       </div>
-
       <div className="site-footer__bottom">
-        <p>{t(
-          'footer.bottom.copyright',
-          '© {year} MyMindVentures.io · Kevin De Vlieger · Bankrupt to 1 Million',
-          { year },
-        )}</p>
+        <p>{t('footer.bottom.copyright', '© {year} MyMindVentures.io · Kevin De Vlieger · Bankrupt to 1 Million', { year })}</p>
         <div className="site-footer__bottom-links">
-          <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer">
-            <Github size={15} aria-hidden="true" /> {t('footer.bottom.github', 'GitHub')}
-          </a>
+          <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer"><Github size={15} aria-hidden="true" /> {t('footer.bottom.github', 'GitHub')}</a>
           <a href="/legal#privacy">{t('footer.bottom.privacy', 'Privacy')}</a>
-          <a href="#top">
-            {t('footer.bottom.back_to_top', 'Back to top')}
-            <ArrowUp size={14} aria-hidden="true" />
-          </a>
+          <a href="#top">{t('footer.bottom.back_to_top', 'Back to top')}<ArrowUp size={14} aria-hidden="true" /></a>
         </div>
       </div>
     </footer>
