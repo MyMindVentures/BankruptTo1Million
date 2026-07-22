@@ -16,6 +16,7 @@ export const BREAKFAST_FOR_A_STORY_PAGE_I18N_MANIFEST = {
     'breakfast_for_story.value.photos',
     'breakfast_for_story.value.story',
     'breakfast_for_story.value.visibility',
+    'breakfast_for_story.values_aria',
     'breakfast_for_story.closing',
     'breakfast_for_story.website_label',
   ] as const,
@@ -67,7 +68,10 @@ export function BreakfastForAStoryPage() {
           )}
         </p>
 
-        <div className="breakfast-story-values" aria-label="What we give in return">
+        <div
+          className="breakfast-story-values"
+          aria-label={t('breakfast_for_story.values_aria', 'What we give in return')}
+        >
           <div>
             <Camera aria-hidden="true" size={24} />
             <span>{t('breakfast_for_story.value.photos', 'Beautiful, authentic photos')}</span>
