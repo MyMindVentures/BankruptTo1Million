@@ -162,6 +162,7 @@ const publicCategoryOrder = [
 ] as const;
 
 type PublicCategory = typeof publicCategoryOrder[number];
+type ConceptCategoryFilter = 'All' | PublicCategory;
 type ConceptSort = 'updated_desc' | 'updated_asc' | 'title_asc' | 'title_desc';
 
 function getPublicCategory(concept: ProofOfMindConcept): PublicCategory {
@@ -184,14 +185,14 @@ function conceptUpdateTime(concept: ProofOfMindConcept) {
 export function ProofOfMindPage() {
   const { t } = useWebsiteI18n();
   const { concepts, state, retry } = useConcepts();
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [selectedCategory, setSelectedCategory] = useState<ConceptCategoryFilter>('All');
   const [query, setQuery] = useState('');
   const [sortBy, setSortBy] = useState<ConceptSort>('updated_desc');
   const [discoveryConcept, setDiscoveryConcept] = useState<ProofOfMindConcept | null>(null);
   useEffect(() => { setProofMeta('Proof of Mind — Bankrupt to 1 Million', 'A public archive of venture concepts, evaluations, competition research and collaboration opportunities.'); }, []);
 
   const categoryCounts = useMemo(() => {
-    const counts = new Map<string, number>([['All', concepts.length]]);
+    const counts = new Map<ConceptCategoryFilter, number>([['All', concepts.length]]);
     concepts.forEach((concept) => {
       const category = getPublicCategory(concept);
       counts.set(category, (counts.get(category) || 0) + 1);
@@ -199,7 +200,7 @@ export function ProofOfMindPage() {
     return counts;
   }, [concepts]);
 
-  const categories = useMemo(() => ['All', ...publicCategoryOrder.filter((category) => (categoryCounts.get(category) || 0) > 0)], [categoryCounts]);
+  const categories = useMemo<ConceptCategoryFilter[]>(() => ['All', ...publicCategoryOrder.filter((category) => (categoryCounts.get(category) || 0) > 0)], [categoryCounts]);
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
