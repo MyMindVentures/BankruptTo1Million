@@ -17,6 +17,7 @@ import { PublicBuildRequestsPage } from '../pages/PublicBuildRequestsPage';
 import { AdminAuthGate } from '../pages/AdminAuthGate';
 import { OutreachPrivatePage } from '../pages/OutreachPrivatePage';
 import { LegalPage } from '../pages/LegalPage';
+import { MissionStatementPage } from '../pages/MissionStatementPage';
 
 const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/': () => <HomePage />,
@@ -32,6 +33,7 @@ const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/impact': () => <ImpactResultsPage />,
   '/issues': () => <PublicBuildRequestsPage />,
   '/legal': () => <LegalPage />,
+  '/mission-statement': () => <MissionStatementPage />,
   '/admin': () => <AdminAuthGate />,
 };
 
