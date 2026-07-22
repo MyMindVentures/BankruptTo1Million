@@ -60,7 +60,7 @@ const visibleNavGroups = [
   {
     id: 'explore',
     labelKey: 'navigation.group.explore',
-    items: navigationItems(['/journal', '/#story', '/media', '/calendar', '/#platform', '/#roadmap']),
+    items: navigationItems(['/journal', '/#story', '/mission-statement', '/media', '/calendar', '/#platform', '/#roadmap']),
   },
   {
     id: 'community',
