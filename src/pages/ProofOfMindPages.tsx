@@ -140,7 +140,7 @@ function DiscoveryCallModal({ concept, onClose }: { concept: ProofOfMindConcept;
     try { await submitProofOfMindDiscovery(payload); setState('success'); setMessage(t('proof_of_mind.discovery.success_message', 'Your request has been linked to {title}.', { title: concept.title })); } catch { setState('error'); setMessage(t('proof_of_mind.discovery.error', 'The request could not be saved. Please try again shortly.')); }
   }
   const set = (key: keyof typeof form, value: string | boolean) => setForm((current) => ({ ...current, [key]: value }));
-  return <div className="discovery-modal" role="dialog" aria-modal="true" aria-labelledby="discovery-title"><div className="discovery-modal__panel"><button className="discovery-modal__close" type="button" onClick={onClose} aria-label={t('proof_of_mind.discovery.close_aria', 'Close discovery call form')}><X size={18} /></button>{state === 'success' ? <div className="impact-state"><CheckCircle /><div><strong>{t('proof_of_mind.discovery.received', 'Request received.')}</strong><br />{message}</div><button className="button button--small" type="button" onClick={onClose}>{t('proof_of_mind.discovery.close', 'Close')}</button></div> : <form className="application-form journal-form discovery-form" onSubmit={submit}><p className="eyebrow">{t('proof_of_mind.discovery.eyebrow', 'Book Discovery Call')}</p><h2 id="discovery-title">{t('proof_of_mind.discovery.title', 'Discuss {title}', { title: concept.title })}</h2><p>{t('proof_of_mind.discovery.description', 'Tell us how you could help validate, build, fund or launch this concept.')}</p><div className="form-grid"><label>{t('proof_of_mind.discovery.full_name', 'Full name')}<input required value={form.full_name} onChange={(e) => set('full_name', e.target.value)} /></label><label>{t('proof_of_mind.discovery.email', 'Email')}<input required type="email" value={form.email} onChange={(e) => set('email', e.target.value)} /></label></div><div className="form-grid"><label>{t('proof_of_mind.discovery.company', 'Company or organisation')}<input required value={form.company} onChange={(e) => set('company', e.target.value)} /></label><label>{t('proof_of_mind.discovery.role', 'Role')}<input required value={form.role} onChange={(e) => set('role', e.target.value)} /></label></div><label>{t('proof_of_mind.discovery.country', 'Country/location')}<input required value={form.country} onChange={(e) => set('country', e.target.value)} /></label><div className="form-grid"><label>{t('proof_of_mind.discovery.website', 'Website')} <span className="optional-label">{t('proof_of_mind.discovery.optional', 'optional')}</span><input type="url" value={form.website} onChange={(e) => set('website', e.target.value)} /></label><label>{t('proof_of_mind.discovery.linkedin', 'LinkedIn')} <span className="optional-label">{t('proof_of_mind.discovery.optional', 'optional')}</span><input type="url" value={form.linkedin} onChange={(e) => set('linkedin', e.target.value)} /></label></div><label>{t('proof_of_mind.discovery.interest_type', 'How would you like to participate?')}<select value={form.interest_type} onChange={(e) => set('interest_type', e.target.value)}>{interestTypes.map((type) => <option value={type} key={type}>{humanize(type)}</option>)}</select></label><label>{t('proof_of_mind.discovery.message', 'Why does this concept interest you?')}<textarea required rows={5} value={form.interest_message} onChange={(e) => set('interest_message', e.target.value)} /></label><label className="consent-row"><input required type="checkbox" checked={form.consent_to_contact} onChange={(e) => set('consent_to_contact', e.target.checked)} /><span>{t('proof_of_mind.discovery.consent', 'I consent to being contacted about this concept.')}</span></label>{message ? <p className="form-message form-message--error" role="alert">{message}</p> : null}<button className="button" type="submit" disabled={state === 'loading'}>{state === 'loading' ? t('proof_of_mind.discovery.sending', 'Sending…') : t('proof_of_mind.discovery.submit', 'Request a conversation')}</button></form>}</div></div>;
+  return <div className="discovery-modal" role="dialog" aria-modal="true" aria-labelledby="discovery-title"><div className="discovery-modal__panel"><button className="discovery-modal__close" type="button" onClick={onClose} aria-label={t('proof_of_mind.discovery.close_aria', 'Close discovery call form')}><X size={18} /></button>{state === 'success' ? <div className="impact-state"><CheckCircle /><div><strong>{t('proof_of_mind.discovery.received', 'Request received.')}</strong><br />{message}</div><button className="button button--small" type="button" onClick={onClose}>{t('proof_of_mind.discovery.close', 'Close')}</button></div> : <form className="application-form journal-form discovery-form" onSubmit={submit}><p className="eyebrow">{t('proof_of_mind.discovery.eyebrow', 'DISCOVERY CALL')}</p><h2 id="discovery-title">{t('proof_of_mind.discovery.title', 'Register your interest in {title}', { title: concept.title })}</h2><div className="application-form__grid"><label>{t('proof_of_mind.discovery.full_name', 'Full name')}<input required value={form.full_name} onChange={(event) => set('full_name', event.target.value)} /></label><label>{t('proof_of_mind.discovery.email', 'Email')}<input required type="email" value={form.email} onChange={(event) => set('email', event.target.value)} /></label><label>{t('proof_of_mind.discovery.company', 'Company')}<input value={form.company} onChange={(event) => set('company', event.target.value)} /></label><label>{t('proof_of_mind.discovery.role', 'Role')}<input value={form.role} onChange={(event) => set('role', event.target.value)} /></label><label>{t('proof_of_mind.discovery.country', 'Country')}<input value={form.country} onChange={(event) => set('country', event.target.value)} /></label><label>{t('proof_of_mind.discovery.interest_type', 'Interest type')}<select value={form.interest_type} onChange={(event) => set('interest_type', event.target.value)}>{interestTypes.map((item) => <option key={item}>{item}</option>)}</select></label></div><label>{t('proof_of_mind.discovery.message', 'Message')}<textarea required rows={5} value={form.interest_message} onChange={(event) => set('interest_message', event.target.value)} /></label><label className="checkbox-field"><input required type="checkbox" checked={form.consent_to_contact} onChange={(event) => set('consent_to_contact', event.target.checked)} />{t('proof_of_mind.discovery.consent', 'I agree to be contacted about this concept.')}</label>{message ? <p className="form-message" role="alert">{message}</p> : null}<button className="button" type="submit" disabled={state === 'loading'}>{state === 'loading' ? t('proof_of_mind.discovery.sending', 'Sending…') : t('proof_of_mind.discovery.submit', 'Register interest')}</button></form>}</div></div>;
 }
 
 function useConcepts() {
@@ -151,24 +151,90 @@ function useConcepts() {
   return { concepts, state, retry: () => setRetry((value) => value + 1) };
 }
 
+const publicCategoryOrder = [
+  'AI & Digital Products',
+  'Business & Commerce',
+  'Mobility, Maritime & Infrastructure',
+  'Living, Community & Wellbeing',
+  'Leisure, Travel & Hospitality',
+  'Media, Education & Creativity',
+  'Other Concepts',
+] as const;
+
+type PublicCategory = typeof publicCategoryOrder[number];
+type ConceptSort = 'updated_desc' | 'updated_asc' | 'title_asc' | 'title_desc';
+
+function getPublicCategory(concept: ProofOfMindConcept): PublicCategory {
+  const haystack = [concept.category, concept.concept_type, concept.title, ...concept.tags].filter(Boolean).join(' ').toLowerCase();
+  if (/maritime|marine|ship|fleet|mobility|transport|infrastructure|logistics|aviation|vehicle|energy|construction/.test(haystack)) return 'Mobility, Maritime & Infrastructure';
+  if (/hospitality|travel|tourism|hotel|leisure|water sport|watersport|experience|resort|beach|event/.test(haystack)) return 'Leisure, Travel & Hospitality';
+  if (/community|living|wellbeing|wellness|health|housing|nature|neuro|social impact/.test(haystack)) return 'Living, Community & Wellbeing';
+  if (/media|education|learning|creative|creator|film|music|publishing|story|content/.test(haystack)) return 'Media, Education & Creativity';
+  if (/commerce|marketplace|retail|business|sales|venture|finance|investment|operations/.test(haystack)) return 'Business & Commerce';
+  if (/ai|software|digital|app|platform|saas|automation|data|technology|tech/.test(haystack)) return 'AI & Digital Products';
+  return 'Other Concepts';
+}
+
+function conceptUpdateTime(concept: ProofOfMindConcept) {
+  const value = concept.updated_at || concept.published_at;
+  const timestamp = value ? new Date(value).getTime() : 0;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+}
+
 export function ProofOfMindPage() {
   const { t } = useWebsiteI18n();
   const { concepts, state, retry } = useConcepts();
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<ConceptSort>('updated_desc');
   const [discoveryConcept, setDiscoveryConcept] = useState<ProofOfMindConcept | null>(null);
   useEffect(() => { setProofMeta('Proof of Mind — Bankrupt to 1 Million', 'A public archive of venture concepts, evaluations, competition research and collaboration opportunities.'); }, []);
-  const categories = useMemo(() => ['All', ...Array.from(new Set(concepts.map((concept) => concept.category)))], [concepts]);
-  const filtered = useMemo(() => concepts.filter((concept) => (selectedCategory === 'All' || concept.category === selectedCategory) && [concept.title, concept.tagline, concept.short_description, concept.category, ...concept.tags].filter(Boolean).join(' ').toLowerCase().includes(query.trim().toLowerCase())), [concepts, selectedCategory, query]);
+
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>([['All', concepts.length]]);
+    concepts.forEach((concept) => {
+      const category = getPublicCategory(concept);
+      counts.set(category, (counts.get(category) || 0) + 1);
+    });
+    return counts;
+  }, [concepts]);
+
+  const categories = useMemo(() => ['All', ...publicCategoryOrder.filter((category) => (categoryCounts.get(category) || 0) > 0)], [categoryCounts]);
+
+  const filtered = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
+    return concepts
+      .filter((concept) => {
+        const groupedCategory = getPublicCategory(concept);
+        if (selectedCategory !== 'All' && groupedCategory !== selectedCategory) return false;
+        if (!normalizedQuery) return true;
+        const searchable = [concept.title, concept.tagline, concept.short_description, groupedCategory, concept.category, ...concept.tags].filter(Boolean).join(' ').toLowerCase();
+        return searchable.includes(normalizedQuery);
+      })
+      .sort((a, b) => {
+        if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
+        if (sortBy === 'title_desc') return b.title.localeCompare(a.title);
+        const difference = conceptUpdateTime(a) - conceptUpdateTime(b);
+        return sortBy === 'updated_asc' ? difference : -difference;
+      });
+  }, [concepts, selectedCategory, query, sortBy]);
+
+  const resetFilters = () => { setQuery(''); setSelectedCategory('All'); setSortBy('updated_desc'); };
+
   return <main className="proof-page">
-    <section className="section proof-hero"><div className="container split-grid"><div><p className="eyebrow">PROOF OF MIND</p><h1>{t('proof_of_mind.hero.title', 'Ideas are easy to dismiss. A body of work is harder to ignore.')}</h1><p className="lead">{t('proof_of_mind.hero.description', 'Explore the concepts Kevin and Micha are developing, the evidence behind them and the people we want to build with.')}</p><div className="proof-search"><label htmlFor="proof-search"><Search size={16} /> {t('proof_of_mind.search.label', 'Search concepts')}</label><input id="proof-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('proof_of_mind.search.placeholder', 'Search by title, category or tag')} /></div></div><div className="proof-hero-card premium-card"><Brain size={38} /><h2>{t('proof_of_mind.hero.card_title', 'From private thought to public proof')}</h2><p>{t('proof_of_mind.hero.card_description', 'Every concept is connected to its founder, evaluation, market logic, competition research and opportunities for collaboration.')}</p></div></div></section>
+    <section className="section proof-hero"><div className="container split-grid"><div><p className="eyebrow">PROOF OF MIND</p><h1>{t('proof_of_mind.hero.title', 'Ideas are easy to dismiss. A body of work is harder to ignore.')}</h1><p className="lead">{t('proof_of_mind.hero.description', 'Explore the concepts Kevin and Micha are developing, the evidence behind them and the people we want to build with.')}</p></div><div className="proof-hero-card premium-card"><Brain size={38} /><h2>{t('proof_of_mind.hero.card_title', 'From private thought to public proof')}</h2><p>{t('proof_of_mind.hero.card_description', 'Every concept is connected to its founder, evaluation, market logic, competition research and opportunities for collaboration.')}</p></div></div></section>
     <section className="container proof-stats"><article><span>{concepts.length}</span><p>{t('proof_of_mind.stats.visible', 'Visible concepts')}</p></article><article><span>{concepts.filter((concept) => concept.visibility === 'full').length}</span><p>{t('proof_of_mind.stats.full', 'Full public concepts')}</p></article><article><span>{concepts.filter((concept) => concept.founder_video).length}</span><p>{t('proof_of_mind.stats.founder_videos', 'Founder videos')}</p></article></section>
     <section className="section"><div className="container"><SectionHeading eyebrow={t('proof_of_mind.archive.eyebrow', 'PUBLIC ARCHIVE')} title={t('proof_of_mind.archive.title', 'Proof of Mind concepts')} titleId="proof-of-mind-archive-title">{t('proof_of_mind.archive.description', 'Open the public concepts, share them and register your interest in helping one move forward.')}</SectionHeading>
-      <div className="concept-filters" aria-label={t('proof_of_mind.filters.aria', 'Filter concepts')}>{categories.map((category) => <button className={selectedCategory === category ? 'is-active' : ''} type="button" key={category} onClick={() => setSelectedCategory(category)}>{category}</button>)}</div>
+      <div className="proof-archive-controls">
+        <div className="proof-search"><label htmlFor="proof-search"><Search size={16} /> {t('proof_of_mind.search.label', 'Search concepts')}</label><div className="proof-search__input"><input id="proof-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('proof_of_mind.search.placeholder', 'Start typing a concept name, category or tag')} autoComplete="off" />{query ? <button type="button" onClick={() => setQuery('')} aria-label={t('proof_of_mind.search.clear', 'Clear search')}><X size={16} /></button> : null}</div></div>
+        <label className="proof-sort" htmlFor="proof-sort">{t('proof_of_mind.sort.label', 'Sort concepts')}<select id="proof-sort" value={sortBy} onChange={(event) => setSortBy(event.target.value as ConceptSort)}><option value="updated_desc">{t('proof_of_mind.sort.updated_desc', 'Recently updated first')}</option><option value="updated_asc">{t('proof_of_mind.sort.updated_asc', 'Oldest update first')}</option><option value="title_asc">{t('proof_of_mind.sort.title_asc', 'Title A–Z')}</option><option value="title_desc">{t('proof_of_mind.sort.title_desc', 'Title Z–A')}</option></select></label>
+      </div>
+      <div className="concept-filters" aria-label={t('proof_of_mind.filters.aria', 'Filter concepts')}>{categories.map((category) => <button className={selectedCategory === category ? 'is-active' : ''} type="button" key={category} onClick={() => setSelectedCategory(category)}><span>{category}</span><strong>{categoryCounts.get(category) || 0}</strong></button>)}</div>
+      <div className="proof-results-summary" aria-live="polite"><span>{filtered.length} {filtered.length === 1 ? t('proof_of_mind.results.single', 'concept found') : t('proof_of_mind.results.multiple', 'concepts found')}</span>{query || selectedCategory !== 'All' || sortBy !== 'updated_desc' ? <button type="button" onClick={resetFilters}>{t('proof_of_mind.filters.reset', 'Reset filters')}</button> : null}</div>
       {state === 'loading' ? <div className="impact-state"><RefreshCw className="spin" /><strong>{t('proof_of_mind.loading', 'Loading concepts…')}</strong></div> : null}
       {state === 'error' ? <ProofOfMindErrorState onRetry={retry} /> : null}
       {state === 'success' && !concepts.length ? <ProofOfMindEmptyState /> : null}
-      {state === 'success' && concepts.length && !filtered.length ? <div className="impact-state"><strong>{t('proof_of_mind.no_results.title', 'No concepts match your search.')}</strong><br />{t('proof_of_mind.no_results.description', 'Try another keyword or category.')}</div> : null}
+      {state === 'success' && concepts.length && !filtered.length ? <div className="impact-state"><strong>{t('proof_of_mind.no_results.title', 'No concepts match your search.')}</strong><br />{t('proof_of_mind.no_results.description', 'Try another keyword or category.')}<br /><button className="button button--small" type="button" onClick={resetFilters}>{t('proof_of_mind.filters.reset', 'Reset filters')}</button></div> : null}
       {state === 'success' && filtered.length ? <div className="concept-grid">{filtered.map((concept) => <ConceptCard concept={concept} onDiscovery={setDiscoveryConcept} key={concept.id} />)}</div> : null}
     </div></section>
     {discoveryConcept ? <DiscoveryCallModal concept={discoveryConcept} onClose={() => setDiscoveryConcept(null)} /> : null}
@@ -205,11 +271,12 @@ export function ProofOfMindDetailPage({ slug }: { slug: string }) {
       {concept.evaluation ? <DetailSection title="Commercial evaluation"><div className="proof-score-row"><ScoreBadge label="Average" value={concept.evaluation.average_score} /><ScoreBadge label="Concept" value={concept.concept_score} /></div><div className="proof-evaluation-list">{concept.evaluation.criteria.map((criterion) => <article key={criterion.criterion}><div><h3>{criterion.criterion}</h3><strong>{criterion.score !== null ? `${criterion.score}/10` : '—'}</strong></div>{renderText(criterion.assessment)}{criterion.risks.length ? <><h4>Risks</h4><DetailList items={criterion.risks} /></> : null}{criterion.improvement_actions.length ? <><h4>Improvement actions</h4><DetailList items={criterion.improvement_actions} /></> : null}</article>)}</div></DetailSection> : null}
       <DetailSection title="Market, business model and validation"><div className="proof-split"><article><h3>Market opportunity</h3>{renderText(concept.market_opportunity)}</article><article><h3>Business model</h3>{renderText(concept.business_model_summary || concept.business_model)}</article></div><h3>Validation</h3>{renderText(concept.validation_summary)}<DetailList items={concept.validation_evidence} /></DetailSection>
       <DetailSection title="Roadmap">{renderText(concept.roadmap_summary)}</DetailSection>
-      {concept.lead_pipeline ? <DetailSection title="Partner and lead opportunities"><p>{concept.lead_pipeline.category_count} partner categories · {concept.lead_pipeline.target_slots} target slots · {concept.lead_pipeline.identified_leads} identified leads.</p>{concept.lead_pipeline.categories.length ? <div className="proof-lead-grid">{concept.lead_pipeline.categories.map((category) => <article key={category.name}><h3>{category.name}</h3>{renderText(category.strategic_goal)}{renderText(category.default_outreach_angle)}<p className="proof-kicker">{category.identified_leads}/{category.target_slots} identified</p></article>)}</div> : null}</DetailSection> : null}
-      <DetailSection title="Who we want to meet"><DetailList items={concept.collaboration_opportunities} />{pitchUrl ? <a className="button button--ghost" href={pitchUrl} target="_blank" rel="noreferrer">View pitch deck <ExternalLink size={16} /></a> : null}</DetailSection>
-      <section className="concept-detail-section proof-signature"><Sparkles /><div><strong>Proof of Mind</strong><p>This concept is documented publicly to attract constructive feedback, partners and the people who can help turn it into tangible progress.</p></div></section>
-      <section className="concept-detail-section proof-final-cta"><h2>Could you help move {concept.title} forward?</h2><p>We are looking for builders, launch partners, customers, investors, sponsors and media collaborators who see the potential.</p><button className="button" type="button" onClick={() => setDiscoveryOpen(true)}>Book Discovery Call <ArrowRight size={16} /></button></section>
+      {concept.collaboration_opportunities.length ? <DetailSection title="Collaboration opportunities"><DetailList items={concept.collaboration_opportunities} /></DetailSection> : null}
+      {concept.lead_pipeline?.categories.length ? <DetailSection title="Who we want to reach"><div className="proof-lead-grid">{concept.lead_pipeline.categories.map((category) => <article key={category.name}><h3>{category.name}</h3>{renderText(category.strategic_goal)}{renderText(category.default_outreach_angle)}<p><strong>{category.identified_leads}</strong> identified · <strong>{category.target_slots}</strong> target slots</p></article>)}</div></DetailSection> : null}
+      {pitchUrl ? <DetailSection title="Pitch deck"><a className="button button--small" href={pitchUrl} target="_blank" rel="noreferrer">Open pitch deck <ExternalLink size={16} /></a></DetailSection> : null}
+      <section className="concept-detail-section proof-signature"><Lightbulb /><div><strong>Proof of Mind</strong><p>This concept is publicly shared as evidence of original thinking, structured development and willingness to collaborate.</p></div></section>
     </div></section>
+    <section className="section proof-final-cta"><div className="container"><h2>Could you help this concept move forward?</h2><p>Register your interest as a customer, builder, launch partner, investor or sponsor.</p><button className="button" type="button" onClick={() => setDiscoveryOpen(true)}>Book Discovery Call <ArrowRight size={16} /></button></div></section>
     {discoveryOpen ? <DiscoveryCallModal concept={concept} onClose={() => setDiscoveryOpen(false)} /> : null}
   </main>;
 }
