@@ -23,6 +23,26 @@ export const MISSION_STATEMENT_PAGE_I18N_MANIFEST = {
   },
 } as const satisfies I18nManifest;
 
+function ensureMeta(selector: string, attribute: 'name' | 'property', key: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(selector);
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute(attribute, key);
+    document.head.appendChild(meta);
+  }
+  meta.content = content;
+}
+
+function ensureCanonical(url: string) {
+  let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'canonical';
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
 function downloadText(page: MissionStatementPageData, language: string) {
   const text = page.blocks
     .map((block) => [block.eyebrow, block.title, block.subtitle, block.body].filter(Boolean).join('\n\n'))
@@ -63,16 +83,19 @@ export function MissionStatementPage() {
 
   useEffect(() => {
     if (!hero) return;
-    document.title = hero.seo_title || hero.title || page?.page_name || 'Mission Statement';
+    const title = hero.seo_title || hero.title || page?.page_name || 'Mission Statement';
     const description = hero.seo_description || hero.subtitle || '';
-    let meta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.name = 'description';
-      document.head.appendChild(meta);
-    }
-    meta.content = description;
-  }, [hero, page?.page_name]);
+    document.title = title;
+    ensureMeta('meta[name="description"]', 'name', 'description', description);
+    ensureMeta('meta[property="og:title"]', 'property', 'og:title', title);
+    ensureMeta('meta[property="og:description"]', 'property', 'og:description', description);
+    ensureMeta('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
+    ensureMeta('meta[property="og:type"]', 'property', 'og:type', 'website');
+    ensureMeta('meta[name="twitter:card"]', 'name', 'twitter:card', 'summary');
+    ensureMeta('meta[name="twitter:title"]', 'name', 'twitter:title', title);
+    ensureMeta('meta[name="twitter:description"]', 'name', 'twitter:description', description);
+    ensureCanonical(canonicalUrl);
+  }, [canonicalUrl, hero, page?.page_name]);
 
   if (state === 'loading') return <main className="section mission-statement-page" id="top"><p>{t('mission_statement.states.loading', 'Loading mission statement…')}</p></main>;
   if (state === 'error') return <main className="section mission-statement-page" id="top"><p role="alert">{t('mission_statement.states.error', 'The mission statement is temporarily unavailable.')}</p></main>;
