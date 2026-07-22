@@ -1,4 +1,4 @@
-import { Download, Printer } from 'lucide-react';
+import { Download, Printer, Quote } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { ShareActions } from '../components/ShareActions';
 import type { I18nManifest } from '../lib/i18nManifest';
@@ -78,7 +78,8 @@ export function MissionStatementPage() {
   }, [language]);
 
   const hero = page?.blocks.find((block) => block.block_key === 'hero');
-  const contentBlocks = page?.blocks.filter((block) => block.block_key !== 'hero') ?? [];
+  const core = page?.blocks.find((block) => block.block_key === 'core-message');
+  const contentBlocks = page?.blocks.filter((block) => !['hero', 'core-message'].includes(block.block_key)) ?? [];
   const canonicalUrl = useMemo(() => `https://www.bankruptto1million.com/mission-statement?lang=${language}`, [language]);
 
   useEffect(() => {
@@ -103,34 +104,56 @@ export function MissionStatementPage() {
 
   return (
     <main className="mission-statement-page" id="top">
-      <section className="section mission-statement-hero">
-        <div className="section-heading">
-          {hero.eyebrow ? <p className="eyebrow">{hero.eyebrow}</p> : null}
-          <h1>{hero.title}</h1>
-          {hero.subtitle ? <p>{hero.subtitle}</p> : null}
+      <section className="mission-statement-hero">
+        <div className="mission-statement-hero__glow" aria-hidden="true" />
+        <div className="mission-statement-hero__inner">
+          <div className="mission-statement-hero__copy">
+            {hero.eyebrow ? <p className="eyebrow">{hero.eyebrow}</p> : null}
+            <h1>{hero.title}</h1>
+            {hero.subtitle ? <p className="mission-statement-hero__lede">{hero.subtitle}</p> : null}
+            <div className="mission-statement-actions" role="group" aria-label={t('mission_statement.accessibility.actions', 'Mission statement actions')}>
+              <button className="button" type="button" onClick={() => downloadText(page, language)}>
+                <Download aria-hidden="true" size={18} />
+                {t('mission_statement.actions.download', 'Download Mission Statement')}
+              </button>
+              <button className="button button--ghost" type="button" onClick={() => window.print()}>
+                <Printer aria-hidden="true" size={18} />
+                {t('mission_statement.actions.print', 'Print or save as PDF')}
+              </button>
+            </div>
+          </div>
+
+          {core ? (
+            <aside className="mission-statement-hero__manifesto" aria-label={core.title || undefined}>
+              <Quote aria-hidden="true" size={34} />
+              <p className="mission-statement-hero__manifesto-index">01</p>
+              {core.eyebrow ? <p className="eyebrow">{core.eyebrow}</p> : null}
+              {core.title ? <h2>{core.title}</h2> : null}
+              {core.body ? <p>{core.body}</p> : null}
+            </aside>
+          ) : null}
         </div>
-        <div className="mission-statement-actions" role="group" aria-label={t('mission_statement.accessibility.actions', 'Mission statement actions')}>
-          <button className="button" type="button" onClick={() => downloadText(page, language)}>
-            <Download aria-hidden="true" size={18} />
-            {t('mission_statement.actions.download', 'Download Mission Statement')}
-          </button>
-          <button className="button button--ghost" type="button" onClick={() => window.print()}>
-            <Printer aria-hidden="true" size={18} />
-            {t('mission_statement.actions.print', 'Print or save as PDF')}
-          </button>
-        </div>
+      </section>
+
+      <section className="mission-statement-share section" aria-label={t('mission_statement.accessibility.actions', 'Mission statement actions')}>
         <ShareActions title={hero.title || page.page_name} url={canonicalUrl} entityType="website_page" entityId={page.id} />
       </section>
 
-      <section className="section mission-statement-content" aria-label={hero.title || page.page_name}>
-        {contentBlocks.map((block) => (
-          <article className={`mission-statement-block mission-statement-block--${block.block_type}`} key={block.id}>
-            {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
-            {block.title ? <h2>{block.title}</h2> : null}
-            {block.subtitle ? <p className="mission-statement-block__subtitle">{block.subtitle}</p> : null}
-            {block.body ? block.body.split(/\n\n+/).map((paragraph) => <p key={paragraph}>{paragraph}</p>) : null}
-          </article>
-        ))}
+      <section className="mission-statement-content section" aria-label={hero.title || page.page_name}>
+        <div className="mission-statement-content__rail" aria-hidden="true" />
+        <div className="mission-statement-content__list">
+          {contentBlocks.map((block, index) => (
+            <article className={`mission-statement-block mission-statement-block--${block.block_key}`} key={block.id}>
+              <div className="mission-statement-block__number" aria-hidden="true">{String(index + 2).padStart(2, '0')}</div>
+              <div className="mission-statement-block__content">
+                {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
+                {block.title ? <h2>{block.title}</h2> : null}
+                {block.subtitle ? <p className="mission-statement-block__subtitle">{block.subtitle}</p> : null}
+                {block.body ? block.body.split(/\n\n+/).map((paragraph) => <p key={paragraph}>{paragraph}</p>) : null}
+              </div>
+            </article>
+          ))}
+        </div>
       </section>
     </main>
   );
