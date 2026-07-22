@@ -31,6 +31,7 @@ export const SITE_CONTENT_I18N_MANIFEST = {
     'navigation.issues',
     'navigation.journal',
     'navigation.media',
+    'navigation.mission_statement',
     'navigation.platform',
     'navigation.profile',
     'navigation.proof_of_mind',
@@ -83,6 +84,7 @@ export const navGroups: NavGroup[] = [
     labelKey: 'navigation.group.explore',
     items: [
       { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
+      { label: 'Mission Statement', translationKey: 'navigation.mission_statement', href: '/mission-statement' },
       { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
       { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
       { label: 'Media', translationKey: 'navigation.media', href: '/media' },
@@ -118,6 +120,7 @@ export const navGroups: NavGroup[] = [
 export const navItems: NavItem[] = [
   { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
   { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
+  { label: 'Mission Statement', translationKey: 'navigation.mission_statement', href: '/mission-statement' },
   { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
   { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
   { label: 'What We Offer', translationKey: 'navigation.what_we_offer', href: '/offers' },
