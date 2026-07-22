@@ -1,90 +1,95 @@
-import {
-  ArrowDown,
-  Bot,
-  Brain,
-  BriefcaseBusiness,
-  Compass,
-  HeartHandshake,
-  Laptop,
-  Network,
-  Rocket,
-  Sparkles,
-  Sprout,
-} from 'lucide-react';
-import { useEffect } from 'react';
+import { ArrowDown, Bot, Brain, BriefcaseBusiness, Compass, HeartHandshake, Laptop, Network, Rocket, Sparkles, Sprout } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import type { I18nManifest } from '../lib/i18nManifest';
+import { getKevinGoalsRoadmap } from '../lib/kevinGoalsRoadmap';
+import type { KevinGoalsRoadmapBlock, KevinGoalsRoadmapData } from '../lib/kevinGoalsRoadmap';
+import { useWebsiteI18n } from '../lib/websiteI18n';
 
-const goals = [
-  {
-    number: '01',
-    label: 'Momentum',
-    title: 'Gain momentum',
-    description: 'Stop running in circles around startup funding. Build the right support structure with developers, venture studios, investors and strategic partners so progress can compound.',
-    icon: Rocket,
+export const KEVIN_GOALS_ROADMAP_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.kevin_goals_roadmap',
+  namespace: 'kevin_goals_roadmap',
+  translationKeys: [
+    'kevin_goals_roadmap.states.loading',
+    'kevin_goals_roadmap.states.error',
+    'kevin_goals_roadmap.states.empty',
+  ] as const,
+  entityContent: {
+    rpc: 'get_localized_website_page',
+    tables: ['website_pages', 'website_page_blocks', 'website_page_block_translations'],
   },
-  {
-    number: '02',
-    label: 'Freedom',
-    title: 'Work with freedom',
-    description: 'Create a way of working that functions anywhere, anytime and on any device, supported by systems that do not depend on constant personal attention.',
-    icon: Laptop,
-  },
-  {
-    number: '03',
-    label: 'Clarity',
-    title: 'Protect my mind',
-    description: 'Use my brain to improve and create concepts instead of exhausting it through survival loops, overload and continuously searching for a way out.',
-    icon: Brain,
-  },
-  {
-    number: '04',
-    label: 'People',
-    title: 'Build long-term relationships',
-    description: 'Grow durable relationships with convinced investors, clients, developers, venture studios, founders and partners who believe in building together.',
-    icon: Network,
-  },
-  {
-    number: '05',
-    label: 'Direction',
-    title: 'Be proud of my daily direction',
-    description: 'Feel confident about my way of thinking, the products I create and where I invest my time, knowing I am on the right business and financial track.',
-    icon: Compass,
-  },
-  {
-    number: '06',
-    label: 'Alignment',
-    title: 'Align work, interests and adventure',
-    description: 'Let entrepreneurship, technology, AI, aviation, photography, travel, problem-solving and community building strengthen each other instead of living in separate worlds.',
-    icon: BriefcaseBusiness,
-  },
-  {
-    number: '07',
-    label: 'Leverage',
-    title: 'Catch the AI train',
-    description: 'Become an AI-first entrepreneur by embracing the digital world, automations and intelligent systems that multiply creativity, output and opportunity.',
-    icon: Bot,
-  },
-  {
-    number: '08',
-    label: 'Compounding',
-    title: 'Plant seeds that compound',
-    description: 'Build businesses, software, content, relationships, knowledge and a trusted brand that continue to grow beyond a single day of work.',
-    icon: Sprout,
-  },
-  {
-    number: '09',
-    label: 'Together',
-    title: 'Gain success together',
-    description: 'Create opportunities with people who believe in the mission, turning ideas into products, products into ventures and ventures into shared impact.',
-    icon: HeartHandshake,
-  },
-];
+} as const satisfies I18nManifest;
 
-const pillars = ['Freedom', 'Clarity', 'Leverage', 'Relationships', 'Adventure', 'Shared success'];
+const goalIcons: LucideIcon[] = [Rocket, Laptop, Brain, Network, Compass, BriefcaseBusiness, Bot, Sprout, HeartHandshake];
+
+function lines(value?: string | null) {
+  return (value || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+}
+
+function ensureMeta(selector: string, attribute: 'name' | 'property', key: string, content: string) {
+  let meta = document.querySelector<HTMLMetaElement>(selector);
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.setAttribute(attribute, key);
+    document.head.appendChild(meta);
+  }
+  meta.content = content;
+}
+
+function GoalCard({ block, index }: { block: KevinGoalsRoadmapBlock; index: number }) {
+  const Icon = goalIcons[index % goalIcons.length];
+  return (
+    <article className={`kevin-roadmap-card kevin-roadmap-card--${(index % 3) + 1}`}>
+      <div className="kevin-roadmap-card__top">
+        <span className="kevin-roadmap-card__number" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+        <span className="kevin-roadmap-card__icon" aria-hidden="true"><Icon size={23} /></span>
+      </div>
+      <div className="kevin-roadmap-card__body">
+        {block.eyebrow ? <p className="kevin-roadmap-card__label">{block.eyebrow}</p> : null}
+        {block.title ? <h3>{block.title}</h3> : null}
+        {block.body ? <p>{block.body}</p> : null}
+      </div>
+    </article>
+  );
+}
 
 export function KevinGoalsRoadmapPage() {
+  const { language, t } = useWebsiteI18n();
+  const [page, setPage] = useState<KevinGoalsRoadmapData | null>(null);
+  const [state, setState] = useState<'loading' | 'ready' | 'empty' | 'error'>('loading');
+
   useEffect(() => {
-    document.title = "Kevin's Goals & Roadmap | Bankrupt to 1 Million";
-  }, []);
+    let cancelled = false;
+    setState('loading');
+    getKevinGoalsRoadmap(language).then((payload) => {
+      if (cancelled) return;
+      setPage(payload);
+      setState(payload?.blocks.length ? 'ready' : 'empty');
+    }).catch(() => { if (!cancelled) setState('error'); });
+    return () => { cancelled = true; };
+  }, [language]);
+
+  const hero = page?.blocks.find((block) => block.block_key === 'hero');
+  const mission = page?.blocks.find((block) => block.block_key === 'mission');
+  const roadmap = page?.blocks.find((block) => block.block_key === 'roadmap');
+  const principle = page?.blocks.find((block) => block.block_key === 'principle');
+  const goals = page?.blocks.filter((block) => block.block_key.startsWith('goal-')) || [];
+  const canonicalUrl = useMemo(() => `https://www.bankruptto1million.com/kevin-goals-roadmap?lang=${language}`, [language]);
+
+  useEffect(() => {
+    if (!hero) return;
+    const title = hero.seo_title || hero.title || page?.page_name || '';
+    const description = hero.seo_description || hero.subtitle || '';
+    document.title = title;
+    ensureMeta('meta[name="description"]', 'name', 'description', description);
+    ensureMeta('meta[property="og:title"]', 'property', 'og:title', title);
+    ensureMeta('meta[property="og:description"]', 'property', 'og:description', description);
+    ensureMeta('meta[property="og:url"]', 'property', 'og:url', canonicalUrl);
+  }, [canonicalUrl, hero, page?.page_name]);
+
+  if (state === 'loading') return <main className="section kevin-roadmap-page" id="top"><p>{t('kevin_goals_roadmap.states.loading', 'Loading goals and roadmap…')}</p></main>;
+  if (state === 'error') return <main className="section kevin-roadmap-page" id="top"><p role="alert">{t('kevin_goals_roadmap.states.error', 'The goals and roadmap are temporarily unavailable.')}</p></main>;
+  if (state === 'empty' || !page || !hero) return <main className="section kevin-roadmap-page" id="top"><p>{t('kevin_goals_roadmap.states.empty', 'No published goals and roadmap are available.')}</p></main>;
 
   return (
     <main className="kevin-roadmap-page" id="top">
@@ -92,90 +97,28 @@ export function KevinGoalsRoadmapPage() {
         <div className="kevin-roadmap-hero__glow kevin-roadmap-hero__glow--one" aria-hidden="true" />
         <div className="kevin-roadmap-hero__glow kevin-roadmap-hero__glow--two" aria-hidden="true" />
         <div className="kevin-roadmap-hero__grid" aria-hidden="true" />
-
         <div className="kevin-roadmap-hero__inner">
           <div className="kevin-roadmap-hero__copy">
-            <div className="kevin-roadmap-kicker">
-              <Sparkles size={16} aria-hidden="true" />
-              <span>Personal North Star</span>
-            </div>
-            <h1>Kevin&apos;s Goals <span>&amp; Roadmap</span></h1>
-            <p className="kevin-roadmap-hero__lede">
-              Create a life where time, talent, passions and business reinforce each other—building meaningful ventures without constantly fighting financial survival.
-            </p>
+            {hero.eyebrow ? <div className="kevin-roadmap-kicker"><Sparkles size={16} aria-hidden="true" /><span>{hero.eyebrow}</span></div> : null}
+            <h1>{hero.title}</h1>
+            {hero.subtitle ? <p className="kevin-roadmap-hero__lede">{hero.subtitle}</p> : null}
             <div className="kevin-roadmap-hero__actions">
-              <a className="button" href="#roadmap">Explore the roadmap</a>
-              <a className="kevin-roadmap-scroll-link" href="#mission">
-                <ArrowDown size={18} aria-hidden="true" />
-                The mission behind it
-              </a>
+              {hero.body ? <a className="button" href="#roadmap">{hero.body}</a> : null}
+              {hero.seo_description ? <a className="kevin-roadmap-scroll-link" href="#mission"><ArrowDown size={18} aria-hidden="true" />{hero.seo_description}</a> : null}
             </div>
           </div>
-
-          <aside className="kevin-roadmap-hero__panel" aria-label="Core ambition">
-            <span className="kevin-roadmap-hero__panel-label">Core ambition</span>
-            <p>Move from survival mode to a life built around momentum, freedom and meaningful creation.</p>
-            <div className="kevin-roadmap-hero__panel-meta">
-              <span>09 priorities</span>
-              <span>01 direction</span>
-            </div>
-          </aside>
+          {roadmap ? <aside className="kevin-roadmap-hero__panel" aria-label={roadmap.eyebrow || undefined}><span className="kevin-roadmap-hero__panel-label">{roadmap.eyebrow}</span><p>{roadmap.body}</p><div className="kevin-roadmap-hero__panel-meta">{lines(roadmap.subtitle).map((item) => <span key={item}>{item}</span>)}</div></aside> : null}
         </div>
       </section>
 
-      <section className="kevin-roadmap-intro section" id="mission" aria-labelledby="kevin-roadmap-mission-title">
-        <div className="kevin-roadmap-intro__heading">
-          <p className="eyebrow">My mission</p>
-          <h2 id="kevin-roadmap-mission-title">From survival loops to lasting momentum</h2>
-        </div>
-        <div className="kevin-roadmap-intro__copy">
-          <p>
-            The goal is not simply to work harder. It is to build leverage, protect mental energy and create a direction that combines freedom, confidence, relationships, technology, adventure and shared success.
-          </p>
-          <div className="kevin-roadmap-pill-list" aria-label="Mission pillars">
-            {pillars.map((pillar) => <span key={pillar}>{pillar}</span>)}
-          </div>
-        </div>
-      </section>
+      {mission ? <section className="kevin-roadmap-intro section" id="mission" aria-labelledby="kevin-roadmap-mission-title"><div className="kevin-roadmap-intro__heading"><p className="eyebrow">{mission.eyebrow}</p><h2 id="kevin-roadmap-mission-title">{mission.title}</h2></div><div className="kevin-roadmap-intro__copy"><p>{mission.subtitle}</p><div className="kevin-roadmap-pill-list" aria-label={mission.title || undefined}>{lines(mission.body).map((item) => <span key={item}>{item}</span>)}</div></div></section> : null}
 
       <section className="kevin-roadmap-section section" id="roadmap" aria-labelledby="kevin-roadmap-title">
-        <div className="kevin-roadmap-section__heading">
-          <div>
-            <p className="eyebrow">The roadmap</p>
-            <h2 id="kevin-roadmap-title">Nine priorities. One direction.</h2>
-          </div>
-          <p>Each priority turns the bigger vision into a practical focus for daily decisions, partnerships and future ventures.</p>
-        </div>
-
-        <div className="kevin-roadmap-grid">
-          {goals.map(({ number, label, title, description, icon: Icon }, index) => (
-            <article className={`kevin-roadmap-card kevin-roadmap-card--${(index % 3) + 1}`} key={number}>
-              <div className="kevin-roadmap-card__top">
-                <span className="kevin-roadmap-card__number" aria-hidden="true">{number}</span>
-                <span className="kevin-roadmap-card__icon" aria-hidden="true"><Icon size={23} /></span>
-              </div>
-              <div className="kevin-roadmap-card__body">
-                <p className="kevin-roadmap-card__label">{label}</p>
-                <h3>{title}</h3>
-                <p>{description}</p>
-              </div>
-            </article>
-          ))}
-        </div>
+        {roadmap ? <div className="kevin-roadmap-section__heading"><div><p className="eyebrow">{roadmap.eyebrow}</p><h2 id="kevin-roadmap-title">{roadmap.title}</h2></div><p>{roadmap.seo_description}</p></div> : null}
+        <div className="kevin-roadmap-grid">{goals.map((goal, index) => <GoalCard block={goal} index={index} key={goal.id} />)}</div>
       </section>
 
-      <section className="kevin-roadmap-principle section" aria-labelledby="kevin-roadmap-principle-title">
-        <div className="kevin-roadmap-principle__orb" aria-hidden="true" />
-        <div className="kevin-roadmap-principle__inner">
-          <p className="eyebrow">Guiding principle</p>
-          <h2 id="kevin-roadmap-principle-title">Build systems instead of stress.</h2>
-          <div className="kevin-roadmap-principle__lines">
-            <p><span>01</span> Build leverage instead of only working harder.</p>
-            <p><span>02</span> Build relationships instead of transactions.</p>
-            <p><span>03</span> Plant seeds every day and let compound growth do the rest.</p>
-          </div>
-        </div>
-      </section>
+      {principle ? <section className="kevin-roadmap-principle section" aria-labelledby="kevin-roadmap-principle-title"><div className="kevin-roadmap-principle__orb" aria-hidden="true" /><div className="kevin-roadmap-principle__inner"><p className="eyebrow">{principle.eyebrow}</p><h2 id="kevin-roadmap-principle-title">{principle.title}</h2><div className="kevin-roadmap-principle__lines">{lines(principle.body).map((item, index) => <p key={item}><span>{String(index + 1).padStart(2, '0')}</span>{item}</p>)}</div></div></section> : null}
     </main>
   );
 }
