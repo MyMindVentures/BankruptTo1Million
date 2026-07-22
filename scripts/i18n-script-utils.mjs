@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -111,11 +111,6 @@ export async function resolveSurfaceFiles(config) {
   const excludePaths = new Set((config.excludePaths || []).map(normalizePath));
   const srcRoot = path.join(repoRoot, 'src');
   const candidates = walkFiles(srcRoot);
-
-  const appPath = path.join(repoRoot, 'src/App.tsx');
-  if (statSync(appPath).isFile()) {
-    candidates.push(appPath);
-  }
 
   const matched = new Set();
   for (const absolutePath of candidates) {
