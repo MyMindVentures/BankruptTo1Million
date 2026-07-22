@@ -23,6 +23,36 @@ export const MISSION_STATEMENT_PAGE_I18N_MANIFEST = {
   },
 } as const satisfies I18nManifest;
 
+function normalizeRichText(value?: string | null) {
+  return (value || '')
+    .replace(/\\r\\n/g, '\n')
+    .replace(/\\n/g, '\n')
+    .replace(/\r\n/g, '\n')
+    .trim();
+}
+
+function renderBlockBody(blockKey: string, value?: string | null) {
+  const normalized = normalizeRichText(value);
+  if (!normalized) return null;
+
+  if (blockKey === 'strategic-priorities') {
+    const items = normalized
+      .split(/\n+/)
+      .map((item) => item.replace(/^\s*\d+[.)]\s*/, '').trim())
+      .filter(Boolean);
+
+    return (
+      <ol className="mission-priorities">
+        {items.map((item) => <li key={item}>{item}</li>)}
+      </ol>
+    );
+  }
+
+  return normalized
+    .split(/\n\n+/)
+    .map((paragraph) => <p key={paragraph}>{paragraph}</p>);
+}
+
 function ensureMeta(selector: string, attribute: 'name' | 'property', key: string, content: string) {
   let meta = document.querySelector<HTMLMetaElement>(selector);
   if (!meta) {
@@ -45,7 +75,7 @@ function ensureCanonical(url: string) {
 
 function downloadText(page: MissionStatementPageData, language: string) {
   const text = page.blocks
-    .map((block) => [block.eyebrow, block.title, block.subtitle, block.body].filter(Boolean).join('\n\n'))
+    .map((block) => [block.eyebrow, block.title, block.subtitle, normalizeRichText(block.body)].filter(Boolean).join('\n\n'))
     .filter(Boolean)
     .join('\n\n---\n\n');
   const blob = new Blob([`${page.page_name}\nBankrupt to 1 Million\nhttps://www.bankruptto1million.com/mission-statement?lang=${language}\n\n${text}`], { type: 'text/plain;charset=utf-8' });
@@ -129,7 +159,7 @@ export function MissionStatementPage() {
               <p className="mission-statement-hero__manifesto-index">01</p>
               {core.eyebrow ? <p className="eyebrow">{core.eyebrow}</p> : null}
               {core.title ? <h2>{core.title}</h2> : null}
-              {core.body ? <p>{core.body}</p> : null}
+              {core.body ? <p>{normalizeRichText(core.body)}</p> : null}
             </aside>
           ) : null}
         </div>
@@ -149,7 +179,7 @@ export function MissionStatementPage() {
                 {block.eyebrow ? <p className="eyebrow">{block.eyebrow}</p> : null}
                 {block.title ? <h2>{block.title}</h2> : null}
                 {block.subtitle ? <p className="mission-statement-block__subtitle">{block.subtitle}</p> : null}
-                {block.body ? block.body.split(/\n\n+/).map((paragraph) => <p key={paragraph}>{paragraph}</p>) : null}
+                {renderBlockBody(block.block_key, block.body)}
               </div>
             </article>
           ))}
