@@ -25,6 +25,16 @@ export type AdminSession = { access_token: string; refresh_token: string; expire
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 export type AdminRow = Record<string, unknown>;
 
+export type AdminConceptSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  source_text: string | null;
+  concept_status: string;
+  ai_orchestration_status: string;
+  updated_at: string;
+};
+
 export type AdminSectionField = {
   name: string;
   labelKey: string;
@@ -230,6 +240,49 @@ export async function createAdminRow(table: string, values: AdminRow): Promise<A
 
 export async function deleteAdminRow(table: string, key: string, value: string): Promise<void> {
   await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+}
+
+export async function getAdminConcepts(): Promise<AdminConceptSummary[]> {
+  return request<AdminConceptSummary[]>('/rest/v1/proof_of_mind_concepts?select=id,title,slug,source_text,concept_status,ai_orchestration_status,updated_at&order=updated_at.desc&limit=250');
+}
+
+export async function createConceptFromSourceText(input: { sourceText: string; title: string; originalLanguage: string }): Promise<string> {
+  return request<string>('/rest/v1/rpc/create_concept_from_source_text', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_source_text: input.sourceText,
+      p_title: input.title,
+      p_original_language: input.originalLanguage,
+    }),
+  });
+}
+
+export async function updateConceptSourceText(conceptId: string, input: { sourceText: string; title?: string }): Promise<void> {
+  const patch: AdminRow = {
+    source_text: input.sourceText,
+    source_payload: { source_text: input.sourceText },
+    ai_orchestration_status: 'queued',
+    ai_enrichment_status: 'pending',
+    ai_enrichment_error: null,
+    updated_at: new Date().toISOString(),
+  };
+  if (input.title) patch.title = input.title;
+  await request<AdminRow[]>(`/rest/v1/proof_of_mind_concepts?id=eq.${encodeURIComponent(conceptId)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify(patch),
+  });
+  await request<number>('/rest/v1/rpc/queue_concept_ai_field_jobs', {
+    method: 'POST',
+    body: JSON.stringify({ p_concept_id: conceptId, p_field_groups: [], p_overwrite_mode: 'ai_only' }),
+  });
+}
+
+export async function runConceptAiEnrichment(conceptId: string, overwriteMode: 'empty_only' | 'ai_only' | 'all' = 'ai_only'): Promise<unknown> {
+  return request('/functions/v1/orchestrate-concept-ai-enrichment', {
+    method: 'POST',
+    body: JSON.stringify({ concept_id: conceptId, overwrite_mode: overwriteMode }),
+  });
 }
 
 export async function getAiControlCenterData(): Promise<AiControlCenterData> {
