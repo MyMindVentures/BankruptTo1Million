@@ -25,6 +25,31 @@ export type AdminSession = { access_token: string; refresh_token: string; expire
 export type AdminAccess = { email: string; full_name: string | null; role: string; is_active: boolean; };
 export type AdminRow = Record<string, unknown>;
 
+export type AdminConceptSummary = {
+  id: string;
+  title: string;
+  slug: string;
+  source_text: string | null;
+  concept_status: string;
+  ai_orchestration_status: string;
+  source_version_number: number;
+  active_source_version_id: string | null;
+  updated_at: string;
+};
+
+export type AdminConceptVersion = {
+  id: string;
+  concept_id: string;
+  version_number: number;
+  title: string | null;
+  source_text: string;
+  source_language: string;
+  change_summary: string | null;
+  is_active: boolean;
+  ai_orchestration_status: string;
+  created_at: string;
+};
+
 export type AdminSectionField = {
   name: string;
   labelKey: string;
@@ -230,6 +255,45 @@ export async function createAdminRow(table: string, values: AdminRow): Promise<A
 
 export async function deleteAdminRow(table: string, key: string, value: string): Promise<void> {
   await request<void>(`/rest/v1/${table}?${key}=eq.${encodeURIComponent(value)}`, { method: 'DELETE', headers: { Prefer: 'return=minimal' } });
+}
+
+export async function getAdminConcepts(): Promise<AdminConceptSummary[]> {
+  return request<AdminConceptSummary[]>('/rest/v1/proof_of_mind_concepts?select=id,title,slug,source_text,concept_status,ai_orchestration_status,source_version_number,active_source_version_id,updated_at&order=updated_at.desc&limit=250');
+}
+
+export async function getConceptVersions(conceptId: string): Promise<AdminConceptVersion[]> {
+  return request<AdminConceptVersion[]>(`/rest/v1/proof_of_mind_concept_versions?select=id,concept_id,version_number,title,source_text,source_language,change_summary,is_active,ai_orchestration_status,created_at&concept_id=eq.${encodeURIComponent(conceptId)}&order=version_number.desc`);
+}
+
+export async function createConceptFromSourceText(input: { sourceText: string; title: string; originalLanguage: string }): Promise<string> {
+  return request<string>('/rest/v1/rpc/create_concept_from_source_text', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_source_text: input.sourceText,
+      p_title: input.title,
+      p_original_language: input.originalLanguage,
+    }),
+  });
+}
+
+export async function saveConceptSourceVersion(conceptId: string, input: { sourceText: string; title?: string; sourceLanguage?: string; changeSummary?: string }): Promise<string> {
+  return request<string>('/rest/v1/rpc/save_concept_source_version', {
+    method: 'POST',
+    body: JSON.stringify({
+      p_concept_id: conceptId,
+      p_source_text: input.sourceText,
+      p_title: input.title || null,
+      p_source_language: input.sourceLanguage || null,
+      p_change_summary: input.changeSummary || null,
+    }),
+  });
+}
+
+export async function runConceptAiEnrichment(conceptId: string, overwriteMode: 'empty_only' | 'ai_only' | 'all' = 'ai_only'): Promise<unknown> {
+  return request('/functions/v1/orchestrate-concept-ai-enrichment', {
+    method: 'POST',
+    body: JSON.stringify({ concept_id: conceptId, overwrite_mode: overwriteMode }),
+  });
 }
 
 export async function getAiControlCenterData(): Promise<AiControlCenterData> {
