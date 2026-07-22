@@ -30,6 +30,7 @@ export const SITE_CONTENT_I18N_MANIFEST = {
     'navigation.impact',
     'navigation.issues',
     'navigation.journal',
+    'navigation.kevin_goals_roadmap',
     'navigation.media',
     'navigation.mission_statement',
     'navigation.platform',
@@ -85,6 +86,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
       { label: 'Mission Statement', translationKey: 'navigation.mission_statement', href: '/mission-statement' },
+      { label: "Kevin's Goals & Roadmap", translationKey: 'navigation.kevin_goals_roadmap', href: '/kevin-goals-roadmap' },
       { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
       { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
       { label: 'Media', translationKey: 'navigation.media', href: '/media' },
@@ -121,6 +123,7 @@ export const navItems: NavItem[] = [
   { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
   { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
   { label: 'Mission Statement', translationKey: 'navigation.mission_statement', href: '/mission-statement' },
+  { label: "Kevin's Goals & Roadmap", translationKey: 'navigation.kevin_goals_roadmap', href: '/kevin-goals-roadmap' },
   { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
   { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
   { label: 'What We Offer', translationKey: 'navigation.what_we_offer', href: '/offers' },
