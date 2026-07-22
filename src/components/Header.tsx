@@ -70,7 +70,7 @@ const visibleNavGroups = [
   {
     id: 'participate',
     labelKey: 'navigation.group.participate',
-    items: navigationItems(['/break-the-circle', '/founder-support', '/issues']),
+    items: navigationItems(['/breakfast-for-a-story', '/break-the-circle', '/founder-support', '/issues']),
   },
 ].filter((group) => group.items.length > 0);
 
