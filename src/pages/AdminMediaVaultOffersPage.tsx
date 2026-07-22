@@ -2,9 +2,11 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ExternalLink, LoaderCircle, Play, RefreshCw, Search, Trash2, Upload, X } from 'lucide-react';
 import {
   listAdminMediaVaultGroups,
+  uploadConceptMedia,
   uploadOfferMedia,
   type AdminMediaVaultAsset,
   type AdminMediaVaultCategoryGroup,
+  type AdminMediaVaultConceptGroup,
   type AdminMediaVaultGroups,
   type AdminMediaVaultOfferGroup,
   type AdminMediaVaultPostGroup,
@@ -20,10 +22,11 @@ import {
 import { resolvePublicMediaUrl } from '../lib/journalFootage';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 
-type Filter = 'all' | 'journal' | 'offers' | 'founders' | 'journey_events' | 'other';
+type Filter = 'all' | 'journal' | 'offers' | 'concepts' | 'founders' | 'journey_events' | 'other';
 type OpenGroup =
   | { kind: 'post'; value: AdminMediaVaultPostGroup }
   | { kind: 'offer'; value: AdminMediaVaultOfferGroup }
+  | { kind: 'concept'; value: AdminMediaVaultConceptGroup }
   | { kind: 'category'; value: AdminMediaVaultCategoryGroup };
 type DetailAsset = AdminMediaVaultAsset | (AdminJournalFootageItem & { title?: string | null });
 type PreviewValue = { type: 'image' | 'video'; url: string } | null;
@@ -105,12 +108,12 @@ export function AdminMediaVaultOffersPage() {
     return () => controller.abort();
   }, []);
 
-  const openKey = open ? `${open.kind}:${open.kind === 'post' ? open.value.post_id : open.kind === 'offer' ? open.value.collection_id : open.value.key}` : '';
+  const openKey = open ? `${open.kind}:${open.kind === 'post' ? open.value.post_id : open.kind === 'offer' ? open.value.collection_id : open.kind === 'concept' ? open.value.concept_id : open.value.key}` : '';
   useEffect(() => {
     setActionError(null);
     setNotice(null);
     if (!open) { setAssets([]); return; }
-    if (open.kind === 'offer' || open.kind === 'category') { setAssets(open.value.assets || []); return; }
+    if (open.kind === 'offer' || open.kind === 'concept' || open.kind === 'category') { setAssets(open.value.assets || []); return; }
     setDetailLoading(true);
     getAdminJournalFootage(open.value.post_id)
       .then(setAssets)
@@ -125,6 +128,9 @@ export function AdminMediaVaultOffersPage() {
     if (open.kind === 'offer') {
       const value = next.offers.find((item) => item.collection_id === open.value.collection_id);
       if (value) { setOpen({ kind: 'offer', value }); setAssets(value.assets); }
+    } else if (open.kind === 'concept') {
+      const value = next.concepts.find((item) => item.concept_id === open.value.concept_id);
+      if (value) { setOpen({ kind: 'concept', value }); setAssets(value.assets); }
     } else if (open.kind === 'post') {
       const value = next.posts.find((item) => item.post_id === open.value.post_id);
       if (value) setOpen({ kind: 'post', value });
@@ -138,6 +144,7 @@ export function AdminMediaVaultOffersPage() {
     try {
       const files = Array.from(fileList);
       if (open.kind === 'offer') await uploadOfferMedia(open.value.collection_id, files);
+      else if (open.kind === 'concept') await uploadConceptMedia(open.value.concept_id, files);
       else {
         const context = await getJournalEventContext(open.value.post_id);
         await appendJournalFootage(open.value.post_id, files, journalEventDefaults(context));
@@ -159,13 +166,15 @@ export function AdminMediaVaultOffersPage() {
   const needle = query.trim().toLowerCase();
   const posts = useMemo(() => filter === 'all' || filter === 'journal' ? (groups?.posts || []).filter((item) => !needle || `${item.title} ${item.slug}`.toLowerCase().includes(needle)) : [], [groups, filter, needle]);
   const offers = useMemo(() => filter === 'all' || filter === 'offers' ? (groups?.offers || []).filter((item) => !needle || `${item.offer_title} ${item.offer_slug} ${item.title}`.toLowerCase().includes(needle)) : [], [groups, filter, needle]);
+  const concepts = useMemo(() => filter === 'all' || filter === 'concepts' ? (groups?.concepts || []).filter((item) => !needle || `${item.concept_title} ${item.concept_slug} ${item.concept_type}`.toLowerCase().includes(needle)) : [], [groups, filter, needle]);
   const categories = useMemo(() => (groups?.categories || []).filter((item) => (filter === 'all' || categoryFilter(item.key) === filter) && (!needle || `${categoryTitle(item.key)} ${item.key}`.toLowerCase().includes(needle))), [groups, filter, needle, t]);
 
   const chips = useMemo(() => {
     const result: { key: Filter; label: string; count: number }[] = [
-      { key: 'all', label: t('admin.media.filter.all', 'All'), count: (groups?.posts.length || 0) + (groups?.offers.length || 0) + (groups?.categories.length || 0) },
+      { key: 'all', label: t('admin.media.filter.all', 'All'), count: (groups?.posts.length || 0) + (groups?.offers.length || 0) + (groups?.concepts.length || 0) + (groups?.categories.length || 0) },
       { key: 'journal', label: t('admin.media.filter.journal', 'Journal'), count: groups?.posts.length || 0 },
       { key: 'offers', label: t('admin.media.filter.offers', 'Offers'), count: groups?.offers.length || 0 },
+      { key: 'concepts', label: t('admin.media.filter.concepts', 'Concepts'), count: groups?.concepts.length || 0 },
     ];
     (['founders', 'journey_events', 'other'] as Filter[]).forEach((key) => {
       const count = groups?.categories.filter((item) => categoryFilter(item.key) === key).length || 0;
@@ -178,24 +187,26 @@ export function AdminMediaVaultOffersPage() {
   if (error && !groups) return <div className="admin-error">{error}</div>;
   if (!groups) return <div className="admin-section-empty">{t('admin.media.empty', 'No media groups found.')}</div>;
 
-  const title = open?.kind === 'post' ? open.value.title : open?.kind === 'offer' ? open.value.offer_title : open?.kind === 'category' ? categoryTitle(open.value.key) : '';
-  const canUpload = open?.kind === 'post' || open?.kind === 'offer';
-  const accept = open?.kind === 'offer' ? open.value.accepted_asset_types.map((type) => `${type}/*`).join(',') : 'image/*,video/*';
-  const visibleCount = posts.length + offers.length + categories.length;
+  const title = open?.kind === 'post' ? open.value.title : open?.kind === 'offer' ? open.value.offer_title : open?.kind === 'concept' ? open.value.concept_title : open?.kind === 'category' ? categoryTitle(open.value.key) : '';
+  const canUpload = open?.kind === 'post' || open?.kind === 'offer' || open?.kind === 'concept';
+  const accept = open?.kind === 'offer' || open?.kind === 'concept' ? open.value.accepted_asset_types.map((type) => `${type}/*`).join(',') : 'image/*,video/*';
+  const visibleCount = posts.length + offers.length + concepts.length + categories.length;
 
   return <div className="admin-section-page admin-media-vault-page">
-    <div className="admin-section-heading"><div><p>{t('admin.section.eyebrow', 'ADMIN SECTION')}</p><h1>{t('admin.media.title', 'Media Vault')}</h1><span>{t('admin.media.description.grouped', 'Footage grouped by journal post, offer and media category.')}</span></div><button type="button" onClick={() => void load()}><RefreshCw size={16} /> {t('admin.refresh', 'Refresh')}</button></div>
+    <div className="admin-section-heading"><div><p>{t('admin.section.eyebrow', 'ADMIN SECTION')}</p><h1>{t('admin.media.title', 'Media Vault')}</h1><span>{t('admin.media.description.grouped', 'Footage grouped by journal post, offer, concept and media category.')}</span></div><button type="button" onClick={() => void load()}><RefreshCw size={16} /> {t('admin.refresh', 'Refresh')}</button></div>
     <div className="admin-section-toolbar"><div><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.media.search.placeholder', 'Search media groups…')} /></div><span>{t('admin.media.groups.count', '{count} groups', { count: visibleCount })}</span></div>
     <div className="admin-media-filter-chips" role="toolbar">{chips.map((chip) => <button key={chip.key} type="button" className={`admin-media-filter-chip ${filter === chip.key ? 'is-active' : ''}`} onClick={() => setFilter(chip.key)}>{chip.label}<span>{chip.count}</span></button>)}</div>
     <div className="admin-media-grid">
       {posts.map((item) => <article key={item.post_id} onClick={() => setOpen({ kind: 'post', value: item })}><Preview value={preview(item)} alt={item.title} /><div><strong>{item.title}</strong><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{item.status}</small></div></article>)}
       {offers.map((item) => <article key={item.collection_id} onClick={() => setOpen({ kind: 'offer', value: item })}><Preview value={preview(item)} alt={item.offer_title} /><div><strong>{item.offer_title}</strong><span>{item.title}</span><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{t('admin.media.offer.badge', 'offer')}</small></div></article>)}
+      {concepts.map((item) => <article key={item.concept_id} onClick={() => setOpen({ kind: 'concept', value: item })}><Preview value={preview(item)} alt={item.concept_title} /><div><strong>{item.concept_title}</strong><span>{item.storage_folder}</span><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{item.concept_type}</small></div></article>)}
       {categories.map((item) => <article key={item.key} onClick={() => setOpen({ kind: 'category', value: item })}><Preview value={preview(item)} alt={categoryTitle(item.key)} /><div><strong>{categoryTitle(item.key)}</strong><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{t('admin.media.category.badge', 'category')}</small></div></article>)}
     </div>
     {!visibleCount ? <div className="admin-section-empty">{t('admin.records.empty', 'No records found.')}</div> : null}
 
-    {open ? <div className="admin-editor-backdrop"><section className="admin-editor admin-media-vault-drawer"><header><div><p>{open.kind === 'offer' ? t('admin.media.offer.eyebrow', 'OFFER MEDIA') : t('admin.media.drawer.eyebrow', 'FOOTAGE')}</p><h2>{title}</h2></div><button type="button" onClick={() => setOpen(null)}><X /></button></header><div className="admin-media-vault-drawer__body">
+    {open ? <div className="admin-editor-backdrop"><section className="admin-editor admin-media-vault-drawer"><header><div><p>{open.kind === 'offer' ? t('admin.media.offer.eyebrow', 'OFFER MEDIA') : open.kind === 'concept' ? t('admin.media.concept.eyebrow', 'CONCEPT MEDIA') : t('admin.media.drawer.eyebrow', 'FOOTAGE')}</p><h2>{title}</h2></div><button type="button" onClick={() => setOpen(null)}><X /></button></header><div className="admin-media-vault-drawer__body">
       {open.kind === 'offer' ? <p className="admin-media-vault-drawer__meta"><a href={`/offers/${open.value.offer_slug}`} target="_blank" rel="noreferrer">{t('admin.media.open_offer', 'Open public offer')} <ExternalLink size={13} /></a><span>{open.value.storage_bucket}/{open.value.storage_folder}</span></p> : null}
+      {open.kind === 'concept' ? <p className="admin-media-vault-drawer__meta"><a href={`/proof-of-mind/${open.value.concept_slug}`} target="_blank" rel="noreferrer">{t('admin.media.open_concept', 'Open public concept')} <ExternalLink size={13} /></a><span>{open.value.storage_bucket}/{open.value.storage_folder}</span></p> : null}
       {detailLoading ? <div className="admin-loading"><LoaderCircle className="spin" /> {t('admin.loading.live_data', 'Loading live data…')}</div> : null}
       {actionError ? <div className="admin-error">{actionError}</div> : null}{notice ? <div className="admin-media-vault-notice">{notice}</div> : null}
       {!detailLoading && !assets.length ? <div className="admin-section-empty">{t('admin.media.detail.empty', 'No footage in this group.')}</div> : null}
