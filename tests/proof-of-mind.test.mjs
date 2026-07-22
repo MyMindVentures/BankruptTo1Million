@@ -42,7 +42,6 @@ test('detail page renders required full concept fields', () => {
   assert.match(lib, /normalizeProofOfMindUrl/);
 });
 
-
 test('Proof of Mind renders founder, evaluation, competition and aggregate lead fields', () => {
   for (const field of ['ProofOfMindFounder', 'ProofOfMindEvaluationSummary', 'ProofOfMindCompetitorComparison', 'ProofOfMindLeadPipelineSummary']) assert.match(lib, new RegExp(field));
   for (const label of ['Created by', 'label="Evaluation"', 'Commercial evaluation', 'Competition and differentiation', 'Why we are different', 'Partner and lead opportunities', 'target slots']) assert.match(page, new RegExp(label));
@@ -50,4 +49,14 @@ test('Proof of Mind renders founder, evaluation, competition and aggregate lead 
   assert.match(lib, /competition_comparisons/);
   assert.match(page, /concept\.lead_pipeline\.categories/);
   assert.doesNotMatch(page, /email_address|phone|contact_notes/);
+});
+
+test('concept cards expose a playable word of the founder video', () => {
+  assert.match(lib, /ProofOfMindFounderVideo/);
+  assert.match(lib, /founder_video/);
+  assert.match(lib, /storage\/v1\/object\/public/);
+  assert.match(page, /Word of the Founder/);
+  assert.match(page, /<video controls playsInline preload="metadata"/);
+  assert.match(page, /founder_video_play/);
+  assert.match(page, /concept\.founder_video/);
 });
