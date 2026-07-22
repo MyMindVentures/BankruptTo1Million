@@ -18,6 +18,7 @@ import { AdminAuthGate } from '../pages/AdminAuthGate';
 import { OutreachPrivatePage } from '../pages/OutreachPrivatePage';
 import { LegalPage } from '../pages/LegalPage';
 import { MissionStatementPage } from '../pages/MissionStatementPage';
+import { KevinGoalsRoadmapPage } from '../pages/KevinGoalsRoadmapPage';
 
 const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/': () => <HomePage />,
@@ -34,6 +35,7 @@ const ROUTE_MAP: Record<string, () => ReactElement> = {
   '/issues': () => <PublicBuildRequestsPage />,
   '/legal': () => <LegalPage />,
   '/mission-statement': () => <MissionStatementPage />,
+  '/kevin-goals-roadmap': () => <KevinGoalsRoadmapPage />,
   '/admin': () => <AdminAuthGate />,
 };
 
