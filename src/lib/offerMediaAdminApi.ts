@@ -75,14 +75,42 @@ export type AdminMediaVaultOfferGroup = {
   updated_at: string | null;
 };
 
+export type AdminMediaVaultConceptGroup = {
+  key: string;
+  group_type: 'concept';
+  concept_id: string;
+  concept_slug: string;
+  concept_title: string;
+  title: string;
+  concept_type: string;
+  concept_status: string;
+  visibility: string;
+  folder_id: string;
+  storage_bucket: string;
+  storage_folder: string;
+  accepted_asset_types: string[];
+  is_public: boolean;
+  display_order: number;
+  asset_count: number;
+  cover_storage_bucket: string | null;
+  cover_storage_path: string | null;
+  cover_thumbnail_url: string | null;
+  cover_asset_type: string | null;
+  assets: AdminMediaVaultAsset[];
+  updated_at: string | null;
+};
+
 export type AdminMediaVaultGroups = {
   posts: AdminMediaVaultPostGroup[];
   categories: AdminMediaVaultCategoryGroup[];
   offers: AdminMediaVaultOfferGroup[];
+  concepts: AdminMediaVaultConceptGroup[];
 };
 
 type UploadTarget = {
-  collection_id: string;
+  collection_id?: string;
+  concept_id?: string;
+  folder_id?: string;
   bucket_name: string;
   object_path: string;
   storage_file_name: string;
@@ -131,6 +159,12 @@ export async function listAdminMediaVaultGroups(signal?: AbortSignal): Promise<A
       assets: Array.isArray(group.assets) ? group.assets : [],
     })) : [],
     offers: Array.isArray(payload.offers) ? payload.offers.map((group) => ({
+      ...group,
+      asset_count: Number(group.asset_count) || group.assets?.length || 0,
+      accepted_asset_types: Array.isArray(group.accepted_asset_types) ? group.accepted_asset_types : ['image', 'video'],
+      assets: Array.isArray(group.assets) ? group.assets : [],
+    })) : [],
+    concepts: Array.isArray(payload.concepts) ? payload.concepts.map((group) => ({
       ...group,
       asset_count: Number(group.asset_count) || group.assets?.length || 0,
       accepted_asset_types: Array.isArray(group.accepted_asset_types) ? group.accepted_asset_types : ['image', 'video'],
@@ -196,6 +230,43 @@ export async function uploadOfferMedia(collectionId: string, files: File[]): Pro
         method: 'POST',
         body: JSON.stringify({
           p_collection_id: collectionId,
+          p_bucket_name: target.bucket_name,
+          p_object_path: target.object_path,
+          p_file_name: file.name,
+          p_mime_type: file.type || 'application/octet-stream',
+          p_file_size: file.size,
+          p_display_order: target.display_order,
+          p_placement: 'gallery',
+          p_metadata: { original_client_filename: file.name },
+        }),
+      });
+      assetIds.push(asset.id);
+    } catch (error) {
+      await removeObject(target);
+      throw error;
+    }
+  }
+  return assetIds;
+}
+
+export async function uploadConceptMedia(conceptId: string, files: File[]): Promise<string[]> {
+  const assetIds: string[] = [];
+  for (const file of files) {
+    const target = await request<UploadTarget>('/rest/v1/rpc/admin_resolve_concept_media_upload', {
+      method: 'POST',
+      body: JSON.stringify({
+        p_concept_id: conceptId,
+        p_mime_type: file.type || 'application/octet-stream',
+        p_file_extension: fileExtension(file),
+      }),
+    });
+
+    await uploadObject(target, file);
+    try {
+      const asset = await request<{ id: string }>('/rest/v1/rpc/admin_register_concept_media', {
+        method: 'POST',
+        body: JSON.stringify({
+          p_concept_id: conceptId,
           p_bucket_name: target.bucket_name,
           p_object_path: target.object_path,
           p_file_name: file.name,
