@@ -4,6 +4,7 @@ export type ProofOfMindVisibility = 'hidden' | 'teaser' | 'full';
 export type ConceptType = 'app' | 'platform' | 'physical_product' | 'service' | 'leisure_experience' | 'hospitality' | 'community' | 'media' | 'infrastructure' | 'marketplace' | 'hybrid' | 'other';
 
 export type ProofOfMindFounder = { name: string; role: string | null; is_original_creator: boolean; bio: string | null; };
+export type ProofOfMindFounderVideo = { title: string | null; description: string | null; caption: string | null; alt_text: string | null; url: string; poster_url: string | null; captions_url: string | null; mime_type: string | null; duration_seconds: number | null; language_code: string | null; };
 export type ProofOfMindEvaluationCriterion = { criterion: string; score: number | null; assessment: string | null; risks: string[]; improvement_actions: string[]; };
 export type ProofOfMindEvaluationSummary = { average_score: number | null; strongest_criteria: ProofOfMindEvaluationCriterion[]; criteria: ProofOfMindEvaluationCriterion[]; };
 export type ProofOfMindCompetitorComparison = { name: string; product: string | null; similarities: string | null; differences: string | null; our_advantage: string | null; competitor_advantage: string | null; strategic_risk: string | null; };
@@ -45,6 +46,7 @@ export type ProofOfMindConcept = {
   updated_at: string | null;
   has_public_detail: boolean;
   founder: ProofOfMindFounder | null;
+  founder_video: ProofOfMindFounderVideo | null;
   evaluation: ProofOfMindEvaluationSummary | null;
   competition: ProofOfMindCompetitionSummary;
   lead_pipeline: ProofOfMindLeadPipelineSummary | null;
@@ -130,6 +132,32 @@ function normalizeFounder(value: unknown): ProofOfMindFounder | null {
   return name ? { name, role: text(data.role ?? data.founder_role), is_original_creator: Boolean(data.is_original_creator), bio: text(data.bio ?? data.founder_bio) } : null;
 }
 
+function publicStorageUrl(bucket: unknown, path: unknown): string | null {
+  const normalizedBucket = text(bucket);
+  const normalizedPath = text(path);
+  if (!normalizedBucket || !normalizedPath) return null;
+  return `${supabase.url}/storage/v1/object/public/${encodeURIComponent(normalizedBucket)}/${normalizedPath.split('/').map(encodeURIComponent).join('/')}`;
+}
+
+function normalizeFounderVideo(value: unknown): ProofOfMindFounderVideo | null {
+  const row = objectValue(value);
+  if (!row) return null;
+  const url = normalizeProofOfMindUrl(row.external_url) || publicStorageUrl(row.storage_bucket, row.storage_path);
+  if (!url) return null;
+  return {
+    title: text(row.title),
+    description: text(row.description),
+    caption: text(row.caption),
+    alt_text: text(row.alt_text),
+    url,
+    poster_url: normalizeProofOfMindUrl(row.thumbnail_url),
+    captions_url: normalizeProofOfMindUrl(row.captions_url),
+    mime_type: text(row.mime_type),
+    duration_seconds: row.duration_seconds === null || row.duration_seconds === undefined ? null : integer(row.duration_seconds),
+    language_code: text(row.language_code),
+  };
+}
+
 function normalizeEvaluationCriterion(value: unknown): ProofOfMindEvaluationCriterion | null {
   const row = objectValue(value); if (!row) return null;
   const criterion = text(row.criterion ?? row.criteria_name ?? row.name ?? row.title); if (!criterion) return null;
@@ -189,7 +217,7 @@ function normalizeConcept(row: RawConcept): ProofOfMindConcept {
     id: requiredText(row.id, 'id'), slug: requiredText(row.slug, 'slug'), title: requiredText(row.title, 'title'), tagline: text(row.tagline), short_description: text(row.short_description), innovation_summary: text(row.innovation_summary), concept_score: score(row.concept_score),
     problems_solved: list(row.problems_solved, 3), key_features: normalizeProofOfMindKeyFeatures(row.key_features).slice(0, 5), concept_type: conceptType(row.concept_type), concept_format: text(row.concept_format), delivery_model: text(row.delivery_model), primary_market: text(row.primary_market), physical_location_required: bool(row.physical_location_required),
     category: text(row.category) || 'Uncategorised', tags: normalizeProofOfMindTags(row.tags), concept_status: requiredText(row.concept_status ?? row.status, 'concept_status'), visibility, is_featured: Boolean(row.is_featured), display_order: integer(row.display_order, 999), cover_image_url: normalizeProofOfMindUrl(row.cover_image_url), cover_image_alt: text(row.cover_image_alt), original_language: text(row.original_language), published_at: text(row.published_at), updated_at: text(row.updated_at), has_public_detail: visibility === 'full',
-    founder: normalizeFounder(row.founder ?? row.founders ?? row.proof_of_mind_concept_founders), evaluation: normalizeEvaluation(row.evaluation ?? row.evaluation_summary, row), competition: normalizeCompetition(row.competition ?? row.competition_summary_data, row), lead_pipeline: normalizeLeadPipeline(row.lead_pipeline ?? row.lead_pipeline_summary),
+    founder: normalizeFounder(row.founder ?? row.founders ?? row.proof_of_mind_concept_founders), founder_video: normalizeFounderVideo(row.founder_video), evaluation: normalizeEvaluation(row.evaluation ?? row.evaluation_summary, row), competition: normalizeCompetition(row.competition ?? row.competition_summary_data, row), lead_pipeline: normalizeLeadPipeline(row.lead_pipeline ?? row.lead_pipeline_summary),
     viral_hook: text(row.viral_hook), share_headline: text(row.share_headline), share_description: text(row.share_description), og_image_url: normalizeProofOfMindUrl(row.og_image_url), viral_score: score(row.viral_score), share_cta_label: text(row.share_cta_label), share_cta_url: text(row.share_cta_url),
   };
 }
@@ -204,7 +232,7 @@ function mergeEnrichment(rows: RawConcept[], enrichment: RawConcept[]) {
 }
 
 export async function getProofOfMindConcepts() {
-  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,evaluation_average_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at,competition_summary,competition_comparisons,competitive_advantage,founder,founders,evaluation_summary,competition_summary_data,lead_pipeline_summary&order=display_order.asc,updated_at.desc';
+  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,evaluation_average_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at,competition_summary,competition_comparisons,competitive_advantage,founder,founders,evaluation_summary,competition_summary_data,lead_pipeline_summary,founder_video&order=display_order.asc,updated_at.desc';
   const [rows, enrichment] = await Promise.all([
     readJson<RawConcept[]>(supabase.from('proof_of_mind_public_teasers').request({ query })),
     readJson<RawConcept[]>(supabase.from('proof_of_mind_public_enrichment').request({ query: 'select=concept_id,viral_hook,share_headline,share_description,og_image_url,viral_score,share_cta_label,share_cta_url' })),
