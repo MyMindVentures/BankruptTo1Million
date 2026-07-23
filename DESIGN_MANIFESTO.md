@@ -164,7 +164,7 @@ Thank you for considering becoming part of this story.
 
 With sincere gratitude,
 
-**Kevin De Vlieger**  
+**Kevin**  
 Founder · Concept Thinker · Vision Partner
 
 **Micha**  
