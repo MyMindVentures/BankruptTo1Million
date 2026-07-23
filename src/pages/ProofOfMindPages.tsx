@@ -1,4 +1,4 @@
-import { ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Database, ExternalLink, Factory, Film, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map as MapIcon, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Box, Brain, Building2, CalendarDays, CheckCircle, ChevronDown, ChevronUp, Database, ExternalLink, Factory, Film, Handshake, Hotel, Image as ImageIcon, Lightbulb, LockKeyhole, Map as MapIcon, Package, RefreshCw, Search, Share2, ShieldCheck, Sparkles, Store, Target, Users, X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
 import { SectionHeading } from '../components/SectionHeading';
@@ -122,7 +122,7 @@ function ConceptCard({ concept, onDiscovery }: { concept: ProofOfMindConcept; on
       <div className="concept-card__footer">{concept.viral_score !== null ? <span>Viral {concept.viral_score}/10</span> : null}{concept.competition.count ? <span>{concept.competition.count} competitors</span> : null}{leadSummary(concept) ? <span>{leadSummary(concept)}</span> : null}</div>
     </> : null}
     <button className="proof-card-toggle" type="button" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}>{expanded ? <><ChevronUp size={16} /> Show less</> : <><ChevronDown size={16} /> Show more</>}</button>
-    <div className="proof-card-actions">{openable ? <a className="button button--small" href={`/proof-of-mind/${concept.slug}`} onClick={() => void trackProofOfMindEvent(concept.id, 'detail_open', { source: 'teaser_card' })}>View full concept <ArrowRight size={16} /></a> : <button className="button button--small" type="button" onClick={() => onDiscovery(concept)}>Register interest</button>}<button className="button button--ghost button--small" type="button" onClick={copy}>{copied ? <CheckCircle size={16} /> : <Share2 size={16} />}{copied ? 'Shared' : 'Share'}</button></div>
+    <div className="proof-card-actions">{concept.mega_promo_text ? <a className="button button--small" href={`/proof-of-mind/${concept.slug}/promo`} onClick={() => void trackProofOfMindEvent(concept.id, 'promo_open', { source: 'teaser_card' })}>Imagine this <Sparkles size={16} /></a> : null}{openable ? <a className="button button--ghost button--small" href={`/proof-of-mind/${concept.slug}`} onClick={() => void trackProofOfMindEvent(concept.id, 'detail_open', { source: 'teaser_card' })}>View full concept <ArrowRight size={16} /></a> : <button className="button button--small" type="button" onClick={() => onDiscovery(concept)}>Register interest</button>}<button className="button button--ghost button--small" type="button" onClick={copy}>{copied ? <CheckCircle size={16} /> : <Share2 size={16} />}{copied ? 'Shared' : 'Share'}</button></div>
   </article>;
 }
 
@@ -151,16 +151,7 @@ function useConcepts() {
   return { concepts, state, retry: load };
 }
 
-const publicCategoryOrder = [
-  'AI & Digital Products',
-  'Business & Commerce',
-  'Mobility, Maritime & Infrastructure',
-  'Leisure, Travel & Hospitality',
-  'Living, Community & Wellbeing',
-  'Media, Education & Creativity',
-  'Other Concepts',
-] as const;
-
+const publicCategoryOrder = ['AI & Digital Products','Business & Commerce','Mobility, Maritime & Infrastructure','Leisure, Travel & Hospitality','Living, Community & Wellbeing','Media, Education & Creativity','Other Concepts'] as const;
 type PublicCategory = typeof publicCategoryOrder[number];
 type ConceptCategoryFilter = 'All' | PublicCategory;
 type ConceptSort = 'updated_desc' | 'updated_asc' | 'title_asc' | 'title_desc';
@@ -193,10 +184,7 @@ export function ProofOfMindPage() {
 
   const categoryCounts = useMemo(() => {
     const counts = new globalThis.Map<ConceptCategoryFilter, number>([['All', concepts.length]]);
-    concepts.forEach((concept) => {
-      const category = getPublicCategory(concept);
-      counts.set(category, (counts.get(category) || 0) + 1);
-    });
+    concepts.forEach((concept) => { const category = getPublicCategory(concept); counts.set(category, (counts.get(category) || 0) + 1); });
     return counts;
   }, [concepts]);
 
@@ -204,20 +192,18 @@ export function ProofOfMindPage() {
 
   const filtered = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    return concepts
-      .filter((concept) => {
-        const groupedCategory = getPublicCategory(concept);
-        if (selectedCategory !== 'All' && groupedCategory !== selectedCategory) return false;
-        if (!normalizedQuery) return true;
-        const searchable = [concept.title, concept.tagline, concept.short_description, groupedCategory, concept.category, ...concept.tags].filter(Boolean).join(' ').toLowerCase();
-        return searchable.includes(normalizedQuery);
-      })
-      .sort((a, b) => {
-        if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
-        if (sortBy === 'title_desc') return b.title.localeCompare(a.title);
-        const difference = conceptUpdateTime(a) - conceptUpdateTime(b);
-        return sortBy === 'updated_asc' ? difference : -difference;
-      });
+    return concepts.filter((concept) => {
+      const groupedCategory = getPublicCategory(concept);
+      if (selectedCategory !== 'All' && groupedCategory !== selectedCategory) return false;
+      if (!normalizedQuery) return true;
+      const searchable = [concept.title, concept.tagline, concept.short_description, groupedCategory, concept.category, ...concept.tags].filter(Boolean).join(' ').toLowerCase();
+      return searchable.includes(normalizedQuery);
+    }).sort((a, b) => {
+      if (sortBy === 'title_asc') return a.title.localeCompare(b.title);
+      if (sortBy === 'title_desc') return b.title.localeCompare(a.title);
+      const difference = conceptUpdateTime(a) - conceptUpdateTime(b);
+      return sortBy === 'updated_asc' ? difference : -difference;
+    });
   }, [concepts, query, selectedCategory, sortBy]);
 
   const hasActiveFilters = Boolean(query.trim()) || selectedCategory !== 'All';
@@ -227,6 +213,30 @@ export function ProofOfMindPage() {
 }
 
 function DetailSection({ title, children, id }: { title: string; children: ReactNode; id?: string }) { return <section className="concept-detail-section" id={id}><h2>{title}</h2>{children}</section>; }
+
+export function ProofOfMindPromoPage({ slug }: { slug: string }) {
+  const [concept, setConcept] = useState<ProofOfMindConceptDetail | null>(null);
+  const [state, setState] = useState<'loading' | 'success' | 'error'>('loading');
+  const [retry, setRetry] = useState(0);
+  useEffect(() => {
+    let active = true;
+    setState('loading');
+    getProofOfMindConceptBySlug(slug).then((data) => {
+      if (!active) return;
+      setConcept(data);
+      setState('success');
+      if (data) {
+        setProofMeta(`Imagine ${data.title} — Proof of Mind`, data.mega_promo_text || data.share_description || data.short_description, data.og_image_url || data.cover_image_url);
+        void trackProofOfMindEvent(data.id, 'promo_view', { slug });
+      }
+    }).catch(() => { if (active) setState('error'); });
+    return () => { active = false; };
+  }, [slug, retry]);
+  if (state === 'loading') return <main className="proof-page"><section className="section"><div className="container impact-state"><RefreshCw className="spin" /><strong>Loading the vision…</strong></div></section></main>;
+  if (state === 'error') return <main className="proof-page"><section className="section"><div className="container"><ProofOfMindErrorState onRetry={() => setRetry((value) => value + 1)} /></div></section></main>;
+  if (!concept || !concept.mega_promo_text) return <main className="proof-page"><section className="section"><div className="container impact-state"><LockKeyhole /><div><strong>Promo story not available</strong><br />This concept has no public promotional story yet.</div><a className="button button--small" href="/proof-of-mind">Back to Proof of Mind</a></div></section></main>;
+  return <main className="proof-page proof-promo-page"><section className="section proof-promo-hero"><div className="container"><a className="proof-promo-back" href="/proof-of-mind"><ArrowLeft size={17} /> Back to all concepts</a><div className="proof-promo-shell"><div className="proof-promo-eyebrow"><Sparkles size={18} /><span>Imagine what this could become</span></div><h1>{concept.title}</h1>{concept.tagline ? <p className="proof-promo-tagline">{concept.tagline}</p> : null}<div className="proof-promo-story"><span className="proof-promo-dropcap">Imagine</span><p>{concept.mega_promo_text.replace(/^Imagine\s*/i, '')}</p></div><div className="proof-promo-actions"><a className="button" href={`/proof-of-mind/${concept.slug}`} onClick={() => void trackProofOfMindEvent(concept.id, 'detail_open', { source: 'promo_page' })}>Explore the full concept <ArrowRight size={16} /></a><button className="button button--ghost" type="button" onClick={() => void shareConcept(concept, 'promo')}>Share this vision <Share2 size={16} /></button></div></div></div></section></main>;
+}
 
 export function ProofOfMindDetailPage({ slug }: { slug: string }) {
   const [concept, setConcept] = useState<ProofOfMindConceptDetail | null>(null);
@@ -240,7 +250,7 @@ export function ProofOfMindDetailPage({ slug }: { slug: string }) {
   const demoUrl = safeLink(concept.demo_url || concept.external_url);
   const pitchUrl = safeLink(concept.pitch_deck_url);
   return <main className="proof-page">
-    <section className="section proof-detail-hero"><div className="container split-grid"><div className="proof-detail-hero__copy"><p className="eyebrow">{humanize(concept.concept_type)} · {concept.category}</p><h1>{concept.title}</h1>{concept.tagline ? <p className="lead">{concept.tagline}</p> : null}<p>{concept.short_description}</p><div className="proof-card-actions">{demoUrl ? <a className="button" href={demoUrl} target="_blank" rel="noreferrer">View Demo <ExternalLink size={16} /></a> : null}<button className="button button--ghost" type="button" onClick={() => setDiscoveryOpen(true)}>Book Discovery Call</button></div></div><div className="proof-detail-hero__visual">{concept.cover_image_url ? <img src={concept.cover_image_url} alt={concept.cover_image_alt || `${concept.title} cover`} /> : <div className="concept-card__fallback"><ConceptIcon type={concept.concept_type} /><span>{humanize(concept.concept_type)}</span></div>}<div className="proof-score"><strong>{concept.concept_score ?? '—'}</strong><span>Concept score / 10</span></div></div></div></section>
+    <section className="section proof-detail-hero"><div className="container split-grid"><div className="proof-detail-hero__copy"><p className="eyebrow">{humanize(concept.concept_type)} · {concept.category}</p><h1>{concept.title}</h1>{concept.tagline ? <p className="lead">{concept.tagline}</p> : null}<p>{concept.short_description}</p><div className="proof-card-actions">{concept.mega_promo_text ? <a className="button" href={`/proof-of-mind/${concept.slug}/promo`}>Imagine this <Sparkles size={16} /></a> : null}{demoUrl ? <a className="button" href={demoUrl} target="_blank" rel="noreferrer">View Demo <ExternalLink size={16} /></a> : null}<button className="button button--ghost" type="button" onClick={() => setDiscoveryOpen(true)}>Book Discovery Call</button></div></div><div className="proof-detail-hero__visual">{concept.cover_image_url ? <img src={concept.cover_image_url} alt={concept.cover_image_alt || `${concept.title} cover`} /> : <div className="concept-card__fallback"><ConceptIcon type={concept.concept_type} /><span>{humanize(concept.concept_type)}</span></div>}<div className="proof-score"><strong>{concept.concept_score ?? '—'}</strong><span>Concept score / 10</span></div></div></div></section>
     <section className="container proof-detail-signals"><article><Target /><strong>{concept.primary_market || concept.target_audience || 'Market being validated'}</strong><span>Primary market</span></article><article><CalendarDays /><strong>{formatDate(concept.published_at)}</strong><span>Published</span></article><article><Users /><strong>{concept.founder?.name || 'Founder-led'}</strong><span>Founder</span></article><article><Database /><strong>{concept.key_features.length}</strong><span>Core capabilities</span></article></section>
     {concept.founder_video ? <section className="container proof-detail-founder-video"><FounderWordVideo concept={concept} /></section> : null}
     <section className="section"><div className="container concept-detail">
@@ -254,14 +264,10 @@ export function ProofOfMindDetailPage({ slug }: { slug: string }) {
       {concept.mockup_screens.length ? <DetailSection title="Mockups and visual direction"><div className="proof-mockup-grid">{concept.mockup_screens.map((screen) => <article key={screen.screen_key}>{screen.image_url ? <img src={screen.image_url} alt={screen.image_alt || screen.screen_name} /> : <div className="proof-mockup-placeholder"><ImageIcon /><strong>{screen.screen_name}</strong><small>{screen.image_status || 'Visual pending'}</small></div>}<div className="proof-mockup-copy"><span>{screen.primary_user_role}</span><h3>{screen.screen_name}</h3>{renderText(screen.screen_purpose)}<DetailList items={screen.main_components} limit={5} /></div></article>)}</div></DetailSection> : null}
       <DetailSection title="Competition and differentiation"><div className="proof-advantage"><strong>Why we are different</strong>{renderText(concept.competition.competitive_advantage || concept.innovation_summary)}</div>{concept.competition.comparisons.length ? <div className="proof-comparison-grid">{concept.competition.comparisons.map((competitor) => <article key={competitor.name}><h3>{competitor.name}</h3>{competitor.product ? <p className="proof-kicker">{competitor.product}</p> : null}{renderText(competitor.differences)}{competitor.our_advantage ? <p><strong>Our edge:</strong> {competitor.our_advantage}</p> : null}{competitor.strategic_risk ? <p><strong>Risk:</strong> {competitor.strategic_risk}</p> : null}</article>)}</div> : renderText(concept.competition.summary)}</DetailSection>
       {concept.evaluation ? <DetailSection title="Commercial evaluation"><div className="proof-score-row"><ScoreBadge label="Average" value={concept.evaluation.average_score} /><ScoreBadge label="Concept" value={concept.concept_score} /></div><div className="proof-evaluation-list">{concept.evaluation.criteria.map((criterion) => <article key={criterion.criterion}><div><h3>{criterion.criterion}</h3><strong>{criterion.score !== null ? `${criterion.score}/10` : '—'}</strong></div>{renderText(criterion.assessment)}{criterion.risks.length ? <><h4>Risks</h4><DetailList items={criterion.risks} /></> : null}{criterion.improvement_actions.length ? <><h4>Improvement actions</h4><DetailList items={criterion.improvement_actions} /></> : null}</article>)}</div></DetailSection> : null}
-      <DetailSection title="Market, business model and validation"><div className="proof-split"><article><h3>Market opportunity</h3>{renderText(concept.market_opportunity)}</article><article><h3>Business model</h3>{renderText(concept.business_model_summary || concept.business_model)}</article></div><h3>Validation</h3>{renderText(concept.validation_summary)}<DetailList items={concept.validation_evidence} /></DetailSection>
-      <DetailSection title="Roadmap">{renderText(concept.roadmap_summary)}</DetailSection>
-      {concept.collaboration_opportunities.length ? <DetailSection title="Collaboration opportunities"><DetailList items={concept.collaboration_opportunities} /></DetailSection> : null}
-      {concept.lead_pipeline?.categories.length ? <DetailSection title="Who we want to reach"><div className="proof-lead-grid">{concept.lead_pipeline.categories.map((category) => <article key={category.name}><h3>{category.name}</h3>{renderText(category.strategic_goal)}{renderText(category.default_outreach_angle)}<p><strong>{category.identified_leads}</strong> identified · <strong>{category.target_slots}</strong> target slots</p></article>)}</div></DetailSection> : null}
-      {pitchUrl ? <DetailSection title="Pitch deck"><a className="button button--small" href={pitchUrl} target="_blank" rel="noreferrer">Open pitch deck <ExternalLink size={16} /></a></DetailSection> : null}
-      <section className="concept-detail-section proof-signature"><Lightbulb /><div><strong>Proof of Mind</strong><p>This concept is publicly shared as evidence of original thinking, structured development and willingness to collaborate.</p></div></section>
-    </div></section>
-    <section className="section proof-final-cta"><div className="container"><h2>Could you help this concept move forward?</h2><p>Register your interest as a customer, builder, launch partner, investor or sponsor.</p><button className="button" type="button" onClick={() => setDiscoveryOpen(true)}>Book Discovery Call <ArrowRight size={16} /></button></div></section>
-    {discoveryOpen ? <DiscoveryCallModal concept={concept} onClose={() => setDiscoveryOpen(false)} /> : null}
+      <DetailSection title="Market, business model and validation"><div className="proof-split"><article><h3>Market opportunity</h3>{renderText(concept.market_opportunity)}</article><article><h3>Business model</h3>{renderText(concept.business_model_summary || concept.business_model)}</article></div><h3>Validation</h3>{renderText(concept.validation_summary)}<DetailList items={concept.validation_evidence} /><h3>Roadmap</h3>{renderText(concept.roadmap_summary)}<DetailList items={concept.collaboration_opportunities} /></DetailSection>
+      {concept.lead_pipeline ? <DetailSection title="Partner and outreach pipeline"><div className="proof-lead-grid">{concept.lead_pipeline.categories.map((category) => <article key={category.name}><h3>{category.name}</h3>{renderText(category.strategic_goal)}{renderText(category.default_outreach_angle)}<p>{category.identified_leads} identified · {category.target_slots} target slots</p></article>)}</div></DetailSection> : null}
+      <DetailSection title="Ownership and collaboration"><div className="proof-signature"><ShieldCheck /><div><h3>Original ownership remains protected</h3><p>Publication does not waive ownership. It opens a transparent path for validation, building, funding and partnership.</p></div></div></DetailSection>
+      <section className="concept-detail-section proof-final-cta"><p className="eyebrow">Build what should exist</p><h2>Help move {concept.title} from proof of mind to proof in the world.</h2><p>Register your interest as a potential customer, launch partner, investor, builder, sponsor or media collaborator.</p><button className="button" type="button" onClick={() => setDiscoveryOpen(true)}>Register interest <ArrowRight size={16} /></button>{pitchUrl ? <a className="button button--ghost" href={pitchUrl} target="_blank" rel="noreferrer">View pitch deck <ExternalLink size={16} /></a> : null}</section>
+    </div></section>{discoveryOpen ? <DiscoveryCallModal concept={concept} onClose={() => setDiscoveryOpen(false)} /> : null}
   </main>;
 }
