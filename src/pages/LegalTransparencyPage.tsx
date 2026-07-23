@@ -41,8 +41,7 @@ export function LegalTransparencyPage() {
 
           <section className="section legal-summary" aria-label={t('legal.summary.aria', 'Ownership summary')}>
             <article><span>{t('legal.summary.owner_entity', 'Owner entity')}</span><strong>MyMindVentures.io</strong></article>
-            <article><span>{t('legal.summary.owner_ceo', 'Owner & CEO')}</span><strong>Kevin De Vlieger</strong></article>
-            <article><span>{t('legal.summary.identification', 'Identification')}</span><strong>NIE Y8541916Y</strong></article>
+            <article><span>{t('legal.summary.owner_ceo', 'Owner & CEO')}</span><strong>Kevin</strong></article>
             <article><span>{t('legal.summary.based_in', 'Based in')}</span><strong>Alicante, Spain</strong></article>
           </section>
 
@@ -54,7 +53,7 @@ export function LegalTransparencyPage() {
                   Unless explicitly stated otherwise, every concept, venture idea, product direction, service model,
                   platform concept, community initiative, physical-product concept, media concept and related body of
                   documentation published on this website is owned by <strong>MyMindVentures.io</strong>, led by
-                  <strong> Kevin De Vlieger</strong>, CEO, Concept Thinker & Vision Partner.
+                  <strong> Kevin</strong>, CEO, Concept Thinker & Vision Partner.
                 </p>
                 <p>
                   Ownership includes the original concept framing, written documentation, product strategy, research,
@@ -65,7 +64,7 @@ export function LegalTransparencyPage() {
                   Public publication does not transfer ownership and does not grant an automatic license. Visitors may
                   read and share links to the original pages. Copying, reproducing, redistributing, commercializing,
                   white-labelling, presenting the work as one’s own, or building directly from substantial unpublished or
-                  protected documentation requires prior written permission from MyMindVentures.io and Kevin De Vlieger.
+                  protected documentation requires prior written permission from MyMindVentures.io.
                 </p>
                 <div className="legal-callout">
                   <FileCheck2 aria-hidden="true" />
@@ -140,7 +139,7 @@ export function LegalTransparencyPage() {
               <div className="legal-section__heading"><Globe2 aria-hidden="true" /><div><p className="eyebrow">04 · Mission</p><h2 id="mission-title">Public Mission Statement</h2></div></div>
               <div className="legal-section__body">
                 <p>
-                  Kevin De Vlieger publishes this work to establish visibility as a <strong>{t('legal.mission.role', 'Concept Thinker & Vision Partner')}</strong>,
+                  Kevin publishes this work to establish visibility as a <strong>{t('legal.mission.role', 'Concept Thinker & Vision Partner')}</strong>,
                   attract the builders and strategic partners required to turn strong ideas into real ventures, and build a
                   location-independent future as a <strong>{t('legal.mission.digital_nomad', 'Digital Nomad')}</strong>.
                 </p>
@@ -195,7 +194,6 @@ export const LEGAL_TRANSPARENCY_PAGE_I18N_MANIFEST = {
     'legal.nav.terms',
     'legal.summary.aria',
     'legal.summary.based_in',
-    'legal.summary.identification',
     'legal.summary.owner_ceo',
     'legal.summary.owner_entity',
   ] as const,
