@@ -1,9 +1,12 @@
 import { ArrowRight, Award, CheckCircle2, Clock, ExternalLink, Gift, GitPullRequest, HeartHandshake, RefreshCw } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import type { ChangeEvent, FormEvent } from 'react';
+import { SectionHeading } from './components/SectionHeading';
 import { Header } from './components/Header';
 import { Footer } from './components/Footer';
-import { AdminJournalCommentsPage, JournalArticlePage, JournalPage } from './pages/JournalPages';
+import { BreakTheCircleArticlePage, BreakTheCirclePage, AdminBreakTheCirclePage, AdminBreakTheCircleEditorPage, AdminBreakTheCirclePreviewPage } from './pages/BreakTheCirclePages';
+import { HomePage } from './pages/HomePage';
+import { JournalArticlePage, JournalPage, AdminJournalCommentsPage } from './pages/JournalPages';
 import { ProofOfMindDetailPage, ProofOfMindPage } from './pages/ProofOfMindPages';
 import { AdminBreakTheCircleEditorPage, AdminBreakTheCirclePage, AdminBreakTheCirclePreviewPage, BreakTheCircleArticlePage, BreakTheCirclePage } from './pages/BreakTheCirclePages';
 import { SectionHeading } from './components/SectionHeading';
@@ -62,7 +65,7 @@ function FoundingHeroCard({ hero }: { hero: PublicFoundingHero }) {
   </article>;
 }
 
-function FoundingHeroesPage() {
+export function FoundingHeroesPage() {
   const { t } = useWebsiteI18n();
   const [heroes, setHeroes] = useState<PublicFoundingHero[]>([]);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -261,7 +264,8 @@ function useSessionState() {
   return { session, refresh };
 }
 
-function IssuesPage() {
+/** @deprecated Unreachable via public routing; `/issues` uses PublicBuildRequestsPage. Kept for IssueCard helpers. */
+export function IssuesPage() {
   const { t, formatNumber } = useWebsiteI18n();
   const [issues, setIssues] = useState<GithubIssue[]>([]), [status, setStatus] = useState('loading'), [error, setError] = useState(''), [search, setSearch] = useState(new URLSearchParams(location.search).get('q') || ''), [sort, setSort] = useState(new URLSearchParams(location.search).get('sort') || 'newest');
   const [filters, setFilters] = useState(() => ({
@@ -283,7 +287,7 @@ function IssuesPage() {
 }
 function IssueCard({ issue }: { issue: GithubIssue }) { const { t, formatDate } = useWebsiteI18n(); const claim = primaryClaim(issue), profile = claimProfile(claim); const unlabeled = t('issues.card.unlabeled', 'Unlabeled'); return <article className="issue-card"><div className="issue-card__top"><span>#{issueNumber(issue)}</span><strong>{titleCase(issue.state || t('issues.status.open', 'open'))}</strong></div><h2>{issue.title}</h2><p>{issue.summary || String(issue.body || '').slice(0, 180) || t('issues.card.summary_empty', 'No summary synchronized yet.')}</p><dl><div><dt>{t('issues.card.type', 'Type')}</dt><dd>{issueField(issue,'type') || unlabeled}</dd></div><div><dt>{t('issues.card.discipline', 'Discipline')}</dt><dd>{issueField(issue,'discipline') || unlabeled}</dd></div><div><dt>{t('issues.card.difficulty', 'Difficulty')}</dt><dd>{issueField(issue,'difficulty') || unlabeled}</dd></div><div><dt>{t('issues.card.time', 'Time')}</dt><dd>{issueField(issue,'time') || unlabeled}</dd></div><div><dt>{t('issues.card.claim', 'Claim')}</dt><dd>{claim ? t('issues.card.claimed_by', 'Claimed by @{login}', { login: claim.github_login || profile?.github_login || '' }) : t('issues.card.available', 'Available')}</dd></div><div><dt>{t('issues.card.updated', 'Updated')}</dt><dd>{issue.updated_at ? formatDate(issue.updated_at) : t('issues.detail.not_recorded', 'Not recorded')}</dd></div><div><dt>{t('issues.card.implementation', 'Implementation')}</dt><dd>{titleCase(issue.implementation_status || t('issues.status.not_started', 'Not started'))}</dd></div></dl><div className="label-row">{labelsOf(issue).map((label)=><span key={label}>{label}</span>)}</div><div className="issue-actions"><a className="button button--small" href={`/issues/${issueNumber(issue)}`}>{t('issues.card.view', 'View issue')}</a>{isClaimAvailable(issue) ? <a className="button button--ghost button--small" href={`/issues/${issueNumber(issue)}?claim=1`}>{t('issues.card.claim_cta', 'Claim this issue')}</a> : null}{issue.linked_pull_request_url ? <a className="button button--ghost button--small" href={issue.linked_pull_request_url} target="_blank" rel="noreferrer">{t('issues.card.linked_pr', 'Linked PR')}</a> : null}</div></article>; }
 
-function IssueDetailPage({ number }: { number: number }) {
+export function IssueDetailPage({ number }: { number: number }) {
   const { t, formatDate } = useWebsiteI18n();
   const { session } = useSessionState(); const [issue,setIssue]=useState<GithubIssue|null>(null),[status,setStatus]=useState('loading'),[message,setMessage]=useState('');
   useEffect(()=>{ readJson<GithubIssue[]>(supabase.from('github_issues').request({ query: `select=*,github_issue_developers(*,profiles(*))&issue_number=eq.${number}` })).then((rows)=>{setIssue(rows[0]||null); setStatus('ready');}).catch((e:Error)=>{setMessage(e.message);setStatus('error');});},[number]);
@@ -296,12 +300,12 @@ function IssueDetailPage({ number }: { number: number }) {
   return <main className="issues-page"><section className="section issue-detail"><p className="eyebrow">{t('issues.detail.eyebrow', 'Issue #{number}', { number })}</p><h1>{issue.title}</h1><div className="issue-actions"><a className="button" href={issue.html_url || issue.github_url || `https://github.com/MyMindVentures/BankruptTo1Million/issues/${number}`} target="_blank" rel="noreferrer">{t('issues.detail.open_github', 'Open original issue on GitHub')}</a>{isClaimAvailable(issue)?<button className="button button--ghost" onClick={claim}>{t('issues.card.claim_cta', 'Claim this issue')}</button>:null}</div><dl className="detail-grid">{details.map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v || t('issues.card.unlabeled', 'Unlabeled')}</dd></div>)}</dl>{p?<a className="claimant" href="/profile/issues"><img src={p.avatar_url} alt={t('issues.detail.claimant_avatar_alt', 'Contributor avatar')} />@{p.github_login} {t('issues.detail.contributor_profile', 'contributor profile')}</a>:null}<div className="label-row">{labelsOf(issue).map((label)=><span key={label}>{label}</span>)}</div><article className="markdown-body" dangerouslySetInnerHTML={{__html: markdown(issue.body || t('issues.detail.body_empty', 'No issue body was synchronized.'))}} /></section></main>;
 }
 function profileComplete(p?: PublicProfile) { return Boolean(p?.display_name && p.role && p.github_profile_url && p.github_login && p.avatar_url && p.bio && p.primary_disciplines?.length && p.experience_level && p.consent_public_recognition && p.accepted_contribution_guidelines); }
-function ProfilePage() { const { t } = useWebsiteI18n(); const {session,refresh}=useSessionState(); const [mode,setMode]=useState<'signin'|'profile'>('signin'); const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[form,setForm]=useState<ProfileForm>({display_name:'',role:'Contributor',github_profile_url:'',github_login:'',avatar_url:'',bio:'',primary_disciplines:[],experience_level:'Beginner',consent_public_recognition:false,accepted_contribution_guidelines:false}); const returnTo=new URLSearchParams(location.search).get('returnTo')||'/profile/issues'; // eslint-disable-next-line react-hooks/exhaustive-deps
+export function ProfilePage() { const { t } = useWebsiteI18n(); const {session,refresh}=useSessionState(); const [mode,setMode]=useState<'signin'|'profile'>('signin'); const [email,setEmail]=useState(''),[password,setPassword]=useState(''),[form,setForm]=useState<ProfileForm>({display_name:'',role:'Contributor',github_profile_url:'',github_login:'',avatar_url:'',bio:'',primary_disciplines:[],experience_level:'Beginner',consent_public_recognition:false,accepted_contribution_guidelines:false}); const returnTo=new URLSearchParams(location.search).get('returnTo')||'/profile/issues'; // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{ if(session){setMode('profile'); readJson<PublicProfile[]>(supabase.from('profiles').request({query:`select=*&id=eq.${session.user.id}`,accessToken:session.access_token})).then((r)=>{if(r[0]) setForm({...form,...r[0], primary_disciplines:r[0].primary_disciplines||[]});});}},[]); async function auth(signUp=false){ await (signUp ? supabase.auth.signUp(email,password) : supabase.auth.signInWithPassword(email,password)); refresh(); setMode('profile'); }
  async function save(e:FormEvent){e.preventDefault(); if(!session) return; await readJson(supabase.from('profiles').request({method:'POST',accessToken:session.access_token,headers:{Prefer:'resolution=merge-duplicates,return=representation'},body:{id:session.user.id,...form}})); location.href=returnTo; }
  if(!session&&mode==='signin') return <main className="section"><h1>{t('profile.sign_in_title', 'Sign in to claim.')}</h1><div className="application-form"><input placeholder={t('profile.email_placeholder', 'Email')} value={email} onChange={(e)=>setEmail(e.target.value)}/><input placeholder={t('profile.password_placeholder', 'Password')} type="password" value={password} onChange={(e)=>setPassword(e.target.value)}/><button className="button" onClick={()=>auth(false)}>{t('profile.sign_in', 'Sign in')}</button><button className="button button--ghost" onClick={()=>auth(true)}>{t('profile.create_account', 'Create account')}</button></div></main>;
  return <main className="section"><h1>{t('profile.complete_title', 'Complete contributor profile.')}</h1><form className="application-form" onSubmit={save}><input required placeholder={t('profile.display_name', 'Display name')} value={form.display_name} onChange={(e)=>setForm({...form,display_name:e.target.value})}/><select value={form.role} onChange={(e)=>setForm({...form,role:e.target.value})}><option>{t('profile.role.contributor', 'Contributor')}</option><option>{t('profile.role.developer', 'Developer')}</option></select><input required placeholder={t('profile.github_login', 'GitHub login')} value={form.github_login} onChange={(e)=>setForm({...form,github_login:e.target.value})}/><input required placeholder={t('profile.github_url', 'GitHub profile URL')} value={form.github_profile_url} onChange={(e)=>setForm({...form,github_profile_url:e.target.value})}/><input required placeholder={t('profile.avatar_url', 'Avatar URL')} value={form.avatar_url} onChange={(e)=>setForm({...form,avatar_url:e.target.value})}/><textarea required placeholder={t('profile.bio', 'Short biography or skills summary')} value={form.bio} onChange={(e)=>setForm({...form,bio:e.target.value})}/><select value={form.experience_level} onChange={(e)=>setForm({...form,experience_level:e.target.value})}>{difficulties.map((d)=><option key={d}>{t(`profile.experience.${normalize(d)}`, d)}</option>)}</select><fieldset className="chip-group"><legend>{t('profile.disciplines', 'Primary disciplines')}</legend><div>{disciplines.map((d)=><button type="button" className={`chip ${form.primary_disciplines.includes(d)?'chip--active':''}`} onClick={()=>setForm({...form,primary_disciplines:form.primary_disciplines.includes(d)?form.primary_disciplines.filter(x=>x!==d):[...form.primary_disciplines,d]})} key={d}>{t(`profile.discipline.${normalize(d)}`, d)}</button>)}</div></fieldset><label><input type="checkbox" checked={form.consent_public_recognition} onChange={(e)=>setForm({...form,consent_public_recognition:e.target.checked})}/> {t('profile.public_consent', 'Consent to public recognition')}</label><label><input type="checkbox" checked={form.accepted_contribution_guidelines} onChange={(e)=>setForm({...form,accepted_contribution_guidelines:e.target.checked})}/> {t('profile.guidelines_consent', 'Accept contribution guidelines')}</label><button className="button" type="submit">{t('profile.save', 'Save profile')}</button></form></main> }
-function ProfileIssuesPage(){ const { t, formatDate } = useWebsiteI18n(); const {session}=useSessionState(); const [claims,setClaims]=useState<IssueDeveloper[]>([]); // eslint-disable-next-line react-hooks/exhaustive-deps
+export function ProfileIssuesPage(){ const { t, formatDate } = useWebsiteI18n(); const {session}=useSessionState(); const [claims,setClaims]=useState<IssueDeveloper[]>([]); // eslint-disable-next-line react-hooks/exhaustive-deps
  useEffect(()=>{ if(session) readJson<IssueDeveloper[]>(supabase.from('github_issue_developers').request({query:`select=*,github_issues(*)&profile_id=eq.${session.user.id}`,accessToken:session.access_token})).then(setClaims);},[]); if(!session) return <main className="section"><h1>{t('profile.dashboard', 'Contributor dashboard')}</h1><a className="button" href="/profile?returnTo=/profile/issues">{t('profile.sign_in', 'Sign in')}</a></main>; return <main className="section"><h1>{t('profile.dashboard', 'Contributor dashboard')}</h1><p>{t('profile.dashboard_description', 'Public profile status, GitHub profile and contribution history are shown from Supabase.')}</p><div className="issue-grid">{claims.map((c)=><article className="issue-card" key={c.id}><h2>{titleCase(c.contribution_status)}</h2><p>{t('profile.claimed', 'Claimed {date} as @{login}.', { date: c.claimed_at ? formatDate(c.claimed_at) : t('issues.detail.not_recorded', 'Not recorded'), login: c.github_login || '' })}</p></article>)}</div></main> }
 type ImpactStat = {
   label: string;
@@ -472,7 +476,8 @@ function ImpactEmptyState() {
   return <div className="impact-state">{t('impact.empty', 'No verified contributor activity is available yet. The dashboard will populate when merged pull requests and linked issues are found.')}</div>;
 }
 
-function ImpactDashboardPage() {
+/** @deprecated Unreachable via public routing; `/impact` uses ImpactResultsPage. */
+export function ImpactDashboardPage() {
   const { t, formatDate } = useWebsiteI18n();
   const [impactData, setImpactData] = useState<ImpactData | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -607,7 +612,7 @@ const initialFoundingHeroApplication: FoundingHeroApplicationForm = {
   consentToPublicRecognition: false,
 };
 
-function BecomeFoundingHeroPage() {
+export function BecomeFoundingHeroPage() {
   const { t } = useWebsiteI18n();
   const [application, setApplication] = useState<FoundingHeroApplicationForm>(initialFoundingHeroApplication);
   const [errors, setErrors] = useState<FoundingHeroApplicationErrors>({});

@@ -3,7 +3,13 @@ import { ArrowLeft, Camera, Check, Clock3, MapPin, Play, ShieldCheck, Sparkles, 
 import { useEffect, useMemo, useState } from 'react';
 import { getPublicOfferBySlug } from '../lib/offers';
 import type { OfferMediaItem, PublicOffer } from '../lib/offers';
+import {
+  resolveOfferBookingContextFromOfferId,
+  type JourneyOfferBookingContext,
+} from '../lib/journeyOfferBookings';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+import { JourneyOfferBookingForm } from '../components/JourneyOfferBookingForm';
+import '../components/JournalJourneyExperience.css';
 
 function founderLabel(offer: PublicOffer): string {
   return offer.founders.map((founder) => founder.displayName).join(' & ') || 'Kevin & Micha';
@@ -25,9 +31,13 @@ export const OFFER_DETAIL_PAGE_I18N_MANIFEST = {
   translationKeys: [
     'offers.detail.close_media',
     'offers.detail.personal_story',
+    'offers.detail.book',
+    'offers.detail.cta.eyebrow',
+    'offers.detail.cta.title',
+    'offers.detail.cta.description',
   ] as const,
   entityContent: {
-    tables: ['offers', 'offer_translations'],
+    tables: ['offers', 'offer_translations', 'journey_offer_bookings', 'journey_exchange_items'],
   },
 } as const satisfies I18nManifest;
 
@@ -36,6 +46,8 @@ export function OfferDetailPage({ slug }: { slug: string }) {
   const [offer, setOffer] = useState<PublicOffer | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'missing'>('loading');
   const [selected, setSelected] = useState<OfferMediaItem | null>(null);
+  const [bookingContext, setBookingContext] = useState<JourneyOfferBookingContext | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -60,6 +72,21 @@ export function OfferDetailPage({ slug }: { slug: string }) {
   }, [selected]);
 
   const footageCount = useMemo(() => offer?.collections.reduce((total, collection) => total + collection.items.length, 0) || 0, [offer]);
+
+  async function openBooking() {
+    if (!offer) return;
+    setBookingError(null);
+    try {
+      const context = await resolveOfferBookingContextFromOfferId(offer.id);
+      if (!context) {
+        setBookingError(t('journey_calendar.booking.unavailable', 'This offer is not available to book right now.'));
+        return;
+      }
+      setBookingContext(context);
+    } catch {
+      setBookingError(t('journey_calendar.booking.unavailable', 'This offer is not available to book right now.'));
+    }
+  }
 
   if (status === 'loading') return <main className="offer-detail"><div className="offers-state">Loading this offer…</div></main>;
   if (status === 'error') return <main className="offer-detail"><div className="offers-state offers-state--error">This offer could not be loaded.</div></main>;
@@ -124,13 +151,24 @@ export function OfferDetailPage({ slug }: { slug: string }) {
     </section>
 
     <section className="offer-detail__cta">
-      <p className="eyebrow">Interested?</p><h2>Let’s turn this offer into a shared moment.</h2><p>Reach out with your location, timing and what you have in mind. We will see what is realistically possible within the journey.</p>
-      <div><a className="button button--primary" href="/#contact">{offer.ctaLabel}</a><a className="button button--ghost" href="/offers">{offer.secondaryCtaLabel}</a></div>
+      <p className="eyebrow">{t('offers.detail.cta.eyebrow', 'Interested?')}</p>
+      <h2>{t('offers.detail.cta.title', 'Let’s turn this offer into a shared moment.')}</h2>
+      <p>{t('offers.detail.cta.description', 'Share your preferred dates, group size and what you have in mind. We will follow up privately.')}</p>
+      <div>
+        <button className="button button--primary" type="button" onClick={() => void openBooking()}>
+          {offer.ctaLabel || t('offers.detail.book', 'Book this offer')}
+        </button>
+        <a className="button button--ghost" href="/offers">{offer.secondaryCtaLabel}</a>
+      </div>
+      {bookingError ? <p className="offers-state offers-state--error">{bookingError}</p> : null}
     </section>
 
     {selected ? <div className="offer-media-viewer" role="dialog" aria-modal="true" onClick={() => setSelected(null)}>
       <button type="button" onClick={() => setSelected(null)} aria-label={t('offers.detail.close_media', 'Close media')}>×</button>
       <div onClick={(event) => event.stopPropagation()}>{selected.kind === 'video' ? <video src={selected.url} controls autoPlay /> : <img src={selected.url} alt={selected.altText} />}<p>{selected.caption || selected.description}</p></div>
     </div> : null}
+    {bookingContext ? (
+      <JourneyOfferBookingForm context={bookingContext} onClose={() => setBookingContext(null)} />
+    ) : null}
   </main>;
 }

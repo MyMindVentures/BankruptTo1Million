@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useRef, useState } from 'react';
 import { Edit3, ExternalLink, FilePlus2, LoaderCircle, RefreshCw, Search, Sparkles, Trash2, Upload, X } from 'lucide-react';
 import { JournalEventCapture } from '../components/JournalEventCapture';
 import { JournalPublicationProgressPanel } from '../components/JournalPublicationProgressPanel';
+import { JournalSocialCreativesPanel } from '../components/JournalSocialCreativesPanel';
 import { useWebsiteI18n } from '../lib/websiteI18n';
 import {
   appendJournalFootage,
@@ -387,6 +388,8 @@ export function JournalAdminPage() {
 
             {editingId && form.ai_generation_status === 'completed' && <div className="ai-public-preview"><p>PUBLIC AI VERSION</p><h3>{form.title}</h3><span>{form.excerpt}</span><div>{form.body}</div></div>}
           </section>
+
+          <JournalSocialCreativesPanel postId={editingId} footage={existingFootage} />
         </main>
 
         <aside className="journal-publish-sidebar">

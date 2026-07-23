@@ -8,6 +8,7 @@ import {
   deleteJourneyCalendarEntry,
   listJourneyExchangeItems,
   listJourneyHostOffers,
+  listJourneyOfferBookings,
   listJourneyLookupOptions,
   requeueJourneyCalendarTranslations,
   searchJournalPosts,
@@ -15,6 +16,7 @@ import {
   setJourneyCalendarFounders,
   slugifyTitle,
   updateJourneyHostOffer,
+  updateJourneyOfferBooking,
   upsertJourneyCalendarEntry,
   upsertJourneyExchangeItem,
   upsertJourneyLookupOption,
@@ -35,6 +37,8 @@ import {
   type JourneyPerson,
   type LookupKind,
   type LookupOption,
+  type OfferBooking,
+  type OfferBookingStatus,
   type TranslationSummary,
 } from '../lib/journeyCalendarAdminApi';
 import {
@@ -51,7 +55,7 @@ import {
 import '../components/admin/pickers/adminPickers.css';
 import '../styles/journeyCalendarAdmin.css';
 
-type TabKey = 'stops' | 'hosts' | 'exchange';
+type TabKey = 'stops' | 'hosts' | 'bookings' | 'exchange';
 type ToastTone = 'success' | 'error';
 type AdminToast = { id: number; tone: ToastTone; message: string };
 
@@ -60,6 +64,7 @@ const FLEXIBILITY_PRESETS = [0, 1, 3, 7, 14];
 
 const entryStatuses: CalendarEntryStatus[] = ['idea', 'planned', 'confirmed', 'travelling', 'completed', 'cancelled'];
 const hostStatuses: HostOfferStatus[] = ['new', 'reviewing', 'contacted', 'accepted', 'declined', 'withdrawn'];
+const bookingStatuses: OfferBookingStatus[] = ['new', 'reviewed', 'accepted', 'declined', 'cancelled'];
 const exchangeStatuses: ExchangeItemStatus[] = ['draft', 'active', 'fulfilled', 'paused', 'archived'];
 const people: JourneyPerson[] = ['kevin', 'micha', 'together'];
 const hostRequestStatuses: HostRequestStatus[] = ['not_needed', 'open', 'offers_received', 'matched', 'closed'];
@@ -185,6 +190,8 @@ export function JourneyCalendarAdminPage() {
   const [founders, setFounders] = useState<CalendarFounderOption[]>([]);
   const [hostOffers, setHostOffers] = useState<HostOffer[] | null>(null);
   const [hostCounts, setHostCounts] = useState<Record<string, number> | null>(null);
+  const [offerBookings, setOfferBookings] = useState<OfferBooking[] | null>(null);
+  const [bookingCounts, setBookingCounts] = useState<Record<string, number> | null>(null);
   const [exchangeRows, setExchangeRows] = useState<ExchangeItem[] | null>(null);
   const [exchangeCounts, setExchangeCounts] = useState<Record<string, number> | null>(null);
 
@@ -209,6 +216,8 @@ export function JourneyCalendarAdminPage() {
 
   const [selectedOffer, setSelectedOffer] = useState<HostOffer | null>(null);
   const [offerNotes, setOfferNotes] = useState('');
+  const [selectedBooking, setSelectedBooking] = useState<OfferBooking | null>(null);
+  const [bookingNotes, setBookingNotes] = useState('');
   const [selectedExchange, setSelectedExchange] = useState<ExchangeItem | null>(null);
   const [toasts, setToasts] = useState<AdminToast[]>([]);
   const toastTimers = useRef<Map<number, number>>(new Map());
@@ -248,6 +257,12 @@ export function JourneyCalendarAdminPage() {
     setHostCounts(result.counts);
   }
 
+  async function loadBookings() {
+    const result = await listJourneyOfferBookings({ status: null, query: null });
+    setOfferBookings(result.rows);
+    setBookingCounts(result.counts);
+  }
+
   async function loadExchange() {
     const result = await listJourneyExchangeItems({ status: null, query: null });
     setExchangeRows(result.rows);
@@ -260,6 +275,7 @@ export function JourneyCalendarAdminPage() {
     try {
       if (tab === 'stops') await loadStops();
       else if (tab === 'hosts') await loadHosts();
+      else if (tab === 'bookings') await loadBookings();
       else await loadExchange();
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Calendar admin data could not be loaded.');
@@ -270,6 +286,10 @@ export function JourneyCalendarAdminPage() {
       if (tab === 'hosts') {
         setHostOffers(null);
         setHostCounts(null);
+      }
+      if (tab === 'bookings') {
+        setOfferBookings(null);
+        setBookingCounts(null);
       }
       if (tab === 'exchange') {
         setExchangeRows(null);
@@ -310,6 +330,24 @@ export function JourneyCalendarAdminPage() {
       return matchesStatus && (!q || haystack.includes(q));
     });
   }, [hostOffers, query, status]);
+
+  const filteredBookings = useMemo(() => {
+    if (!offerBookings) return [];
+    const q = query.toLowerCase();
+    return offerBookings.filter((booking) => {
+      const matchesStatus = status === 'all' || booking.status === status;
+      const haystack = [
+        booking.full_name,
+        booking.email,
+        booking.message,
+        booking.exchange_item_title,
+        booking.offer_title,
+        booking.calendar_entry_title,
+        booking.calendar_entry_city,
+      ].join(' ').toLowerCase();
+      return matchesStatus && (!q || haystack.includes(q));
+    });
+  }, [offerBookings, query, status]);
 
   const filteredExchange = useMemo(() => {
     if (!exchangeRows) return [];
@@ -583,6 +621,37 @@ export function JourneyCalendarAdminPage() {
     }
   }
 
+  async function moderateBooking(nextStatus: OfferBookingStatus) {
+    if (!selectedBooking) return;
+    if (nextStatus === 'accepted') {
+      const confirmed = window.confirm('Confirm accepting this offer booking?');
+      if (!confirmed) return;
+    }
+    if (nextStatus === 'declined') {
+      const confirmed = window.confirm('Confirm declining this offer booking?');
+      if (!confirmed) return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const updated = await updateJourneyOfferBooking({
+        bookingId: selectedBooking.id,
+        status: nextStatus,
+        internalNotes: bookingNotes,
+      });
+      setSelectedBooking({ ...selectedBooking, ...updated });
+      await loadBookings();
+      setError(null);
+      pushToast('success', `Offer booking marked ${nextStatus}`);
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : 'Could not update offer booking.';
+      setError(message);
+      pushToast('error', message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   async function saveExchangeEditor() {
     if (!selectedExchange) return;
     setSaving(true);
@@ -772,8 +841,20 @@ export function JourneyCalendarAdminPage() {
       .filter((item): item is ExchangeItem => Boolean(item));
   }, [selectedExchangeIds, linkedExchange, allExchangeOptions]);
 
-  const statusOptions = tab === 'stops' ? entryStatuses : tab === 'hosts' ? hostStatuses : exchangeStatuses;
-  const kpiSource = tab === 'stops' ? counts : tab === 'hosts' ? hostCounts : exchangeCounts;
+  const statusOptions = tab === 'stops'
+    ? entryStatuses
+    : tab === 'hosts'
+      ? hostStatuses
+      : tab === 'bookings'
+        ? bookingStatuses
+        : exchangeStatuses;
+  const kpiSource = tab === 'stops'
+    ? counts
+    : tab === 'hosts'
+      ? hostCounts
+      : tab === 'bookings'
+        ? bookingCounts
+        : exchangeCounts;
 
   return (
     <div className="admin-section-page journey-calendar-admin">
@@ -798,7 +879,7 @@ export function JourneyCalendarAdminPage() {
         <div>
           <p>CONTENT</p>
           <h1>Journey Calendar</h1>
-          <span>Manage public stops, host offers, linked needs/offers and translations.</span>
+          <span>Manage public stops, host offers, offer bookings, linked needs/offers and translations.</span>
         </div>
         <div className="journey-calendar-admin__actions">
           {tab === 'stops' && (
@@ -816,6 +897,7 @@ export function JourneyCalendarAdminPage() {
         {([
           ['stops', 'Stops'],
           ['hosts', 'Host offers'],
+          ['bookings', 'Offer bookings'],
           ['exchange', 'Exchange'],
         ] as const).map(([key, title]) => (
           <button
@@ -829,6 +911,7 @@ export function JourneyCalendarAdminPage() {
               setStatus('all');
               setQuery('');
               setSelectedOffer(null);
+              setSelectedBooking(null);
               setSelectedExchange(null);
             }}
           >
@@ -854,7 +937,13 @@ export function JourneyCalendarAdminPage() {
           <input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder={tab === 'hosts' ? 'Search host, email or message…' : 'Search title, place or slug…'}
+            placeholder={
+              tab === 'hosts'
+                ? 'Search host, email or message…'
+                : tab === 'bookings'
+                  ? 'Search guest, offer or message…'
+                  : 'Search title, place or slug…'
+            }
           />
         </div>
         <label>
@@ -925,6 +1014,38 @@ export function JourneyCalendarAdminPage() {
             </article>
           ))}
           {filteredHosts.length === 0 && <div className="admin-section-empty">No host offers found.</div>}
+        </div>
+      )}
+
+      {!loading && !error && tab === 'bookings' && (
+        <div className="admin-record-grid">
+          {filteredBookings.map((booking) => (
+            <article key={booking.id}>
+              <div>
+                <strong>{booking.full_name}</strong>
+                <span>{booking.exchange_item_title || booking.offer_title || booking.message}</span>
+              </div>
+              <div className="admin-record-meta">
+                <p><small>Status</small><b>{label(booking.status)}</b></p>
+                <p><small>Email</small><b>{booking.email}</b></p>
+                <p><small>Stop</small><b>{booking.calendar_entry_title || booking.calendar_entry_city || '—'}</b></p>
+                <p><small>Group</small><b>{booking.group_size ?? '—'}</b></p>
+              </div>
+              <footer>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedBooking(booking);
+                    setBookingNotes(booking.internal_notes || '');
+                  }}
+                >
+                  Review
+                </button>
+                <time>{formatDate(booking.created_at)}</time>
+              </footer>
+            </article>
+          ))}
+          {filteredBookings.length === 0 && <div className="admin-section-empty">No offer bookings found.</div>}
         </div>
       )}
 
