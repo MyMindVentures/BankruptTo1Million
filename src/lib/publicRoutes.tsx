@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import React from 'react';
 import { HomePage } from '../pages/HomePage';
 import { BreakTheCircleArticlePage, BreakTheCirclePage } from '../pages/BreakTheCirclePages';
-import { ProofOfMindDetailPage, ProofOfMindPage } from '../pages/ProofOfMindPages';
+import { ProofOfMindDetailPage, ProofOfMindPage, ProofOfMindPromoPage } from '../pages/ProofOfMindPages';
 import { JournalArticlePage, JournalPage } from '../pages/JournalPages';
 import { LocalizedFounderSupportPage } from '../pages/LocalizedFounderSupportPage';
 import { BreakfastForAStoryPage } from '../pages/BreakfastForAStoryPage';
@@ -87,7 +87,14 @@ export function resolvePublicPage(path: string): ReactElement {
   }
 
   if (normalizedPath.startsWith('/proof-of-mind/')) {
-    return <ProofOfMindDetailPage slug={decodeRouteValue(normalizedPath.slice('/proof-of-mind/'.length))} />;
+    const proofPath = normalizedPath.slice('/proof-of-mind/'.length);
+    const parts = proofPath.split('/').filter(Boolean);
+    if (parts.length === 2 && parts[1] === 'promo') {
+      return <ProofOfMindPromoPage slug={decodeRouteValue(parts[0])} />;
+    }
+    if (parts.length === 1) {
+      return <ProofOfMindDetailPage slug={decodeRouteValue(parts[0])} />;
+    }
   }
 
   if (normalizedPath.startsWith('/journal/')) {
