@@ -84,7 +84,7 @@ export function Footer() {
               <small>{t('footer.mission.tagline', 'From financial rock bottom to freedom — built in public.')}</small>
             </span>
           </a>
-          <p className="site-footer__mission">{t('footer.mission.description', 'A transparent founder journey, venture archive and community mission by Kevin De Vlieger and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.')}</p>
+          <p className="site-footer__mission">{t('footer.mission.description', 'A transparent founder journey, venture archive and community mission by Kevin and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.')}</p>
           <div className="site-footer__primary-links">
             <a href="/support">{t('footer.actions.support', 'Support the mission')}<ArrowRight size={16} aria-hidden="true" /></a>
             <a href="/proof-of-mind">{t('footer.actions.explore_concepts', 'Explore the concepts')}<ArrowRight size={16} aria-hidden="true" /></a>
@@ -116,7 +116,7 @@ export function Footer() {
         </nav>
       </div>
       <div className="site-footer__bottom">
-        <p>{t('footer.bottom.copyright', '© {year} MyMindVentures.io · Kevin De Vlieger · Bankrupt to 1 Million', { year })}</p>
+        <p>{t('footer.bottom.copyright', '© {year} MyMindVentures.io · Kevin · Bankrupt to 1 Million', { year })}</p>
         <div className="site-footer__bottom-links">
           <a href="https://github.com/MyMindVentures/BankruptTo1Million" target="_blank" rel="noreferrer"><Github size={15} aria-hidden="true" /> {t('footer.bottom.github', 'GitHub')}</a>
           <a href="/legal#privacy">{t('footer.bottom.privacy', 'Privacy')}</a>
