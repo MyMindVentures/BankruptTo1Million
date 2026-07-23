@@ -123,7 +123,7 @@ export function HomePage() {
         >
           {t(
             'home.story.description',
-            'Kevin De Vlieger and Micha are starting from financial rock bottom and choosing to build publicly instead of waiting for a perfect moment.',
+            'Kevin and Micha are starting from financial rock bottom and choosing to build publicly instead of waiting for a perfect moment.',
           )}
         </SectionHeading>
         <div className="story-panel">
