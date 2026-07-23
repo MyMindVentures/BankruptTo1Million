@@ -1,79 +1,277 @@
 .outreach-private {
-  --outreach-bg: #07111f;
-  --outreach-panel: rgba(12, 24, 42, 0.92);
-  --outreach-border: rgba(148, 163, 184, 0.22);
-  --outreach-text: #f8fafc;
-  --outreach-muted: #94a3b8;
-  --outreach-accent: #d6ff69;
-  --outreach-accent-dark: #0f172a;
+  --outreach-bg: #071017;
+  --outreach-panel: rgba(11, 24, 32, 0.86);
+  --outreach-panel-soft: rgba(16, 34, 44, 0.68);
+  --outreach-border: rgba(180, 226, 218, 0.18);
+  --outreach-text: #f5fbf9;
+  --outreach-muted: #a9c1bc;
+  --outreach-accent: #c8ff7a;
+  --outreach-accent-2: #67e8d2;
+  --outreach-accent-dark: #071017;
+  position: relative;
   min-height: 100vh;
+  overflow: hidden;
   background:
-    radial-gradient(circle at top right, rgba(214, 255, 105, 0.12), transparent 28%),
-    linear-gradient(180deg, #050b14 0%, var(--outreach-bg) 55%, #030712 100%);
+    radial-gradient(circle at 8% 10%, rgba(103, 232, 210, 0.12), transparent 26%),
+    radial-gradient(circle at 92% 20%, rgba(200, 255, 122, 0.12), transparent 24%),
+    linear-gradient(180deg, #04090d 0%, var(--outreach-bg) 52%, #03070a 100%);
   color: var(--outreach-text);
 }
 
+.outreach-private__aurora {
+  position: fixed;
+  width: 28rem;
+  height: 28rem;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.outreach-private__aurora--one {
+  top: 12%;
+  left: -12rem;
+  background: var(--outreach-accent-2);
+}
+
+.outreach-private__aurora--two {
+  top: 45%;
+  right: -14rem;
+  background: var(--outreach-accent);
+}
+
 .outreach-private__shell {
-  width: min(920px, calc(100% - 2rem));
+  position: relative;
+  z-index: 1;
+  width: min(1120px, calc(100% - 2rem));
   margin: 0 auto;
-  padding: 2.5rem 0 4rem;
+  padding: 2rem 0 4rem;
+}
+
+.outreach-private__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.outreach-private__topbar > p {
+  margin: 0;
+  color: var(--outreach-muted);
+  font-size: 0.9rem;
 }
 
 .outreach-private__badge {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.45rem 0.8rem;
+  padding: 0.5rem 0.85rem;
   border: 1px solid var(--outreach-border);
   border-radius: 999px;
+  background: rgba(255, 255, 255, 0.03);
   color: var(--outreach-muted);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
 .outreach-private__hero {
-  margin-top: 1.5rem;
-  padding: 2rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  gap: 2rem;
+  align-items: center;
+  padding: clamp(1.5rem, 4vw, 3rem);
   border: 1px solid var(--outreach-border);
-  border-radius: 1.4rem;
-  background: var(--outreach-panel);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28);
+  border-radius: 2rem;
+  background:
+    linear-gradient(135deg, rgba(16, 34, 44, 0.94), rgba(8, 19, 26, 0.88)),
+    radial-gradient(circle at top right, rgba(200, 255, 122, 0.12), transparent 38%);
+  box-shadow: 0 34px 100px rgba(0, 0, 0, 0.34);
 }
 
 .outreach-private__hero h1 {
-  margin: 1rem 0 0.75rem;
-  font-size: clamp(2rem, 5vw, 3.2rem);
-  line-height: 1.05;
+  margin: 0.35rem 0 1rem;
+  max-width: 14ch;
+  font-size: clamp(2.7rem, 7vw, 5.8rem);
+  line-height: 0.94;
+  letter-spacing: -0.045em;
 }
 
-.outreach-private__hero p {
-  margin: 0;
-  color: var(--outreach-muted);
-  font-size: 1.05rem;
-  line-height: 1.7;
-}
-
-.outreach-private__section {
-  margin-top: 1.25rem;
-  padding: 1.5rem;
-  border: 1px solid var(--outreach-border);
-  border-radius: 1.2rem;
-  background: rgba(8, 16, 30, 0.72);
-}
-
-.outreach-private__section h2 {
-  margin: 0 0 0.75rem;
-  font-size: 1.1rem;
-  color: var(--outreach-accent);
-  letter-spacing: 0.04em;
+.outreach-private__eyebrow {
+  margin: 0 0 0.55rem;
+  color: var(--outreach-accent-2) !important;
+  font-size: 0.78rem !important;
+  font-weight: 700;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
-.outreach-private__section p {
+.outreach-private__hero-intro,
+.outreach-private__hero-message {
+  max-width: 64ch;
   margin: 0;
+  color: var(--outreach-muted);
+  font-size: 1.08rem;
   line-height: 1.75;
+}
+
+.outreach-private__hero-message {
+  margin-top: 1rem;
   color: var(--outreach-text);
+}
+
+.outreach-private__hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.outreach-private__hero-visual {
+  position: relative;
+  min-height: 330px;
+  display: grid;
+  place-items: center;
+}
+
+.outreach-private__brain-card {
+  position: relative;
+  z-index: 2;
+  width: min(250px, 80%);
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  border: 1px solid rgba(200, 255, 122, 0.35);
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(200, 255, 122, 0.16), rgba(8, 19, 26, 0.92) 70%);
+  box-shadow: 0 0 70px rgba(103, 232, 210, 0.14);
+  color: var(--outreach-accent);
+  text-align: center;
+}
+
+.outreach-private__brain-card span {
+  max-width: 18ch;
+  color: var(--outreach-text);
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.outreach-private__orbit {
+  position: absolute;
+  border: 1px solid rgba(103, 232, 210, 0.22);
+  border-radius: 50%;
+}
+
+.outreach-private__orbit--one {
+  width: 300px;
+  height: 300px;
+  animation: outreach-spin 20s linear infinite;
+}
+
+.outreach-private__orbit--two {
+  width: 360px;
+  height: 220px;
+  transform: rotate(-24deg);
+  animation: outreach-spin-reverse 26s linear infinite;
+}
+
+.outreach-private__orbit span {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--outreach-accent);
+  box-shadow: 0 0 22px rgba(200, 255, 122, 0.72);
+}
+
+.outreach-private__manifesto {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.9rem;
+  margin: 1rem 0;
+}
+
+.outreach-private__manifesto > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+  padding: 1.1rem;
+  border: 1px solid var(--outreach-border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.outreach-private__manifesto svg {
+  grid-row: span 2;
+  color: var(--outreach-accent-2);
+}
+
+.outreach-private__manifesto strong {
+  font-size: 0.98rem;
+}
+
+.outreach-private__manifesto span {
+  color: var(--outreach-muted);
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.outreach-private__story-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.outreach-private__section {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: 1.4rem;
+  border: 1px solid var(--outreach-border);
+  border-radius: 1.25rem;
+  background: var(--outreach-panel-soft);
+  backdrop-filter: blur(18px);
+}
+
+.outreach-private__section-icon {
+  display: grid;
+  place-items: center;
+  width: 2.9rem;
+  height: 2.9rem;
+  border: 1px solid rgba(103, 232, 210, 0.24);
+  border-radius: 0.9rem;
+  background: rgba(103, 232, 210, 0.08);
+  color: var(--outreach-accent-2);
+}
+
+.outreach-private__section h2,
+.outreach-private__contact-panel h2 {
+  margin: 0 0 0.75rem;
+  color: var(--outreach-text);
+  font-size: clamp(1.2rem, 2.5vw, 1.65rem);
+  line-height: 1.2;
+}
+
+.outreach-private__section p,
+.outreach-private__contact-panel p {
+  margin: 0;
+  color: var(--outreach-muted);
+  line-height: 1.75;
+  white-space: pre-line;
+}
+
+.outreach-private__section--media > div:last-child,
+.outreach-private__section--video > div:last-child {
+  min-width: 0;
 }
 
 .outreach-private__media-grid {
@@ -85,86 +283,148 @@
 
 .outreach-private__media-card {
   overflow: hidden;
-  border-radius: 1rem;
+  margin: 0;
   border: 1px solid var(--outreach-border);
-  background: rgba(15, 23, 42, 0.8);
+  border-radius: 1rem;
+  background: rgba(5, 13, 18, 0.82);
 }
 
 .outreach-private__media-card img,
-.outreach-private__media-card video {
+.outreach-private__media-card video,
+.outreach-private__founder-video {
   display: block;
   width: 100%;
   aspect-ratio: 16 / 10;
   object-fit: cover;
 }
 
+.outreach-private__founder-video {
+  margin-top: 1rem;
+  border: 1px solid var(--outreach-border);
+  border-radius: 1rem;
+  background: #000;
+}
+
 .outreach-private__media-card figcaption {
-  padding: 0.75rem 0.9rem;
+  padding: 0.8rem 0.95rem;
   color: var(--outreach-muted);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
+}
+
+.outreach-private__contact-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  padding: clamp(1.4rem, 3vw, 2rem);
+  border: 1px solid rgba(200, 255, 122, 0.22);
+  border-radius: 1.5rem;
+  background: linear-gradient(135deg, rgba(200, 255, 122, 0.07), rgba(103, 232, 210, 0.045));
+}
+
+.outreach-private__contact-copy {
+  padding: 0.5rem;
+}
+
+.outreach-private__response-card {
+  padding: 1.15rem;
+  border: 1px solid var(--outreach-border);
+  border-radius: 1.1rem;
+  background: rgba(4, 12, 17, 0.62);
 }
 
 .outreach-private__links {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem;
-  margin-top: 1rem;
+  gap: 0.65rem;
+  margin-top: 1.25rem;
 }
 
 .outreach-private__links a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid var(--outreach-border);
+  border-radius: 999px;
   color: var(--outreach-text);
   text-decoration: none;
-  border-bottom: 1px solid rgba(214, 255, 105, 0.45);
 }
 
 .outreach-private__cta-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.75rem;
-  margin-top: 1.25rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.outreach-private__cta-grid--links {
+  margin-top: 0.7rem;
 }
 
 .outreach-private__cta,
 .outreach-private__submit {
   appearance: none;
-  border: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  border: 1px solid var(--outreach-border);
   border-radius: 999px;
-  padding: 0.9rem 1.1rem;
+  padding: 0.88rem 1rem;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--outreach-text);
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
-.outreach-private__cta {
-  background: rgba(148, 163, 184, 0.12);
-  color: var(--outreach-text);
-  border: 1px solid var(--outreach-border);
+.outreach-private__cta:hover,
+.outreach-private__submit:hover {
+  transform: translateY(-1px);
+  border-color: rgba(200, 255, 122, 0.45);
 }
 
 .outreach-private__cta--primary,
 .outreach-private__submit {
-  background: var(--outreach-accent);
+  border-color: transparent;
+  background: linear-gradient(135deg, var(--outreach-accent), #e3ffb1);
   color: var(--outreach-accent-dark);
 }
 
 .outreach-private__cta:disabled,
 .outreach-private__submit:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: wait;
+  transform: none;
 }
 
 .outreach-private__form {
   display: grid;
   gap: 0.9rem;
-  margin-top: 1rem;
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--outreach-border);
+}
+
+.outreach-private__form h3 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.outreach-private__field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
 }
 
 .outreach-private__form label {
   display: grid;
-  gap: 0.35rem;
+  gap: 0.4rem;
   color: var(--outreach-muted);
-  font-size: 0.92rem;
+  font-size: 0.9rem;
 }
 
 .outreach-private__form input,
@@ -172,45 +432,108 @@
   width: 100%;
   border: 1px solid var(--outreach-border);
   border-radius: 0.8rem;
-  background: rgba(15, 23, 42, 0.85);
+  background: rgba(11, 24, 32, 0.88);
   color: var(--outreach-text);
-  padding: 0.8rem 0.9rem;
+  padding: 0.82rem 0.9rem;
   font: inherit;
 }
 
+.outreach-private__form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
 .outreach-private__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   margin-top: 1rem;
   padding: 1rem 1.1rem;
+  border: 1px solid var(--outreach-border);
   border-radius: 0.9rem;
-  background: rgba(15, 23, 42, 0.8);
+  background: rgba(11, 24, 32, 0.88);
   color: var(--outreach-muted);
 }
 
 .outreach-private__status--error {
   color: #fecaca;
-  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-color: rgba(248, 113, 113, 0.35);
 }
 
 .outreach-private__status--success {
-  color: #bbf7d0;
-  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #d9ffc7;
+  border-color: rgba(200, 255, 122, 0.35);
 }
 
 .outreach-private__footer {
   margin-top: 2rem;
   color: var(--outreach-muted);
-  font-size: 0.9rem;
+  font-size: 0.86rem;
   text-align: center;
 }
 
-@media (max-width: 720px) {
-  .outreach-private__shell {
-    width: min(100%, calc(100% - 1.25rem));
-    padding-top: 1.5rem;
+@keyframes outreach-spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes outreach-spin-reverse {
+  from { transform: rotate(-24deg); }
+  to { transform: rotate(-384deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .outreach-private__orbit { animation: none; }
+  .outreach-private__cta,
+  .outreach-private__submit { transition: none; }
+}
+
+@media (max-width: 860px) {
+  .outreach-private__hero,
+  .outreach-private__contact-panel {
+    grid-template-columns: 1fr;
   }
 
-  .outreach-private__hero,
+  .outreach-private__hero-visual {
+    min-height: 280px;
+  }
+
+  .outreach-private__story-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .outreach-private__shell {
+    width: min(100%, calc(100% - 1rem));
+    padding-top: 1rem;
+  }
+
+  .outreach-private__topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .outreach-private__hero {
+    padding: 1.2rem;
+    border-radius: 1.3rem;
+  }
+
+  .outreach-private__hero h1 {
+    font-size: clamp(2.4rem, 15vw, 4.2rem);
+  }
+
+  .outreach-private__manifesto,
+  .outreach-private__cta-grid,
+  .outreach-private__field-grid {
+    grid-template-columns: 1fr;
+  }
+
   .outreach-private__section {
+    grid-template-columns: 1fr;
     padding: 1.1rem;
+  }
+
+  .outreach-private__hero-visual {
+    display: none;
   }
 }
