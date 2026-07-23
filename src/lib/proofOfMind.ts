@@ -25,6 +25,7 @@ export type ProofOfMindConcept = {
   tagline: string | null;
   short_description: string | null;
   innovation_summary: string | null;
+  mega_promo_text: string | null;
   concept_score: number | null;
   problems_solved: string[];
   key_features: string[];
@@ -144,18 +145,7 @@ function normalizeFounderVideo(value: unknown): ProofOfMindFounderVideo | null {
   if (!row) return null;
   const url = normalizeProofOfMindUrl(row.external_url) || publicStorageUrl(row.storage_bucket, row.storage_path);
   if (!url) return null;
-  return {
-    title: text(row.title),
-    description: text(row.description),
-    caption: text(row.caption),
-    alt_text: text(row.alt_text),
-    url,
-    poster_url: normalizeProofOfMindUrl(row.thumbnail_url),
-    captions_url: normalizeProofOfMindUrl(row.captions_url),
-    mime_type: text(row.mime_type),
-    duration_seconds: row.duration_seconds === null || row.duration_seconds === undefined ? null : integer(row.duration_seconds),
-    language_code: text(row.language_code),
-  };
+  return { title: text(row.title), description: text(row.description), caption: text(row.caption), alt_text: text(row.alt_text), url, poster_url: normalizeProofOfMindUrl(row.thumbnail_url), captions_url: normalizeProofOfMindUrl(row.captions_url), mime_type: text(row.mime_type), duration_seconds: row.duration_seconds === null || row.duration_seconds === undefined ? null : integer(row.duration_seconds), language_code: text(row.language_code) };
 }
 
 function normalizeEvaluationCriterion(value: unknown): ProofOfMindEvaluationCriterion | null {
@@ -200,7 +190,7 @@ function normalizeApiProviders(value: unknown): ProofOfMindApiProvider[] {
 }
 
 function normalizeFeatureGroups(value: unknown): ProofOfMindFeatureGroup[] {
-  return arrayValue(value).map((item) => { const row = objectValue(item); const group_name = row && text(row.group_name); const group_key = row && text(row.group_key); if (!group_name || !group_key) return null; const features = arrayValue(row.features).map((feature) => { const data = objectValue(feature); const feature_name = data && text(data.feature_name); const feature_key = data && text(data.feature_key); return feature_name && feature_key ? { feature_key, feature_name, feature_description: text(data.feature_description), user_role: text(data.user_role), priority: text(data.priority), release_phase: text(data.release_phase), display_order: integer(data.display_order) } : null; }).filter((feature): feature is ProofOfMindFeature => Boolean(feature)); return { group_key, group_name, group_description: text(row.group_description), user_role: text(row.user_role), display_order: integer(row.display_order), features }; }).filter((item): item is ProofOfMindFeatureGroup => Boolean(item));
+  return arrayValue(value).map((item) => { const row = objectValue(item); const group_name = row && text(row.group_name); const group_key = row && text(row.group_key); if (!row || !group_name || !group_key) return null; const features = arrayValue(row.features).map((feature) => { const data = objectValue(feature); const feature_key = data && text(data.feature_key); const feature_name = data && text(data.feature_name); return data && feature_key && feature_name ? { feature_key, feature_name, feature_description: text(data.feature_description), user_role: text(data.user_role), priority: text(data.priority), release_phase: text(data.release_phase), display_order: integer(data.display_order) } : null; }).filter((feature): feature is ProofOfMindFeature => Boolean(feature)); return { group_key, group_name, group_description: text(row.group_description), user_role: text(row.user_role), display_order: integer(row.display_order), features }; }).filter((item): item is ProofOfMindFeatureGroup => Boolean(item));
 }
 
 function normalizeMockupScreens(value: unknown): ProofOfMindMockupScreen[] {
@@ -214,7 +204,7 @@ export function canOpenProofOfMindConcept(concept: ProofOfMindConcept) { return 
 function normalizeConcept(row: RawConcept): ProofOfMindConcept {
   const visibility = (text(row.visibility) || 'teaser') as ProofOfMindVisibility;
   return {
-    id: requiredText(row.id, 'id'), slug: requiredText(row.slug, 'slug'), title: requiredText(row.title, 'title'), tagline: text(row.tagline), short_description: text(row.short_description), innovation_summary: text(row.innovation_summary), concept_score: score(row.concept_score),
+    id: requiredText(row.id, 'id'), slug: requiredText(row.slug, 'slug'), title: requiredText(row.title, 'title'), tagline: text(row.tagline), short_description: text(row.short_description), innovation_summary: text(row.innovation_summary), mega_promo_text: text(row.mega_promo_text), concept_score: score(row.concept_score),
     problems_solved: list(row.problems_solved, 3), key_features: normalizeProofOfMindKeyFeatures(row.key_features).slice(0, 5), concept_type: conceptType(row.concept_type), concept_format: text(row.concept_format), delivery_model: text(row.delivery_model), primary_market: text(row.primary_market), physical_location_required: bool(row.physical_location_required),
     category: text(row.category) || 'Uncategorised', tags: normalizeProofOfMindTags(row.tags), concept_status: requiredText(row.concept_status ?? row.status, 'concept_status'), visibility, is_featured: Boolean(row.is_featured), display_order: integer(row.display_order, 999), cover_image_url: normalizeProofOfMindUrl(row.cover_image_url), cover_image_alt: text(row.cover_image_alt), original_language: text(row.original_language), published_at: text(row.published_at), updated_at: text(row.updated_at), has_public_detail: visibility === 'full',
     founder: normalizeFounder(row.founder ?? row.founders ?? row.proof_of_mind_concept_founders), founder_video: normalizeFounderVideo(row.founder_video), evaluation: normalizeEvaluation(row.evaluation ?? row.evaluation_summary, row), competition: normalizeCompetition(row.competition ?? row.competition_summary_data, row), lead_pipeline: normalizeLeadPipeline(row.lead_pipeline ?? row.lead_pipeline_summary),
@@ -232,7 +222,7 @@ function mergeEnrichment(rows: RawConcept[], enrichment: RawConcept[]) {
 }
 
 export async function getProofOfMindConcepts() {
-  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,concept_score,evaluation_average_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at,competition_summary,competition_comparisons,competitive_advantage,founder,founders,evaluation_summary,competition_summary_data,lead_pipeline_summary,founder_video&order=display_order.asc,updated_at.desc';
+  const query = 'select=id,slug,title,tagline,short_description,innovation_summary,mega_promo_text,concept_score,evaluation_average_score,problems_solved,key_features,concept_type,concept_format,delivery_model,primary_market,physical_location_required,category,tags,concept_status,visibility,is_featured,display_order,cover_image_url,cover_image_alt,original_language,published_at,updated_at,competition_summary,competition_comparisons,competitive_advantage,founder,founders,evaluation_summary,competition_summary_data,lead_pipeline_summary,founder_video&order=display_order.asc,updated_at.desc';
   const [rows, enrichment] = await Promise.all([
     readJson<RawConcept[]>(supabase.from('proof_of_mind_public_teasers').request({ query })),
     readJson<RawConcept[]>(supabase.from('proof_of_mind_public_enrichment').request({ query: 'select=concept_id,viral_hook,share_headline,share_description,og_image_url,viral_score,share_cta_label,share_cta_url' })),
