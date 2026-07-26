@@ -1,0 +1,8 @@
+.journal-read-aloud{margin-top:1.25rem;padding:1rem;border:1px solid var(--line);border-radius:1rem;background:rgba(255,255,255,.025)}
+.journal-read-aloud__controls{display:flex;align-items:center;flex-wrap:wrap;gap:.65rem}
+.journal-read-aloud__controls button{display:inline-flex;align-items:center;gap:.4rem}
+.journal-read-aloud__controls label{display:flex;align-items:center;gap:.5rem;margin-inline-start:auto;color:var(--muted);font-size:.82rem;font-weight:700}
+.journal-read-aloud__controls select{min-height:2.35rem;padding:.35rem .65rem;border:1px solid var(--line);border-radius:.65rem;background:var(--surface);color:var(--text)}
+.journal-read-aloud__error,.journal-read-aloud--unsupported{color:var(--muted)}
+.journal-read-aloud__error{margin:.75rem 0 0;color:#ffaaa5}
+@media(max-width:520px){.journal-read-aloud__controls>*{flex:1 1 auto}.journal-read-aloud__controls label{margin-inline-start:0}.journal-read-aloud__controls select{flex:1}}
