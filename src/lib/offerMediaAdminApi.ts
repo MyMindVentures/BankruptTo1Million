@@ -107,6 +107,33 @@ export type AdminMediaVaultGroups = {
   concepts: AdminMediaVaultConceptGroup[];
 };
 
+export type MediaUsageType = { key: string; display_name: string; controlled_tag: string; requires_relation: string | null };
+export type MediaApplication = {
+  relation_table: string; relation_id: string; entity_type: string; entity_id: string; entity_title: string | null;
+  placement: string | null; display_order: number; is_featured: boolean; caption_override: string | null;
+  alt_text_override: string | null; autoplay?: boolean; muted?: boolean; loop?: boolean; editable: boolean;
+  details?: Record<string, unknown>;
+};
+export type MediaAssetEditorRecord = {
+  asset: Record<string, unknown> & { id: string; asset_type: string; tags?: string[] | null };
+  usage_types: MediaUsageType[];
+  available_usage_types: MediaUsageType[];
+  applications: MediaApplication[];
+  concepts: { id: string; title: string; slug: string }[];
+  mockup_screens: Record<string, unknown>[];
+};
+
+export type MediaAssetEditorPayload = {
+  asset: {
+    title: string; description: string; alt_text: string; caption: string; language_code: string;
+    tags: string[]; captured_at: string; visibility: string; status: string; published_at: string;
+    show_in_media_vault: boolean;
+  };
+  usage_type_keys: string[];
+  concept_media: MediaApplication[];
+  mockup_screen?: Record<string, unknown> | null;
+};
+
 type UploadTarget = {
   collection_id?: string;
   concept_id?: string;
@@ -143,6 +170,30 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
+}
+
+function assertEditorPayload(payload: MediaAssetEditorRecord): MediaAssetEditorRecord {
+  if (!payload?.asset?.id || !Array.isArray(payload.usage_types) || !Array.isArray(payload.available_usage_types)
+    || !Array.isArray(payload.applications) || !Array.isArray(payload.concepts) || !Array.isArray(payload.mockup_screens)) {
+    throw new Error('Incomplete media editor payload.');
+  }
+  return payload;
+}
+
+export async function getMediaAssetEditor(assetId: string): Promise<MediaAssetEditorRecord> {
+  return assertEditorPayload(await request<MediaAssetEditorRecord>('/rest/v1/rpc/admin_get_media_asset_editor', {
+    method: 'POST', body: JSON.stringify({ p_asset_id: assetId }),
+  }));
+}
+
+export async function saveMediaAssetEditor(assetId: string, payload: MediaAssetEditorPayload): Promise<MediaAssetEditorRecord> {
+  return assertEditorPayload(await request<MediaAssetEditorRecord>('/rest/v1/rpc/admin_save_media_asset_editor', {
+    method: 'POST', body: JSON.stringify({ p_asset_id: assetId, p_payload: payload }),
+  }));
+}
+
+export async function deleteMediaAsset(assetId: string): Promise<void> {
+  await request('/rest/v1/rpc/admin_delete_media_asset', { method: 'POST', body: JSON.stringify({ p_asset_id: assetId }) });
 }
 
 export async function listAdminMediaVaultGroups(signal?: AbortSignal): Promise<AdminMediaVaultGroups> {
