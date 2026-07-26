@@ -24,7 +24,7 @@ export function JournalContactBlock() {
       <div className="journal-contact__details">
         <strong>Kevin De Vlieger</strong>
         <a href="tel:+34643037346"><Phone size={18} aria-hidden="true" /><span>+34 643 037 346</span></a>
-        <a href="mailto:hello@mymindventures"><Mail size={18} aria-hidden="true" /><span>hello@mymindventures</span></a>
+        <a href="mailto:hello@mymindventures.io"><Mail size={18} aria-hidden="true" /><span>hello@mymindventures.io</span></a>
       </div>
     </div>,
     sharePanel,
