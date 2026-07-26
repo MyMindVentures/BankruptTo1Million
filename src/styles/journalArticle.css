@@ -165,7 +165,6 @@
   aspect-ratio: 16 / 10;
   object-fit: cover;
   background: #050403;
-  transition: transform 160ms ease;
 }
 
 .journal-footage__placeholder {
@@ -209,21 +208,23 @@
 }
 
 .journal-footage-viewer__panel {
-  grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 1fr) auto auto auto;
-  width: min(1300px, calc(100vw - 7rem));
-  height: min(calc(100dvh - 4rem), calc(100vh - 4rem));
-  max-height: calc(100dvh - 4rem);
+  width: 100vw;
+  height: 100dvh;
+  max-width: 100vw;
+  max-height: 100dvh;
+  min-width: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .journal-footage-viewer .media-viewer__visual {
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100vw;
+  height: 100dvh;
   min-width: 0;
   min-height: 0;
-  width: 100%;
-  height: 100%;
   overflow: hidden;
   background: #050403;
 }
@@ -233,51 +234,15 @@
   display: block;
   width: auto;
   height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: calc(100vw - 2rem);
+  max-height: calc(100dvh - 2rem);
   object-fit: contain;
   object-position: center;
-  transition: transform 160ms ease;
-}
-
-.journal-footage-viewer__rotation {
-  display: flex;
-  justify-content: center;
-  gap: 0.6rem;
-  padding: 0.7rem 1rem 0.2rem;
-}
-
-.journal-footage-viewer__rotation button {
-  display: grid;
-  place-items: center;
-  width: 2.65rem;
-  height: 2.65rem;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 999px;
-  color: #fff;
-  background: rgba(255, 255, 255, 0.08);
-  cursor: pointer;
-}
-
-.journal-footage-viewer__rotation button:hover,
-.journal-footage-viewer__rotation button:focus-visible {
-  background: rgba(255, 255, 255, 0.16);
 }
 
 .journal-footage-viewer__counter {
-  margin: 0;
-  padding: 0.85rem 1.25rem 0.35rem;
-  color: rgba(255, 255, 255, 0.72);
+  color: rgba(255, 255, 255, 0.9);
   font-size: 0.9rem;
-  text-align: center;
-}
-
-.journal-footage-viewer__caption {
-  margin: 0;
-  padding: 0.35rem 1.25rem 1.25rem;
-  color: rgba(255, 255, 255, 0.82);
-  font-size: 0.95rem;
-  line-height: 1.55;
   text-align: center;
 }
 
@@ -292,12 +257,6 @@
 
   .journal-body {
     padding-inline: 1.5rem;
-  }
-
-  .journal-footage-viewer__panel {
-    width: min(100%, calc(100vw - 2rem));
-    height: min(100%, calc(100dvh - 2rem));
-    max-height: calc(100dvh - 2rem);
   }
 }
 
@@ -345,42 +304,5 @@
   .journal-footage__item img,
   .journal-footage__item video {
     aspect-ratio: 4 / 3;
-  }
-
-  .journal-footage-viewer__panel {
-    width: 100%;
-    height: 100dvh;
-    max-height: 100dvh;
-  }
-
-  .journal-footage-viewer__counter {
-    padding-top: 0.7rem;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 680px) {
-  .journal-footage-viewer__panel {
-    width: min(100%, calc(100vw - 2rem));
-    height: min(100%, calc(100dvh - 1rem));
-    max-height: calc(100dvh - 1rem);
-  }
-
-  .journal-footage-viewer__rotation {
-    padding-top: 0.35rem;
-  }
-
-  .journal-footage-viewer__rotation button {
-    width: 2.25rem;
-    height: 2.25rem;
-  }
-
-  .journal-footage-viewer__counter {
-    padding: 0.35rem 1rem 0.15rem;
-    font-size: 0.8rem;
-  }
-
-  .journal-footage-viewer__caption {
-    padding: 0.15rem 1rem 0.5rem;
-    font-size: 0.85rem;
   }
 }
