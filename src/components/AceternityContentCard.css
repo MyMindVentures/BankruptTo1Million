@@ -62,13 +62,15 @@
 
 .aceternity-hover-card__media-band {
   position: relative;
-  flex: 0 0 auto;
+  flex: 0 0 clamp(9.5rem, 24vw, 12rem);
+  height: clamp(9.5rem, 24vw, 12rem);
   min-height: clamp(9.5rem, 24vw, 12rem);
   overflow: hidden;
   border-bottom: 1px solid rgba(255, 247, 237, 0.08);
   background:
     radial-gradient(circle at 18% 0%, rgba(215, 168, 79, 0.16), transparent 38%),
     linear-gradient(145deg, rgba(34, 27, 20, 0.98), rgba(14, 11, 8, 0.98));
+  contain: layout paint;
 }
 
 .aceternity-hover-card__media-band--brand {
@@ -110,12 +112,11 @@
 }
 
 .aceternity-hover-card__media-overlay--footage {
-  position: relative;
+  position: absolute;
+  inset: 0;
   display: flex;
-  flex: 1;
   flex-direction: column;
   min-height: 0;
-  inset: auto;
   background:
     linear-gradient(180deg, rgba(7, 6, 5, 0.08) 0%, rgba(7, 6, 5, 0.34) 58%, rgba(7, 6, 5, 0.82) 100%),
     linear-gradient(120deg, rgba(215, 168, 79, 0.08), transparent 45%);
@@ -356,6 +357,12 @@
 
   .aceternity-hover-card__surface {
     min-height: 24rem;
+  }
+
+  .aceternity-hover-card__media-band {
+    flex-basis: 10rem;
+    height: 10rem;
+    min-height: 10rem;
   }
 
   .aceternity-hover-card__copy h2 {
