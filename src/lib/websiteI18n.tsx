@@ -27,7 +27,7 @@ type WebsiteI18nContextValue = {
 };
 
 const STORAGE_KEY = 'b1m.website.language';
-const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v19.';
+const BUNDLE_CACHE_PREFIX = 'b1m.website.translations.v20.';
 const DEFAULT_LANGUAGE = 'en';
 const EMPTY_BUNDLE: TranslationBundle = { byKey: {}, bySource: {} };
 const PUBLIC_SITE_ROOT_SELECTOR = '#root';
@@ -100,6 +100,8 @@ function translatePublicElement(root: Element, bundle: TranslationBundle, langua
 }
 
 function detectPreferredLanguage(languages: WebsiteLanguage[]) {
+  const queryLanguage = new URLSearchParams(window.location.search).get('lang');
+  if (queryLanguage && languages.some((language) => language.code === queryLanguage)) return queryLanguage;
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored && languages.some((language) => language.code === stored)) return stored;
   const browserCodes = navigator.languages?.length ? navigator.languages : [navigator.language];
