@@ -19,7 +19,19 @@ export function ProofMockupCarousel({ screens }: ProofMockupCarouselProps) {
     if (activeIndex > orderedScreens.length - 1) setActiveIndex(0);
   }, [activeIndex, orderedScreens.length]);
 
-  if (!orderedScreens.length) return null;
+  if (!orderedScreens.length) {
+    return (
+      <div className="proof-mockup-carousel proof-mockup-carousel--empty" aria-label="App mockup screens">
+        <div className="proof-mockup-carousel__empty-state">
+          <ImageIcon aria-hidden="true" />
+          <div>
+            <strong>Mockups and visual direction</strong>
+            <p>No mockup screens have been added to this concept yet.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const hasMultipleScreens = orderedScreens.length > 1;
   const activeScreen = orderedScreens[activeIndex];
