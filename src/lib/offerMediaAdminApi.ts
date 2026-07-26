@@ -107,13 +107,31 @@ export type AdminMediaVaultGroups = {
   concepts: AdminMediaVaultConceptGroup[];
 };
 
-export type MediaUsageType = { key: string; display_name: string; controlled_tag: string; requires_relation: string | null };
+export type MediaUsageType = {
+  key: string;
+  display_name: string;
+  controlled_tag: string;
+  requires_relation: string | null;
+};
+
 export type MediaApplication = {
-  relation_table: string; relation_id: string; entity_type: string; entity_id: string; entity_title: string | null;
-  placement: string | null; display_order: number; is_featured: boolean; caption_override: string | null;
-  alt_text_override: string | null; autoplay?: boolean; muted?: boolean; loop?: boolean; editable: boolean;
+  relation_table: string;
+  relation_id: string;
+  entity_type: string;
+  entity_id: string;
+  entity_title: string | null;
+  placement: string | null;
+  display_order: number;
+  is_featured: boolean;
+  caption_override: string | null;
+  alt_text_override: string | null;
+  autoplay?: boolean;
+  muted?: boolean;
+  loop?: boolean;
+  editable: boolean;
   details?: Record<string, unknown>;
 };
+
 export type MediaAssetEditorRecord = {
   asset: Record<string, unknown> & { id: string; asset_type: string; tags?: string[] | null };
   usage_types: MediaUsageType[];
@@ -125,8 +143,16 @@ export type MediaAssetEditorRecord = {
 
 export type MediaAssetEditorPayload = {
   asset: {
-    title: string; description: string; alt_text: string; caption: string; language_code: string;
-    tags: string[]; captured_at: string; visibility: string; status: string; published_at: string;
+    title: string;
+    description: string;
+    alt_text: string;
+    caption: string;
+    language_code: string;
+    tags: string[];
+    captured_at: string;
+    visibility: string;
+    status: string;
+    published_at: string;
     show_in_media_vault: boolean;
   };
   usage_type_keys: string[];
@@ -172,90 +198,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-const fallbackUsageTypes: MediaUsageType[] = [
-  { key: 'logo', display_name: 'Logo', controlled_tag: 'logo', requires_relation: null },
-  { key: 'mockup_screen', display_name: 'Mockup screen', controlled_tag: 'mockup-screen', requires_relation: 'proof_of_mind_mockup_screens' },
-  { key: 'hero_image', display_name: 'Hero image', controlled_tag: 'hero', requires_relation: null },
-  { key: 'gallery', display_name: 'Gallery', controlled_tag: 'gallery', requires_relation: null },
-  { key: 'social_asset', display_name: 'Social asset', controlled_tag: 'social', requires_relation: null },
-  { key: 'founder_portrait', display_name: 'Founder portrait', controlled_tag: 'founder', requires_relation: null },
-  { key: 'website_asset', display_name: 'Website asset', controlled_tag: 'website', requires_relation: null },
-  { key: 'event_footage', display_name: 'Event footage', controlled_tag: 'event-footage', requires_relation: null },
-  { key: 'journal_media', display_name: 'Journal media', controlled_tag: 'journal', requires_relation: null },
-  { key: 'qr_code', display_name: 'QR code', controlled_tag: 'qr-code', requires_relation: null },
-  { key: 'other', display_name: 'Other', controlled_tag: 'other', requires_relation: null },
-];
-
-function relationApplication(
-  item: Record<string, unknown>,
-  relationTable: string,
-  defaults: Partial<MediaApplication> = {},
-): MediaApplication {
-  const concept = item.concept && typeof item.concept === 'object' ? item.concept as Record<string, unknown> : null;
-  const collection = item.collection && typeof item.collection === 'object' ? item.collection as Record<string, unknown> : null;
-  return {
-    relation_table: relationTable,
-    relation_id: String(item.id || ''),
-    entity_type: String(defaults.entity_type || (concept ? 'proof_of_mind_concept' : collection ? 'media_collection' : item.entity_type || relationTable)),
-    entity_id: String(defaults.entity_id || item.concept_id || item.collection_id || item.entity_id || ''),
-    entity_title: String(defaults.entity_title || concept?.title || collection?.name || '') || null,
-    placement: String(defaults.placement || item.placement || item.relation_type || '') || null,
-    display_order: Number(defaults.display_order ?? item.display_order ?? 0),
-    is_featured: Boolean(defaults.is_featured ?? item.is_featured ?? item.is_cover ?? false),
-    caption_override: String(defaults.caption_override || item.caption_override || '') || null,
-    alt_text_override: String(defaults.alt_text_override || item.alt_text_override || '') || null,
-    autoplay: Boolean(defaults.autoplay ?? item.autoplay ?? false),
-    muted: Boolean(defaults.muted ?? item.muted ?? false),
-    loop: Boolean(defaults.loop ?? item.loop ?? false),
-    editable: relationTable === 'proof_of_mind_concept_media',
-    details: item,
-  };
-}
-
-function normalizeEditorPayload(payload: unknown): MediaAssetEditorRecord {
-  const value = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {};
-  const asset = value.asset && typeof value.asset === 'object' ? value.asset as MediaAssetEditorRecord['asset'] : null;
-  if (!asset?.id) throw new Error('Incomplete media editor payload.');
-
-  const usageTypes = Array.isArray(value.usage_types) ? value.usage_types as MediaUsageType[] : [];
-  const availableUsageTypes = Array.isArray(value.available_usage_types) ? value.available_usage_types as MediaUsageType[] : fallbackUsageTypes;
-  const applications = Array.isArray(value.applications)
-    ? value.applications as MediaApplication[]
-    : [
-        ...(Array.isArray(value.media_links) ? value.media_links.map((item) => relationApplication(item as Record<string, unknown>, 'media_links')) : []),
-        ...(Array.isArray(value.collection_items) ? value.collection_items.map((item) => relationApplication(item as Record<string, unknown>, 'media_collection_items')) : []),
-        ...(Array.isArray(value.concept_media) ? value.concept_media.map((item) => relationApplication(item as Record<string, unknown>, 'proof_of_mind_concept_media')) : []),
-        ...(Array.isArray(value.website_slots) ? value.website_slots.map((item) => relationApplication(item as Record<string, unknown>, 'website_media_slots')) : []),
-      ];
-
-  const derivedUsageTypes = usageTypes.length
-    ? usageTypes
-    : fallbackUsageTypes.filter((usage) => Array.isArray(asset.tags) && asset.tags.includes(usage.controlled_tag));
-
-  return {
-    asset,
-    usage_types: derivedUsageTypes,
-    available_usage_types: availableUsageTypes,
-    applications,
-    concepts: Array.isArray(value.concepts) ? value.concepts as { id: string; title: string; slug: string }[] : [],
-    mockup_screens: Array.isArray(value.mockup_screens) ? value.mockup_screens as Record<string, unknown>[] : [],
-  };
+function assertEditorPayload(payload: MediaAssetEditorRecord): MediaAssetEditorRecord {
+  if (!payload?.asset?.id
+    || !Array.isArray(payload.usage_types)
+    || !Array.isArray(payload.available_usage_types)
+    || !Array.isArray(payload.applications)
+    || !Array.isArray(payload.concepts)
+    || !Array.isArray(payload.mockup_screens)) {
+    throw new Error('Incomplete media editor payload.');
+  }
+  return payload;
 }
 
 export async function getMediaAssetEditor(assetId: string): Promise<MediaAssetEditorRecord> {
-  return normalizeEditorPayload(await request<unknown>('/rest/v1/rpc/admin_get_media_asset_editor', {
-    method: 'POST', body: JSON.stringify({ p_asset_id: assetId }),
+  return assertEditorPayload(await request<MediaAssetEditorRecord>('/rest/v1/rpc/admin_get_media_asset_editor', {
+    method: 'POST',
+    body: JSON.stringify({ p_asset_id: assetId }),
   }));
 }
 
 export async function saveMediaAssetEditor(assetId: string, payload: MediaAssetEditorPayload): Promise<MediaAssetEditorRecord> {
-  return normalizeEditorPayload(await request<unknown>('/rest/v1/rpc/admin_save_media_asset_editor', {
-    method: 'POST', body: JSON.stringify({ p_asset_id: assetId, p_payload: payload }),
+  return assertEditorPayload(await request<MediaAssetEditorRecord>('/rest/v1/rpc/admin_save_media_asset_editor', {
+    method: 'POST',
+    body: JSON.stringify({ p_asset_id: assetId, p_payload: payload }),
   }));
 }
 
 export async function deleteMediaAsset(assetId: string): Promise<void> {
-  await request('/rest/v1/rpc/admin_delete_media_asset', { method: 'POST', body: JSON.stringify({ p_asset_id: assetId }) });
+  await request('/rest/v1/rpc/admin_delete_media_asset', {
+    method: 'POST',
+    body: JSON.stringify({ p_asset_id: assetId }),
+  });
 }
 
 export async function listAdminMediaVaultGroups(signal?: AbortSignal): Promise<AdminMediaVaultGroups> {
