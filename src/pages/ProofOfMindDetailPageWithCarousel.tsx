@@ -1,0 +1,1 @@
+export { ProofOfMindDetailPage } from './ProofOfMindPages';
