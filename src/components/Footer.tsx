@@ -45,11 +45,8 @@ const footerGroups = [
     title: 'Participate',
     titleKey: 'footer.groups.participate',
     links: [
-      { label: 'Support the Mission', key: 'footer.links.support_mission', href: '/support' },
+      { label: 'Support the Mission', key: 'footer.links.support_mission', href: '/founder-support' },
       { label: 'Open Issues', key: 'footer.links.open_issues', href: '/issues' },
-      { label: 'Founding Heroes', key: 'footer.links.founding_heroes', href: '/founding-heroes' },
-      { label: 'Become a Founding Hero', key: 'footer.links.become_founding_hero', href: '/become-a-founding-hero' },
-      { label: 'Contributor Profile', key: 'footer.links.contributor_profile', href: '/profile/issues' },
       { label: 'Impact Dashboard', key: 'footer.links.impact_dashboard', href: '/impact' },
     ],
   },
@@ -86,7 +83,7 @@ export function Footer() {
           </a>
           <p className="site-footer__mission">{t('footer.mission.description', 'A transparent founder journey, venture archive and community mission by Kevin and Micha. Built around honest progress, useful work and the belief that no one rebuilds alone.')}</p>
           <div className="site-footer__primary-links">
-            <a href="/support">{t('footer.actions.support', 'Support the mission')}<ArrowRight size={16} aria-hidden="true" /></a>
+            <a href="/founder-support">{t('footer.actions.support', 'Support the mission')}<ArrowRight size={16} aria-hidden="true" /></a>
             <a href="/proof-of-mind">{t('footer.actions.explore_concepts', 'Explore the concepts')}<ArrowRight size={16} aria-hidden="true" /></a>
           </div>
           <div className="site-footer__trust">
