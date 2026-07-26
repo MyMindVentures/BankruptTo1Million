@@ -2,6 +2,7 @@ import type { I18nManifest } from '../lib/i18nManifest';
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { ArrowRight, Heart, LockKeyhole, MessageCircleHeart, ShieldCheck, Sparkles, Trophy, Users } from 'lucide-react';
+import { FinancialSupportFlow } from '../components/FinancialSupportFlow';
 import { SectionHeading } from '../components/SectionHeading';
 import { supabase } from '../lib/supabase';
 import { useWebsiteI18n } from '../lib/websiteI18n';
@@ -262,7 +263,7 @@ function FounderDashboard({ profiles }: { profiles: FounderProfile[] }) {
         <label className="founder-checkin-alert"><input type="checkbox" checked={checkIn.needs_human_support || false} onChange={(event) => setCheckIn({ ...checkIn, needs_human_support: event.target.checked, support_urgency: event.target.checked ? 'medium' : 'none' })} /> {t('founder_support.private.checkin.human_support', 'I would benefit from a human check-in.')}</label>
         <button className="button" type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? t('founder_support.private.checkin.saving', 'Saving privately…') : t('founder_support.private.checkin.save', 'Save private check-in')}</button>
         {saveState === 'saved' ? <p className="founder-save-success">{t('founder_support.private.checkin.saved', 'Private check-in saved.')}</p> : null}
-        {saveState === 'error' ? <p className="form-error">{t('founder_support.private.checkin.save_error', 'The check-in could not be saved.')}</p> : null}
+        {saveState === 'error' ? <p className="form-error">{t('founder_support.private.checkin.save_error', 'Could not save this check-in.')}</p> : null}
       </form>
       {recent.length ? (
         <div className="founder-recent-checkins">
@@ -348,6 +349,7 @@ export const FOUNDER_SUPPORT_PAGE_I18N_MANIFEST = {
       'founder_support_messages',
       'founder_wins',
       'founder_mission_reminders',
+      'financial_support_transfers',
     ],
   },
 } as const satisfies I18nManifest;
@@ -423,8 +425,8 @@ export function FounderSupportPage() {
           <h1 id="founder-support-title">Help us remember why we started.</h1>
           <p className="hero__lede">A place for encouragement, honest connection and visible progress while Kevin and Micha rebuild from rock bottom in public.</p>
           <div className="hero__actions">
-            <a className="button" href="#send-support">Send encouragement <ArrowRight aria-hidden="true" size={18} /></a>
-            <a className="button button--ghost" href="#founder-progress">See the progress</a>
+            <a className="button" href="#financial-support">Support financially <ArrowRight aria-hidden="true" size={18} /></a>
+            <a className="button button--ghost" href="#send-support">Send encouragement</a>
           </div>
         </div>
         <aside className="hero-card founder-support-hero__card">
@@ -433,6 +435,8 @@ export function FounderSupportPage() {
           <p>Your message does not need to solve everything. Sometimes belief, recognition and one honest sentence are enough to help someone keep moving.</p>
         </aside>
       </section>
+
+      <FinancialSupportFlow />
 
       <section className="section founder-reaction-section" aria-labelledby="reaction-title">
         <SectionHeading eyebrow={t('founder_support.reactions.eyebrow', 'A small signal')} title={t('founder_support.reactions.title', 'Send belief in one tap')} titleId="reaction-title">{t('founder_support.reactions.description', 'Anonymous reactions become a quiet signal that people are following, caring and rooting for this mission.')}</SectionHeading>
