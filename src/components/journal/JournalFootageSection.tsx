@@ -1,5 +1,6 @@
+import type { CSSProperties } from 'react';
 import type { I18nManifest } from '../../lib/i18nManifest';
-import { ChevronLeft, ChevronRight, Play, RotateCcw, RotateCw, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Play, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   getJournalPostFootage,
@@ -11,21 +12,61 @@ import { useWebsiteI18n } from '../../lib/websiteI18n';
 
 type LoadState = 'loading' | 'empty' | 'ready' | 'error';
 
-type RotationMap = Record<string, number>;
+const viewportPanelStyle: CSSProperties = {
+  position: 'relative',
+  display: 'block',
+  width: '100vw',
+  height: '100dvh',
+  maxWidth: '100vw',
+  maxHeight: '100dvh',
+  padding: 0,
+  overflow: 'hidden',
+  background: '#050403',
+};
 
-function normalizedRotation(value: number) {
-  const normalized = value % 360;
-  return normalized < 0 ? normalized + 360 : normalized;
-}
+const viewportVisualStyle: CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  width: '100vw',
+  height: '100dvh',
+  minWidth: 0,
+  minHeight: 0,
+  overflow: 'hidden',
+};
 
-function FootageThumbnail({ item, rotation }: { item: JournalFootageItem; rotation: number }) {
+const viewportMediaStyle: CSSProperties = {
+  display: 'block',
+  width: 'auto',
+  height: 'auto',
+  maxWidth: 'calc(100vw - 2rem)',
+  maxHeight: 'calc(100dvh - 2rem)',
+  objectFit: 'contain',
+  objectPosition: 'center',
+};
+
+const viewportCounterStyle: CSSProperties = {
+  position: 'absolute',
+  left: '50%',
+  bottom: '0.75rem',
+  zIndex: 2,
+  margin: 0,
+  padding: '0.45rem 0.8rem',
+  borderRadius: '999px',
+  color: '#fff',
+  background: 'rgba(0, 0, 0, 0.68)',
+  transform: 'translateX(-50%)',
+};
+
+function FootageThumbnail({ item }: { item: JournalFootageItem }) {
   const isVideo = isVideoFootage(item);
-  const style = rotation ? { transform: `rotate(${rotation}deg)` } : undefined;
 
   return (
     <>
       {item.thumbnail_url
-        ? <img src={item.thumbnail_url} alt="" loading="lazy" decoding="async" style={style} />
+        ? <img src={item.thumbnail_url} alt="" loading="lazy" decoding="async" />
         : isVideo
           ? <video
             src={item.url}
@@ -34,14 +75,13 @@ function FootageThumbnail({ item, rotation }: { item: JournalFootageItem; rotati
             preload="auto"
             aria-hidden="true"
             tabIndex={-1}
-            style={style}
             onLoadedMetadata={(event) => {
               const video = event.currentTarget;
               if (video.duration > 0.1) video.currentTime = 0.1;
             }}
           />
           : item.url
-            ? <img src={item.url} alt="" loading="lazy" decoding="async" style={style} />
+            ? <img src={item.url} alt="" loading="lazy" decoding="async" />
             : <span className="journal-footage__placeholder" aria-hidden="true" />}
       {isVideo ? <span className="journal-footage__play" aria-hidden="true"><Play size={22} /></span> : null}
       {item.caption ? <span className="journal-footage__caption">{item.caption}</span> : null}
@@ -62,8 +102,6 @@ export const JOURNAL_FOOTAGE_SECTION_I18N_MANIFEST = {
     'journal.footage.next',
     'journal.footage.open',
     'journal.footage.previous',
-    'journal.footage.rotate_left',
-    'journal.footage.rotate_right',
     'journal.footage.title',
   ] as const,
   keyPatterns: [
@@ -78,7 +116,6 @@ export function JournalFootageSection({ postId }: { postId: string }) {
   const [error, setError] = useState('');
   const [items, setItems] = useState<JournalFootageItem[]>([]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
-  const [rotations, setRotations] = useState<RotationMap>({});
 
   const altLabels = useMemo(() => ({
     image: t('journal.footage.alt.image', 'Event photo {number}'),
@@ -93,13 +130,6 @@ export function JournalFootageSection({ postId }: { postId: string }) {
     setError('');
     setItems([]);
     setViewerIndex(null);
-
-    try {
-      const stored = window.localStorage.getItem(`journal-footage-rotations:${postId}`);
-      setRotations(stored ? JSON.parse(stored) as RotationMap : {});
-    } catch {
-      setRotations({});
-    }
 
     getJournalPostFootage(postId, altLabels)
       .then((footage) => {
@@ -120,14 +150,6 @@ export function JournalFootageSection({ postId }: { postId: string }) {
     return () => { cancelled = true; };
   }, [altLabels, postId, t]);
 
-  useEffect(() => {
-    try {
-      window.localStorage.setItem(`journal-footage-rotations:${postId}`, JSON.stringify(rotations));
-    } catch {
-      // Rotation persistence is a progressive enhancement.
-    }
-  }, [postId, rotations]);
-
   const openViewer = useCallback((index: number) => {
     setViewerIndex(index);
   }, []);
@@ -144,15 +166,6 @@ export function JournalFootageSection({ postId }: { postId: string }) {
   }, [items.length]);
 
   const activeItem = viewerIndex != null ? items[viewerIndex] : null;
-  const activeRotation = activeItem ? rotations[activeItem.id] || 0 : 0;
-
-  const rotateActive = useCallback((direction: -1 | 1) => {
-    if (!activeItem || isVideoFootage(activeItem)) return;
-    setRotations((current) => ({
-      ...current,
-      [activeItem.id]: normalizedRotation((current[activeItem.id] || 0) + (direction * 90)),
-    }));
-  }, [activeItem]);
 
   useEffect(() => {
     if (viewerIndex == null) return;
@@ -163,8 +176,6 @@ export function JournalFootageSection({ postId }: { postId: string }) {
       if (event.key === 'Escape') closeViewer();
       if (event.key === 'ArrowLeft') moveViewer(-1);
       if (event.key === 'ArrowRight') moveViewer(1);
-      if (event.key.toLowerCase() === 'r' && !event.shiftKey) rotateActive(1);
-      if (event.key.toLowerCase() === 'r' && event.shiftKey) rotateActive(-1);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -172,7 +183,7 @@ export function JournalFootageSection({ postId }: { postId: string }) {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [closeViewer, moveViewer, rotateActive, viewerIndex]);
+  }, [closeViewer, moveViewer, viewerIndex]);
 
   useEffect(() => {
     if (viewerIndex != null && viewerIndex >= items.length) setViewerIndex(null);
@@ -210,7 +221,7 @@ export function JournalFootageSection({ postId }: { postId: string }) {
               onClick={() => openViewer(index)}
               aria-label={t('journal.footage.open', 'Open footage {number}', { number: index + 1 })}
             >
-              <FootageThumbnail item={item} rotation={rotations[item.id] || 0} />
+              <FootageThumbnail item={item} />
             </button>
           ))}
         </div>
@@ -242,27 +253,24 @@ export function JournalFootageSection({ postId }: { postId: string }) {
               <ChevronLeft aria-hidden="true" />
             </button>
           ) : null}
-          <div className="media-viewer__panel journal-footage-viewer__panel" onClick={(event) => event.stopPropagation()}>
-            <div className="media-viewer__visual">
+          <div
+            className="media-viewer__panel journal-footage-viewer__panel"
+            style={viewportPanelStyle}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="media-viewer__visual" style={viewportVisualStyle}>
               {isVideoFootage(activeItem)
-                ? <video key={activeItem.id} src={activeItem.url} poster={activeItem.thumbnail_url || undefined} controls autoPlay playsInline preload="metadata" aria-label={activeItem.alt_text} />
-                : <img key={activeItem.id} src={activeItem.url} alt={activeItem.alt_text} style={{ transform: `rotate(${activeRotation}deg)` }} />}
+                ? <video key={activeItem.id} src={activeItem.url} poster={activeItem.thumbnail_url || undefined} controls autoPlay playsInline preload="metadata" aria-label={activeItem.alt_text} style={viewportMediaStyle} />
+                : <img key={activeItem.id} src={activeItem.url} alt={activeItem.alt_text} style={viewportMediaStyle} />}
             </div>
-            {!isVideoFootage(activeItem) ? (
-              <div className="journal-footage-viewer__rotation" role="group" aria-label="Rotate image">
-                <button type="button" onClick={() => rotateActive(-1)} aria-label={t('journal.footage.rotate_left', 'Rotate image left')}><RotateCcw aria-hidden="true" /></button>
-                <button type="button" onClick={() => rotateActive(1)} aria-label={t('journal.footage.rotate_right', 'Rotate image right')}><RotateCw aria-hidden="true" /></button>
-              </div>
-            ) : null}
             {items.length > 1 ? (
-              <p className="journal-footage-viewer__counter" aria-live="polite">
+              <p className="journal-footage-viewer__counter" style={viewportCounterStyle} aria-live="polite">
                 {t('journal.footage.counter', '{current} of {total}', {
                   current: (viewerIndex ?? 0) + 1,
                   total: items.length,
                 })}
               </p>
             ) : null}
-            {activeItem.caption ? <p className="journal-footage-viewer__caption">{activeItem.caption}</p> : null}
           </div>
           {items.length > 1 ? (
             <button
