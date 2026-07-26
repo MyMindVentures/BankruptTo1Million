@@ -47,6 +47,7 @@ import './styles/responsive-hardening.css';
 import './styles/footer-layout-fix.css';
 import './styles/founder-support.css';
 import './styles/journalArticle.css';
+import './styles/journalFootageViewportFix.css';
 import './styles/journalArticleFullContentFix.css';
 import './styles/adminDashboard.css';
 import './styles/adminAuth.css';
