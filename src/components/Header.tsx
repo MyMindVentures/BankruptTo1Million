@@ -27,13 +27,6 @@ const groupLabelFallbacks: Record<string, string> = {
   'navigation.group.participate': 'Join & support',
 };
 
-const allNavigationItems = [...primaryNavItems, ...navGroups.flatMap((group) => group.items)];
-const navigationItemByHref = new Map(allNavigationItems.map((item) => [item.href, item]));
-
-function navigationItems(hrefs: string[]): NavItem[] {
-  return hrefs.map((href) => navigationItemByHref.get(href)).filter((item): item is NavItem => Boolean(item));
-}
-
 function buildNavigationHref(href: string, currentSearch: string): string {
   const target = new URL(href, window.location.origin);
   const language = new URLSearchParams(currentSearch).get('lang');
@@ -54,25 +47,6 @@ function isActive(item: NavItem, pathname: string, hash: string): boolean {
   if (targetPath === '/') return currentPath === '/';
   return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`);
 }
-
-const visiblePrimaryNavItems = navigationItems(['/#top']);
-const visibleNavGroups = [
-  {
-    id: 'explore',
-    labelKey: 'navigation.group.explore',
-    items: navigationItems(['/journal', '/#story', '/mission-statement', '/kevin-goals-roadmap', '/media', '/calendar', '/#platform', '/#roadmap']),
-  },
-  {
-    id: 'community',
-    labelKey: 'navigation.group.community',
-    items: navigationItems(['/founders', '/offers', '/proof-of-mind', '/impact']),
-  },
-  {
-    id: 'participate',
-    labelKey: 'navigation.group.participate',
-    items: navigationItems(['/breakfast-for-a-story', '/break-the-circle', '/founder-support', '/issues']),
-  },
-].filter((group) => group.items.length > 0);
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -155,10 +129,10 @@ export function Header() {
 
           <nav className="site-nav site-nav--desktop" aria-label={t('header.primary_navigation_aria', 'Primary navigation')}>
             <div className="site-nav--primary">
-              {visiblePrimaryNavItems.map((item) => (
+              {primaryNavItems.map((item) => (
                 <a key={item.href} href={hrefFor(item.href)} aria-current={isActive(item, currentPath, currentHash) ? 'page' : undefined} onClick={closeNavigation}>{t(item.translationKey, item.label)}</a>
               ))}
-              {visibleNavGroups.map((group) => {
+              {navGroups.map((group) => {
                 const groupActive = group.items.some((item) => isActive(item, currentPath, currentHash));
                 return (
                   <details key={group.id} className="site-nav__group" open={openDesktopGroup === group.id} data-active={groupActive || undefined} onToggle={(event) => {
@@ -190,11 +164,11 @@ export function Header() {
       <div className="mobile-nav-panel" id={mobileMenuId} data-open={isMenuOpen} hidden={!isMenuOpen}>
         <nav className="site-nav site-nav--mobile-groups" aria-label={t('header.mobile_navigation_aria', 'Mobile primary navigation')}>
           <div className="site-nav__mobile-primary">
-            {visiblePrimaryNavItems.map((item) => (
+            {primaryNavItems.map((item) => (
               <a key={item.href} href={hrefFor(item.href)} aria-current={isActive(item, currentPath, currentHash) ? 'page' : undefined} onClick={closeNavigation}>{t(item.translationKey, item.label)}</a>
             ))}
           </div>
-          {visibleNavGroups.map((group) => {
+          {navGroups.map((group) => {
             const groupActive = group.items.some((item) => isActive(item, currentPath, currentHash));
             return (
               <details key={group.id} className="site-nav__mobile-group" open={openMobileGroup === group.id} data-active={groupActive || undefined} onToggle={(event) => {
