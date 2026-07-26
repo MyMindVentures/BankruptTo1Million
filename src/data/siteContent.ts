@@ -102,7 +102,6 @@ export const navGroups: NavGroup[] = [
       { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
       { label: 'What We Offer', translationKey: 'navigation.what_we_offer', href: '/offers' },
       { label: 'Impact', translationKey: 'navigation.impact', href: '/impact' },
-      { label: 'Founding Heroes', translationKey: 'navigation.founding_heroes', href: '/founding-heroes' },
     ],
   },
   {
@@ -110,37 +109,15 @@ export const navGroups: NavGroup[] = [
     labelKey: 'navigation.group.participate',
     items: [
       { label: 'Breakfast for a Story', translationKey: 'navigation.breakfast_for_a_story', href: '/breakfast-for-a-story' },
-      { label: 'Apply', translationKey: 'navigation.apply', href: '/become-a-founding-hero' },
-      { label: 'Support', translationKey: 'navigation.support', href: '/support' },
-      { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
-      { label: 'Profile', translationKey: 'navigation.profile', href: '/profile/issues' },
       { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support' },
+      { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
     ],
   },
 ];
 
 export const navItems: NavItem[] = [
-  { label: 'Home', translationKey: 'navigation.home', href: '/#top' },
-  { label: 'Story', translationKey: 'navigation.story', href: '/#story' },
-  { label: 'Mission Statement', translationKey: 'navigation.mission_statement', href: '/mission-statement' },
-  { label: "Kevin's Goals & Roadmap", translationKey: 'navigation.kevin_goals_roadmap', href: '/kevin-goals-roadmap' },
-  { label: 'Founders', translationKey: 'navigation.founders', href: '/founders' },
-  { label: 'Journal', translationKey: 'navigation.journal', href: '/journal' },
-  { label: 'What We Offer', translationKey: 'navigation.what_we_offer', href: '/offers' },
-  { label: 'Media', translationKey: 'navigation.media', href: '/media' },
-  { label: 'Calendar', translationKey: 'navigation.calendar', href: '/calendar' },
-  { label: 'Proof of Mind', translationKey: 'navigation.proof_of_mind', href: '/proof-of-mind' },
-  { label: 'Break the Circle', translationKey: 'navigation.break_the_circle', href: '/break-the-circle' },
-  { label: 'Breakfast for a Story', translationKey: 'navigation.breakfast_for_a_story', href: '/breakfast-for-a-story' },
-  { label: 'Founder Support', translationKey: 'navigation.founder_support', href: '/founder-support' },
-  { label: 'Platform', translationKey: 'navigation.platform', href: '/#platform' },
-  { label: 'Roadmap', translationKey: 'navigation.roadmap', href: '/#roadmap' },
-  { label: 'Impact', translationKey: 'navigation.impact', href: '/impact' },
-  { label: 'Founding Heroes', translationKey: 'navigation.founding_heroes', href: '/founding-heroes' },
-  { label: 'Apply', translationKey: 'navigation.apply', href: '/become-a-founding-hero' },
-  { label: 'Support', translationKey: 'navigation.support', href: '/support' },
-  { label: 'Issues', translationKey: 'navigation.issues', href: '/issues' },
-  { label: 'Profile', translationKey: 'navigation.profile', href: '/profile/issues' },
+  ...primaryNavItems,
+  ...navGroups.flatMap((group) => group.items),
 ];
 
 export const platformFeatures: FeatureCard[] = [
