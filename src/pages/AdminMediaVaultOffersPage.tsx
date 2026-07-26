@@ -83,10 +83,21 @@ function categoryFilter(key: string): Filter | null {
   return null;
 }
 
-const editableAssetFields = ['title', 'description', 'alt_text', 'caption', 'language_code', 'captured_at', 'visibility', 'status', 'published_at'] as const;
 const readonlyAssetFields = ['id', 'storage_bucket', 'storage_path', 'original_filename', 'mime_type', 'file_extension', 'file_size_bytes', 'width', 'height', 'provider', 'created_at'] as const;
+const statusOptions = ['draft', 'uploading', 'processing', 'ready', 'published', 'failed', 'archived'] as const;
+const visibilityOptions = ['private', 'unlisted', 'public'] as const;
+const placementOptions = ['gallery', 'hero', 'thumbnail', 'cover', 'mockup_screen', 'social'] as const;
+const imageStatusOptions = ['brief_ready', 'ready', 'generating', 'failed', 'approved'] as const;
 
 function stringValue(value: unknown) { return typeof value === 'string' ? value : ''; }
+function toDateTimeLocal(value: unknown) {
+  if (typeof value !== 'string' || !value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value.slice(0, 16);
+  const offset = date.getTimezoneOffset();
+  return new Date(date.getTime() - offset * 60_000).toISOString().slice(0, 16);
+}
+function uniqueStrings(values: string[]) { return [...new Set(values.filter(Boolean))]; }
 
 type MediaAssetEditorProps = { assetId: string; onClose: () => void; onSaved: () => Promise<void> };
 
@@ -96,7 +107,9 @@ function MediaAssetEditor({ assetId, onClose, onSaved }: MediaAssetEditorProps) 
   const [form, setForm] = useState<MediaAssetEditorPayload | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -108,8 +121,8 @@ function MediaAssetEditor({ assetId, onClose, onSaved }: MediaAssetEditorProps) 
         asset: {
           title: stringValue(next.asset.title), description: stringValue(next.asset.description), alt_text: stringValue(next.asset.alt_text),
           caption: stringValue(next.asset.caption), language_code: stringValue(next.asset.language_code), tags: Array.isArray(next.asset.tags) ? next.asset.tags : [],
-          captured_at: stringValue(next.asset.captured_at), visibility: stringValue(next.asset.visibility), status: stringValue(next.asset.status),
-          published_at: stringValue(next.asset.published_at), show_in_media_vault: next.asset.show_in_media_vault === true,
+          captured_at: toDateTimeLocal(next.asset.captured_at), visibility: stringValue(next.asset.visibility), status: stringValue(next.asset.status),
+          published_at: toDateTimeLocal(next.asset.published_at), show_in_media_vault: next.asset.show_in_media_vault === true,
         },
         usage_type_keys: next.usage_types.map((item) => item.key),
         concept_media: next.applications.filter((item) => item.relation_table === 'proof_of_mind_concept_media'),
@@ -121,36 +134,76 @@ function MediaAssetEditor({ assetId, onClose, onSaved }: MediaAssetEditorProps) 
   }, [assetId, t]);
 
   const patchAsset = (key: keyof MediaAssetEditorPayload['asset'], value: string | string[] | boolean) => setForm((current) => current ? ({ ...current, asset: { ...current.asset, [key]: value } }) : current);
-  const patchRelation = (index: number, key: keyof MediaApplication, value: string | number | boolean) => setForm((current) => current ? ({ ...current, concept_media: current.concept_media.map((item, itemIndex) => itemIndex === index ? { ...item, [key]: value } : item) }) : current);
+  const patchRelation = (relationId: string, key: keyof MediaApplication, value: string | number | boolean) => setForm((current) => current ? ({ ...current, concept_media: current.concept_media.map((item) => item.relation_id === relationId ? { ...item, [key]: value } : item) }) : current);
   const toggleUsage = (key: string) => setForm((current) => current ? ({ ...current, usage_type_keys: current.usage_type_keys.includes(key) ? current.usage_type_keys.filter((item) => item !== key) : [...current.usage_type_keys, key] }) : current);
   const wantsMockup = Boolean(form?.usage_type_keys.includes('mockup_screen'));
   const mockup = form?.mockup_screen || {};
   const patchMockup = (key: string, value: string | number) => setForm((current) => current ? ({ ...current, mockup_screen: { ...(current.mockup_screen || {}), [key]: value } }) : current);
 
+  const languageOptions = useMemo(() => uniqueStrings([
+    stringValue(record?.asset.language_code),
+    'en', 'nl', 'es', 'fr', 'de', 'pt', 'it', 'ko', 'ja', 'zh', 'ar', 'hi', 'tr', 'pl', 'uk', 'ru', 'sv', 'no', 'da', 'fi', 'cs', 'ro', 'hu', 'el', 'he', 'id', 'th', 'vi', 'ms', 'ca',
+  ]), [record]);
+
+  const isValid = Boolean(form?.asset.title.trim())
+    && Boolean(form?.asset.visibility)
+    && Boolean(form?.asset.status)
+    && (!wantsMockup || Boolean(stringValue(mockup.concept_id) && stringValue(mockup.screen_name) && stringValue(mockup.screen_key)));
+
   async function save() {
-    if (!form) return;
-    setSaving(true); setError(null);
-    try { const next = await saveMediaAssetEditor(assetId, form); setRecord(next); await onSaved(); onClose(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : t('admin.media.editor.save_error', 'Media could not be saved.')); }
-    finally { setSaving(false); }
+    if (!form || !isValid) return;
+    setSaving(true); setError(null); setNotice(null);
+    try {
+      const payload: MediaAssetEditorPayload = {
+        ...form,
+        asset: {
+          ...form.asset,
+          tags: uniqueStrings(form.asset.tags.map((tag) => tag.trim())),
+          captured_at: form.asset.captured_at ? new Date(form.asset.captured_at).toISOString() : '',
+          published_at: form.asset.published_at ? new Date(form.asset.published_at).toISOString() : '',
+        },
+      };
+      const next = await saveMediaAssetEditor(assetId, payload);
+      setRecord(next);
+      setNotice(t('admin.media.editor.save_success', 'Media saved.'));
+      await onSaved();
+      onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t('admin.media.editor.save_error', 'Media could not be saved.'));
+    } finally { setSaving(false); }
   }
 
   async function remove() {
     if (!record || !window.confirm(t('admin.media.editor.delete_confirm', 'Delete this unused media asset permanently?'))) return;
-    setSaving(true); setError(null);
-    try { await deleteMediaAsset(assetId); await onSaved(); onClose(); }
-    catch (reason) { setError(reason instanceof Error ? reason.message : t('admin.media.editor.delete_blocked', 'This media asset is still in use. Unlink its applications first.')); }
-    finally { setSaving(false); }
+    setDeleting(true); setError(null); setNotice(null);
+    try {
+      await deleteMediaAsset(assetId);
+      await onSaved();
+      onClose();
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : t('admin.media.editor.delete_blocked', 'This media asset is still in use. Unlink its applications first.'));
+    } finally { setDeleting(false); }
   }
 
+  const busy = saving || deleting;
+
   return <div className="admin-editor-backdrop admin-media-editor-backdrop"><section className="admin-editor admin-media-asset-editor">
-    <header><div><p>{t('admin.media.editor.eyebrow', 'MEDIA ASSET')}</p><h2>{t('admin.media.editor.title', 'Edit media')}</h2></div><button type="button" onClick={onClose} disabled={saving}><X /></button></header>
+    <header><div><p>{t('admin.media.editor.eyebrow', 'MEDIA ASSET')}</p><h2>{t('admin.media.editor.title', 'Edit media')}</h2></div><button type="button" onClick={onClose} disabled={busy}><X /></button></header>
     <div className="admin-media-asset-editor__body">
       {loading ? <div className="admin-loading"><LoaderCircle className="spin" /> {t('admin.loading.live_data', 'Loading live data…')}</div> : null}
       {error ? <div className="admin-error">{error}</div> : null}
+      {notice ? <div className="admin-notice">{notice}</div> : null}
       {record && form ? <>
         <section><h3>{t('admin.media.editor.metadata', 'General metadata')}</h3><div className="admin-media-editor-grid">
-          {editableAssetFields.map((key) => key === 'description' || key === 'caption' ? <label key={key} className="wide"><span>{key.replaceAll('_', ' ')}</span><textarea value={form.asset[key]} onChange={(event) => patchAsset(key, event.target.value)} /></label> : key === 'visibility' ? <label key={key}><span>{key}</span><select value={form.asset[key]} onChange={(event) => patchAsset(key, event.target.value)}><option value="public">public</option><option value="private">private</option><option value="unlisted">unlisted</option></select></label> : <label key={key}><span>{key.replaceAll('_', ' ')}</span><input type={key.endsWith('_at') ? 'datetime-local' : 'text'} value={form.asset[key]} onChange={(event) => patchAsset(key, event.target.value)} /></label>)}
+          <label><span>title</span><input value={form.asset.title} required onChange={(event) => patchAsset('title', event.target.value)} /></label>
+          <label><span>language</span><select value={form.asset.language_code} onChange={(event) => patchAsset('language_code', event.target.value)}><option value="">—</option>{languageOptions.map((code) => <option key={code} value={code}>{code}</option>)}</select></label>
+          <label><span>visibility</span><select value={form.asset.visibility} onChange={(event) => patchAsset('visibility', event.target.value)}>{visibilityOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span>status</span><select value={form.asset.status} onChange={(event) => patchAsset('status', event.target.value)}>{statusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+          <label><span>captured at</span><input type="datetime-local" value={form.asset.captured_at} onChange={(event) => patchAsset('captured_at', event.target.value)} /></label>
+          <label><span>published at</span><input type="datetime-local" value={form.asset.published_at} onChange={(event) => patchAsset('published_at', event.target.value)} /></label>
+          <label className="wide"><span>description</span><textarea value={form.asset.description} onChange={(event) => patchAsset('description', event.target.value)} /></label>
+          <label className="wide"><span>alt text</span><textarea value={form.asset.alt_text} onChange={(event) => patchAsset('alt_text', event.target.value)} /></label>
+          <label className="wide"><span>caption</span><textarea value={form.asset.caption} onChange={(event) => patchAsset('caption', event.target.value)} /></label>
           <label className="wide"><span>{t('admin.media.editor.tags', 'Tags')}</span><input value={form.asset.tags.join(', ')} onChange={(event) => patchAsset('tags', event.target.value.split(',').map((tag) => tag.trim()).filter(Boolean))} /></label>
           <label className="admin-media-editor-check"><input type="checkbox" checked={form.asset.show_in_media_vault} onChange={(event) => patchAsset('show_in_media_vault', event.target.checked)} /> {t('admin.media.editor.show_in_vault', 'Show in Media Vault')}</label>
         </div></section>
@@ -158,13 +211,27 @@ function MediaAssetEditor({ assetId, onClose, onSaved }: MediaAssetEditorProps) 
         {wantsMockup ? <section><h3>{t('admin.media.editor.mockup', 'Mockup screen link')}</h3><div className="admin-media-editor-grid">
           <label><span>{t('admin.media.editor.existing_mockup', 'Existing or new screen')}</span><select value={stringValue(mockup.id)} onChange={(event) => { const selected = record.mockup_screens.find((item) => item.id === event.target.value); setForm((current) => current ? ({ ...current, mockup_screen: selected || { concept_id: stringValue(current.mockup_screen?.concept_id) } }) : current); }}><option value="">{t('admin.media.editor.new_mockup', 'Create new screen')}</option>{record.mockup_screens.map((screen) => <option key={stringValue(screen.id)} value={stringValue(screen.id)}>{stringValue(screen.screen_name)}</option>)}</select></label>
           <label><span>{t('admin.media.editor.concept', 'Proof of Mind concept')}</span><select value={stringValue(mockup.concept_id)} onChange={(event) => patchMockup('concept_id', event.target.value)}><option value="">—</option>{record.concepts.map((concept) => <option key={concept.id} value={concept.id}>{concept.title}</option>)}</select></label>
-          {['screen_name','screen_key','screen_purpose','primary_user_role','image_alt','image_status'].map((key) => <label key={key}><span>{key.replaceAll('_',' ')}</span><input value={stringValue(mockup[key])} onChange={(event) => patchMockup(key,event.target.value)} /></label>)}
+          <label><span>screen name</span><input value={stringValue(mockup.screen_name)} onChange={(event) => patchMockup('screen_name', event.target.value)} /></label>
+          <label><span>screen key</span><input value={stringValue(mockup.screen_key)} onChange={(event) => patchMockup('screen_key', event.target.value)} /></label>
+          <label><span>screen purpose</span><input value={stringValue(mockup.screen_purpose)} onChange={(event) => patchMockup('screen_purpose', event.target.value)} /></label>
+          <label><span>primary user role</span><input value={stringValue(mockup.primary_user_role)} onChange={(event) => patchMockup('primary_user_role', event.target.value)} /></label>
+          <label><span>image alt</span><input value={stringValue(mockup.image_alt)} onChange={(event) => patchMockup('image_alt', event.target.value)} /></label>
+          <label><span>image status</span><select value={stringValue(mockup.image_status)} onChange={(event) => patchMockup('image_status', event.target.value)}><option value="">—</option>{imageStatusOptions.map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
           <label><span>{t('admin.media.editor.display_order', 'Display order')}</span><input type="number" value={Number(mockup.display_order || 0)} onChange={(event) => patchMockup('display_order', Number(event.target.value))} /></label>
         </div></section> : null}
-        <section><h3>{t('admin.media.editor.applications', 'Linked applications')}</h3>{record.applications.length ? <div className="admin-media-editor-relations">{record.applications.map((application) => <article key={`${application.relation_table}:${application.relation_id}`}><strong>{application.entity_title || application.entity_type}</strong><small>{application.relation_table}</small>{application.relation_table === 'proof_of_mind_concept_media' ? <div className="admin-media-editor-grid"><label><span>placement</span><input value={application.placement || ''} onChange={(event) => patchRelation(form.concept_media.findIndex((item) => item.relation_id === application.relation_id), 'placement', event.target.value)} /></label><label><span>display order</span><input type="number" value={application.display_order} onChange={(event) => patchRelation(form.concept_media.findIndex((item) => item.relation_id === application.relation_id), 'display_order', Number(event.target.value))} /></label><label><span>caption override</span><input value={form.concept_media.find((item) => item.relation_id === application.relation_id)?.caption_override || ''} onChange={(event) => patchRelation(form.concept_media.findIndex((item) => item.relation_id === application.relation_id), 'caption_override', event.target.value)} /></label><label><span>alt text override</span><input value={form.concept_media.find((item) => item.relation_id === application.relation_id)?.alt_text_override || ''} onChange={(event) => patchRelation(form.concept_media.findIndex((item) => item.relation_id === application.relation_id), 'alt_text_override', event.target.value)} /></label>{(['is_featured','autoplay','muted','loop'] as const).map((key) => <label className="admin-media-editor-check" key={key}><input type="checkbox" checked={Boolean(form.concept_media.find((item) => item.relation_id === application.relation_id)?.[key])} onChange={(event) => patchRelation(form.concept_media.findIndex((item) => item.relation_id === application.relation_id), key, event.target.checked)} />{key}</label>)}</div> : <span>{application.placement || '—'} · {application.display_order}</span>}</article>)}</div> : <p>{t('admin.media.editor.no_applications', 'This asset is not currently linked.')}</p>}</section>
+        <section><h3>{t('admin.media.editor.applications', 'Linked applications')}</h3>{record.applications.length ? <div className="admin-media-editor-relations">{record.applications.map((application) => {
+          const editableRelation = form.concept_media.find((item) => item.relation_id === application.relation_id);
+          return <article key={`${application.relation_table}:${application.relation_id}`}><strong>{application.entity_title || application.entity_type}</strong><small>{application.relation_table}</small>{application.relation_table === 'proof_of_mind_concept_media' && editableRelation ? <div className="admin-media-editor-grid">
+            <label><span>placement</span><select value={editableRelation.placement || ''} onChange={(event) => patchRelation(application.relation_id, 'placement', event.target.value)}><option value="">—</option>{uniqueStrings([editableRelation.placement || '', ...placementOptions]).map((value) => <option key={value} value={value}>{value}</option>)}</select></label>
+            <label><span>display order</span><input type="number" value={editableRelation.display_order} onChange={(event) => patchRelation(application.relation_id, 'display_order', Number(event.target.value))} /></label>
+            <label><span>caption override</span><input value={editableRelation.caption_override || ''} onChange={(event) => patchRelation(application.relation_id, 'caption_override', event.target.value)} /></label>
+            <label><span>alt text override</span><input value={editableRelation.alt_text_override || ''} onChange={(event) => patchRelation(application.relation_id, 'alt_text_override', event.target.value)} /></label>
+            {(['is_featured','autoplay','muted','loop'] as const).map((key) => <label className="admin-media-editor-check" key={key}><input type="checkbox" checked={Boolean(editableRelation[key])} onChange={(event) => patchRelation(application.relation_id, key, event.target.checked)} />{key}</label>)}
+          </div> : <span>{application.placement || '—'} · {application.display_order}</span>}</article>;
+        })}</div> : <p>{t('admin.media.editor.no_applications', 'This asset is not currently linked.')}</p>}</section>
         <section><h3>{t('admin.media.editor.file_info', 'Read-only file information')}</h3><dl className="admin-media-editor-file-info">{readonlyAssetFields.map((key) => <div key={key}><dt>{key.replaceAll('_',' ')}</dt><dd>{String(record.asset[key] ?? '—')}</dd></div>)}</dl></section>
       </> : null}
-    </div><footer><button type="button" className="danger" onClick={() => void remove()} disabled={saving || loading}><Trash2 size={14} />{t('admin.delete', 'Delete')}</button><button type="button" onClick={onClose} disabled={saving}>{t('admin.cancel', 'Cancel')}</button><button type="button" className="primary" onClick={() => void save()} disabled={saving || !form}><Save size={14} />{saving ? t('admin.saving', 'Saving…') : t('admin.save', 'Save')}</button></footer>
+    </div><footer><button type="button" className="danger" onClick={() => void remove()} disabled={busy || loading || !record}><Trash2 size={14} />{deleting ? t('admin.deleting', 'Deleting…') : t('admin.delete', 'Delete')}</button><button type="button" onClick={onClose} disabled={busy}>{t('admin.cancel', 'Cancel')}</button><button type="button" className="primary" onClick={() => void save()} disabled={busy || loading || !isValid}><Save size={14} />{saving ? t('admin.saving', 'Saving…') : t('admin.save', 'Save')}</button></footer>
   </section></div>;
 }
 
@@ -291,31 +358,24 @@ export function AdminMediaVaultOffersPage() {
   if (error && !groups) return <div className="admin-error">{error}</div>;
   if (!groups) return <div className="admin-section-empty">{t('admin.media.empty', 'No media groups found.')}</div>;
 
-  const title = open?.kind === 'post' ? open.value.title : open?.kind === 'offer' ? open.value.offer_title : open?.kind === 'concept' ? open.value.concept_title : open?.kind === 'category' ? categoryTitle(open.value.key) : '';
-  const canUpload = open?.kind === 'post' || open?.kind === 'offer' || open?.kind === 'concept';
-  const accept = open?.kind === 'offer' || open?.kind === 'concept' ? open.value.accepted_asset_types.map((type) => `${type}/*`).join(',') : 'image/*,video/*';
-  const visibleCount = posts.length + offers.length + concepts.length + categories.length;
+  const cards: { kind: OpenGroup['kind']; value: OpenGroup['value']; title: string; subtitle: string; cover: PreviewValue; count: number }[] = [
+    ...posts.map((value) => ({ kind: 'post' as const, value, title: value.title, subtitle: value.slug, cover: preview(value), count: value.asset_count })),
+    ...offers.map((value) => ({ kind: 'offer' as const, value, title: value.offer_title, subtitle: value.title, cover: preview(value), count: value.asset_count })),
+    ...concepts.map((value) => ({ kind: 'concept' as const, value, title: value.concept_title, subtitle: value.concept_type, cover: preview(value), count: value.asset_count })),
+    ...categories.map((value) => ({ kind: 'category' as const, value, title: categoryTitle(value.key), subtitle: value.key, cover: preview(value), count: value.asset_count })),
+  ];
 
-  return <div className="admin-section-page admin-media-vault-page">
-    <div className="admin-section-heading"><div><p>{t('admin.section.eyebrow', 'ADMIN SECTION')}</p><h1>{t('admin.media.title', 'Media Vault')}</h1><span>{t('admin.media.description.grouped', 'Footage grouped by journal post, offer, concept and media category.')}</span></div><button type="button" onClick={() => void load()}><RefreshCw size={16} /> {t('admin.refresh', 'Refresh')}</button></div>
-    <div className="admin-section-toolbar"><div><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.media.search.placeholder', 'Search media groups…')} /></div><span>{t('admin.media.groups.count', '{count} groups', { count: visibleCount })}</span></div>
-    <div className="admin-media-filter-chips" role="toolbar">{chips.map((chip) => <button key={chip.key} type="button" className={`admin-media-filter-chip ${filter === chip.key ? 'is-active' : ''}`} onClick={() => setFilter(chip.key)}>{chip.label}<span>{chip.count}</span></button>)}</div>
-    <div className="admin-media-grid">
-      {posts.map((item) => <article key={item.post_id} onClick={() => setOpen({ kind: 'post', value: item })}><Preview value={preview(item)} alt={item.title} /><div><strong>{item.title}</strong><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{item.status}</small></div></article>)}
-      {offers.map((item) => <article key={item.collection_id} onClick={() => setOpen({ kind: 'offer', value: item })}><Preview value={preview(item)} alt={item.offer_title} /><div><strong>{item.offer_title}</strong><span>{item.title}</span><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{t('admin.media.offer.badge', 'offer')}</small></div></article>)}
-      {concepts.map((item) => <article key={item.concept_id} onClick={() => setOpen({ kind: 'concept', value: item })}><Preview value={preview(item)} alt={item.concept_title} /><div><strong>{item.concept_title}</strong><span>{item.storage_folder}</span><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{item.concept_type}</small></div></article>)}
-      {categories.map((item) => <article key={item.key} onClick={() => setOpen({ kind: 'category', value: item })}><Preview value={preview(item)} alt={categoryTitle(item.key)} /><div><strong>{categoryTitle(item.key)}</strong><span>{t('admin.media.assets.count', '{count} assets', { count: item.asset_count })}</span><small>{t('admin.media.category.badge', 'category')}</small></div></article>)}
-    </div>
-    {!visibleCount ? <div className="admin-section-empty">{t('admin.records.empty', 'No records found.')}</div> : null}
-
-    {open ? <div className="admin-editor-backdrop"><section className="admin-editor admin-media-vault-drawer"><header><div><p>{open.kind === 'offer' ? t('admin.media.offer.eyebrow', 'OFFER MEDIA') : open.kind === 'concept' ? t('admin.media.concept.eyebrow', 'CONCEPT MEDIA') : t('admin.media.drawer.eyebrow', 'FOOTAGE')}</p><h2>{title}</h2></div><button type="button" onClick={() => setOpen(null)}><X /></button></header><div className="admin-media-vault-drawer__body">
-      {open.kind === 'offer' ? <p className="admin-media-vault-drawer__meta"><a href={`/offers/${open.value.offer_slug}`} target="_blank" rel="noreferrer">{t('admin.media.open_offer', 'Open public offer')} <ExternalLink size={13} /></a><span>{open.value.storage_bucket}/{open.value.storage_folder}</span></p> : null}
-      {open.kind === 'concept' ? <p className="admin-media-vault-drawer__meta"><a href={`/proof-of-mind/${open.value.concept_slug}`} target="_blank" rel="noreferrer">{t('admin.media.open_concept', 'Open public concept')} <ExternalLink size={13} /></a><span>{open.value.storage_bucket}/{open.value.storage_folder}</span></p> : null}
-      {detailLoading ? <div className="admin-loading"><LoaderCircle className="spin" /> {t('admin.loading.live_data', 'Loading live data…')}</div> : null}
-      {actionError ? <div className="admin-error">{actionError}</div> : null}{notice ? <div className="admin-media-vault-notice">{notice}</div> : null}
-      {!detailLoading && !assets.length ? <div className="admin-section-empty">{t('admin.media.detail.empty', 'No footage in this group.')}</div> : null}
-      {assets.length ? <div className="admin-media-grid admin-media-vault-drawer__grid">{assets.map((asset) => <article key={asset.asset_id} className="admin-media-vault-tile"><div className="admin-media-vault-tile__preview"><Preview value={preview(asset)} alt={asset.alt_text || ''} /><button type="button" className="admin-media-vault-tile__edit" disabled={busy} onClick={() => setEditingAssetId(asset.asset_id)} aria-label={t('admin.media.edit', 'Edit media')}><Edit3 size={14} /></button>{open.kind === 'post' ? <button type="button" className="admin-media-vault-tile__delete" disabled={busy} onClick={() => void deleteAsset(asset.asset_id)}>{deleting === asset.asset_id ? <LoaderCircle size={14} className="spin" /> : <Trash2 size={14} />}</button> : null}</div><div><strong>{asset.original_filename || asset.title || asset.caption || asset.asset_id}</strong><span>{asset.caption || asset.alt_text || '—'}</span><small>{asset.asset_type}</small></div></article>)}</div> : null}
-    </div><footer>{canUpload ? <><input ref={fileInput} type="file" accept={accept} multiple hidden onChange={(event) => void upload(event.target.files)} /><button type="button" className="primary" disabled={busy} onClick={() => fileInput.current?.click()}>{uploading ? <LoaderCircle size={14} className="spin" /> : <Upload size={14} />}{uploading ? t('admin.media.uploading', 'Uploading media…') : t('admin.media.add_media', 'Add media')}</button></> : null}<button type="button" onClick={() => setOpen(null)} disabled={busy}>{t('admin.cancel', 'Cancel')}</button></footer></section></div> : null}
+  return <div className="admin-media-vault-page">
+    <div className="admin-section-heading"><div><p>{t('admin.media.eyebrow', 'MEDIA VAULT')}</p><h1>{t('admin.media.title', 'Media')}</h1><span>{t('admin.media.description', 'Browse and manage media grouped by content.')}</span></div><button onClick={() => void load()}><RefreshCw size={16} />{t('admin.refresh', 'Refresh')}</button></div>
+    <div className="admin-section-toolbar"><div><Search size={17} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t('admin.search.placeholder', 'Search media…')} /></div><span>{cards.length}</span></div>
+    <div className="admin-media-filter-chips">{chips.map((chip) => <button key={chip.key} className={filter === chip.key ? 'active' : ''} onClick={() => setFilter(chip.key)}>{chip.label}<b>{chip.count}</b></button>)}</div>
+    {error ? <div className="admin-error">{error}</div> : null}
+    <div className="admin-media-grid">{cards.map((card) => <article key={`${card.kind}:${card.subtitle}`} onClick={() => setOpen({ kind: card.kind, value: card.value } as OpenGroup)}><Preview value={card.cover} alt={card.title} /><div><strong>{card.title}</strong><span>{card.subtitle}</span><small>{card.count}</small></div></article>)}</div>
+    {!cards.length ? <div className="admin-section-empty">{t('admin.media.empty', 'No media groups found.')}</div> : null}
+    {open ? <div className="admin-editor-backdrop"><section className="admin-editor admin-media-group-editor"><header><div><p>{open.kind.toUpperCase()}</p><h2>{open.kind === 'post' ? open.value.title : open.kind === 'offer' ? open.value.offer_title : open.kind === 'concept' ? open.value.concept_title : categoryTitle(open.value.key)}</h2></div><button onClick={() => setOpen(null)}><X /></button></header><div className="admin-media-asset-editor__body">
+      {actionError ? <div className="admin-error">{actionError}</div> : null}{notice ? <div className="admin-notice">{notice}</div> : null}{detailLoading ? <div className="admin-loading"><LoaderCircle className="spin" /></div> : null}
+      <div className="admin-media-grid">{assets.map((asset) => { const assetId = 'asset_id' in asset ? asset.asset_id : asset.media_asset_id; const value = preview(asset); return <article key={assetId}><Preview value={value} alt={stringValue(asset.alt_text)} /><div><strong>{stringValue(asset.title) || stringValue(asset.original_filename) || assetId}</strong><span>{stringValue(asset.caption)}</span><small>{stringValue(asset.placement)}</small></div><footer><button type="button" onClick={() => setEditingAssetId(assetId)}><Edit3 size={14} />{t('admin.edit', 'Edit')}</button>{open.kind === 'post' ? <button type="button" onClick={() => void deleteAsset(assetId)} disabled={busy}><Trash2 size={14} /></button> : null}</footer></article>; })}</div>
+    </div><footer>{open.kind !== 'category' ? <><input ref={fileInput} hidden type="file" multiple accept="image/*,video/*" onChange={(event) => void upload(event.target.files)} /><button onClick={() => fileInput.current?.click()} disabled={busy}><Upload size={14} />{uploading ? t('admin.uploading', 'Uploading…') : t('admin.upload', 'Upload')}</button></> : null}<button onClick={() => setOpen(null)}>{t('admin.close', 'Close')}</button></footer></section></div> : null}
     {editingAssetId ? <MediaAssetEditor assetId={editingAssetId} onClose={() => setEditingAssetId(null)} onSaved={refreshOpen} /> : null}
   </div>;
 }
