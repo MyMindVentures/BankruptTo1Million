@@ -2,8 +2,7 @@ import type { ReactElement } from 'react';
 import React from 'react';
 import { HomePage } from '../pages/HomePage';
 import { BreakTheCircleArticlePage, BreakTheCirclePage } from '../pages/BreakTheCirclePages';
-import { ProofOfMindPage, ProofOfMindPromoPage } from '../pages/ProofOfMindPages';
-import { ProofOfMindDetailCarouselPage } from '../pages/ProofOfMindDetailCarouselPage';
+import { ProofOfMindDetailPage, ProofOfMindPage, ProofOfMindPromoPage } from '../pages/ProofOfMindPages';
 import { JournalArticlePage, JournalPage } from '../pages/JournalPages';
 import { LocalizedFounderSupportPage } from '../pages/LocalizedFounderSupportPage';
 import { BreakfastForAStoryPage } from '../pages/BreakfastForAStoryPage';
@@ -94,7 +93,7 @@ export function resolvePublicPage(path: string): ReactElement {
       return <ProofOfMindPromoPage slug={decodeRouteValue(parts[0])} />;
     }
     if (parts.length === 1) {
-      return <ProofOfMindDetailCarouselPage slug={decodeRouteValue(parts[0])} />;
+      return <ProofOfMindDetailPage slug={decodeRouteValue(parts[0])} />;
     }
   }
 
