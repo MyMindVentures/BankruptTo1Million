@@ -165,6 +165,7 @@
   aspect-ratio: 16 / 10;
   object-fit: cover;
   background: #050403;
+  transition: transform 160ms ease;
 }
 
 .journal-footage__placeholder {
@@ -209,7 +210,7 @@
 
 .journal-footage-viewer__panel {
   grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto auto;
   width: min(1300px, calc(100vw - 7rem));
   height: min(calc(100dvh - 4rem), calc(100vh - 4rem));
   max-height: calc(100dvh - 4rem);
@@ -236,6 +237,31 @@
   max-height: 100%;
   object-fit: contain;
   object-position: center;
+  transition: transform 160ms ease;
+}
+
+.journal-footage-viewer__rotation {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+  padding: 0.7rem 1rem 0.2rem;
+}
+
+.journal-footage-viewer__rotation button {
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.journal-footage-viewer__rotation button:hover,
+.journal-footage-viewer__rotation button:focus-visible {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .journal-footage-viewer__counter {
@@ -339,13 +365,22 @@
     max-height: calc(100dvh - 1rem);
   }
 
+  .journal-footage-viewer__rotation {
+    padding-top: 0.35rem;
+  }
+
+  .journal-footage-viewer__rotation button {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
   .journal-footage-viewer__counter {
-    padding: 0.45rem 1rem 0.2rem;
+    padding: 0.35rem 1rem 0.15rem;
     font-size: 0.8rem;
   }
 
   .journal-footage-viewer__caption {
-    padding: 0.2rem 1rem 0.6rem;
+    padding: 0.15rem 1rem 0.5rem;
     font-size: 0.85rem;
   }
 }
