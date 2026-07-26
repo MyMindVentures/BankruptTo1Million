@@ -56,6 +56,7 @@ import './styles/journalAdmin.css';
 import './styles/journalAi.css';
 import './styles/adminAiControlCenter.css';
 import './styles/outreachPrivate.css';
+import './styles/proofMockupCarousel.css';
 
 initializeJournalArticleEnhancements();
 initializePlatformUpdatesUi();
