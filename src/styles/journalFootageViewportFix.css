@@ -1,0 +1,68 @@
+/* Journal footage uses the shared Media Vault class names, but its viewer has no details sidebar.
+   These selectors deliberately override the generic Media Vault modal so one photo always fits
+   completely inside the currently visible browser viewport in either orientation. */
+
+.journal-footage-viewer.media-viewer {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.journal-footage-viewer .journal-footage-viewer__panel {
+  position: relative !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  max-height: none !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  overflow: hidden !important;
+  background: #050403;
+}
+
+.journal-footage-viewer .media-viewer__visual {
+  position: absolute !important;
+  inset: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  overflow: hidden !important;
+}
+
+.journal-footage-viewer .media-viewer__visual img,
+.journal-footage-viewer .media-viewer__visual video {
+  display: block !important;
+  width: auto !important;
+  height: auto !important;
+  max-width: calc(100% - 2rem) !important;
+  max-height: calc(100% - 2rem) !important;
+  object-fit: contain !important;
+  object-position: center !important;
+  flex: 0 1 auto;
+}
+
+.journal-footage-viewer__counter {
+  position: absolute !important;
+  left: 50% !important;
+  bottom: max(0.75rem, env(safe-area-inset-bottom)) !important;
+  z-index: 4;
+  margin: 0 !important;
+  padding: 0.45rem 0.8rem !important;
+  border-radius: 999px;
+  color: #fff !important;
+  background: rgba(0, 0, 0, 0.68);
+  transform: translateX(-50%);
+}
+
+@supports not (height: 100dvh) {
+  .journal-footage-viewer .journal-footage-viewer__panel,
+  .journal-footage-viewer .media-viewer__visual {
+    height: 100vh !important;
+  }
+}
