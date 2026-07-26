@@ -1,5 +1,6 @@
 import { ArrowLeft, ArrowRight, Image as ImageIcon } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import type { TouchEvent } from 'react';
 import type { ProofOfMindMockupScreen } from '../lib/proofOfMind';
 
 type ProofMockupCarouselProps = {
@@ -26,10 +27,10 @@ export function ProofMockupCarousel({ screens }: ProofMockupCarouselProps) {
     const total = orderedScreens.length;
     setActiveIndex((index + total) % total);
   };
-  const onTouchStart = (event: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchStart = (event: TouchEvent<HTMLDivElement>) => {
     touchStartX.current = event.touches[0]?.clientX ?? null;
   };
-  const onTouchEnd = (event: React.TouchEvent<HTMLDivElement>) => {
+  const onTouchEnd = (event: TouchEvent<HTMLDivElement>) => {
     if (touchStartX.current === null || !hasMultipleScreens) return;
     const endX = event.changedTouches[0]?.clientX ?? touchStartX.current;
     const distance = endX - touchStartX.current;
