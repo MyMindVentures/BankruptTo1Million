@@ -24,6 +24,13 @@ declare global { interface Window { mermaid?: MermaidApi } }
 
 function nodeId(id: string) { return `agent_${id.replaceAll('-', '_')}`; }
 function label(value: string) { return value.replaceAll('"', "'").replaceAll('[', '(').replaceAll(']', ')').replaceAll('\n', ' '); }
+function nodeClass(row: AdminAiHierarchyRow) {
+  if (row.agent_name.startsWith('AGENT —')) return 'agentNode';
+  if (row.agent_title === 'Orchestrator') return 'rootNode';
+  if (row.agent_title === 'Domain') return 'domainNode';
+  if (row.agent_title === 'Team') return 'teamNode';
+  return 'hierarchyNode';
+}
 
 function analyse(rows: AdminAiHierarchyRow[]) {
   const ids = new Set(rows.map((row) => row.agent_id));
@@ -58,10 +65,26 @@ type TeamState = Record<string, boolean>;
 function graphDefinition(rows: AdminAiHierarchyRow[], expandedTeams: TeamState) {
   const visible = rows.filter((row) => expandedTeams[row.team_id] !== false);
   const visibleTeams = new Set(visible.map((row) => row.team_id));
-  const lines = ['flowchart TD'];
-  for (const row of rows.filter((candidate) => !visibleTeams.has(candidate.team_id))) lines.push(`  team_${nodeId(row.team_id)}("${label(row.team_name)}")`);
-  for (const row of visible) lines.push(`  ${nodeId(row.agent_id)}("${label(row.agent_name)}<br/><small>${label(row.agent_title)}</small>")`);
-  for (const row of visible) if (row.reports_to_agent_id && visible.some((candidate) => candidate.agent_id === row.reports_to_agent_id)) lines.push(`  ${nodeId(row.reports_to_agent_id)} --> ${nodeId(row.agent_id)}`);
+  const lines = [
+    'flowchart TD',
+    '  classDef rootNode fill:#312e81,stroke:#a5b4fc,color:#ffffff,stroke-width:2.5px,font-weight:700',
+    '  classDef domainNode fill:#0f3d46,stroke:#5eead4,color:#ecfeff,stroke-width:2px,font-weight:700',
+    '  classDef hierarchyNode fill:#172554,stroke:#60a5fa,color:#eff6ff,stroke-width:1.8px,font-weight:700',
+    '  classDef teamNode fill:#3f2a12,stroke:#fbbf24,color:#fffbeb,stroke-width:2px,font-weight:700',
+    '  classDef agentNode fill:#20242d,stroke:#94a3b8,color:#f8fafc,stroke-width:1.4px',
+    '  linkStyle default stroke:#64748b,stroke-width:1.5px'
+  ];
+  for (const row of rows.filter((candidate) => !visibleTeams.has(candidate.team_id))) {
+    lines.push(`  team_${nodeId(row.team_id)}("${label(row.team_name)}"):::teamNode`);
+  }
+  for (const row of visible) {
+    lines.push(`  ${nodeId(row.agent_id)}("${label(row.agent_name)}<br/><small>${label(row.agent_title)}</small>"):::${nodeClass(row)}`);
+  }
+  for (const row of visible) {
+    if (row.reports_to_agent_id && visible.some((candidate) => candidate.agent_id === row.reports_to_agent_id)) {
+      lines.push(`  ${nodeId(row.reports_to_agent_id)} --> ${nodeId(row.agent_id)}`);
+    }
+  }
   return lines.join('\n');
 }
 
@@ -91,7 +114,7 @@ export function AdminAiHierarchyPage() {
   async function load() { setLoading(true); setError(null); try { setRows(await getAdminAiHierarchy()); } catch (reason) { setRows(null); setError(reason instanceof Error ? reason.message : t('admin.ai_hierarchy.error', 'The AI hierarchy could not be loaded.')); } finally { setLoading(false); } }
   useEffect(() => { void load(); }, [t]);
   useEffect(() => { setExpandedTeams(Object.fromEntries((rows || []).map((row) => [row.team_id, true]))); setZoom(1); }, [rows]);
-  useEffect(() => { if (!rows?.length || !graphRef.current) return; let cancelled = false; void loadMermaid().then((mermaid) => { mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark' }); return mermaid.render('admin-ai-hierarchy-graph', graphDefinition(rows, expandedTeams)); }).then(({ svg }) => { if (!cancelled && graphRef.current) graphRef.current.innerHTML = svg; }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Mermaid render failed.'); }); return () => { cancelled = true; }; }, [rows, expandedTeams]);
+  useEffect(() => { if (!rows?.length || !graphRef.current) return; let cancelled = false; void loadMermaid().then((mermaid) => { mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark', flowchart: { curve: 'basis', nodeSpacing: 40, rankSpacing: 55 }, themeVariables: { background: '#0b1120', lineColor: '#64748b', fontFamily: 'Inter, ui-sans-serif, system-ui' } }); return mermaid.render('admin-ai-hierarchy-graph', graphDefinition(rows, expandedTeams)); }).then(({ svg }) => { if (!cancelled && graphRef.current) graphRef.current.innerHTML = svg; }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Mermaid render failed.'); }); return () => { cancelled = true; }; }, [rows, expandedTeams]);
   return <section className="admin-ai-hierarchy" aria-labelledby="admin-ai-hierarchy-title">
     <header className="admin-section-heading"><div><p>{t('admin.ai_hierarchy.eyebrow', 'AI GOVERNANCE')}</p><h1 id="admin-ai-hierarchy-title">{t('admin.ai_hierarchy.title', 'Live AI hierarchy')}</h1><span>{t('admin.ai_hierarchy.description', 'Read-only view of agents, teams and reporting relationships from Supabase.')}</span></div><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={16} />{t('admin.ai_hierarchy.refresh', 'Refresh')}</button></header>
     {loading && <div className="admin-loading"><LoaderCircle className="spin" />{t('admin.ai_hierarchy.loading', 'Loading the live AI hierarchy…')}</div>}
