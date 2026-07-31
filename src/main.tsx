@@ -55,6 +55,7 @@ import './styles/adminSections.css';
 import './styles/journalAdmin.css';
 import './styles/journalAi.css';
 import './styles/adminAiControlCenter.css';
+import './styles/adminAiHierarchy.css';
 import './styles/outreachPrivate.css';
 import './styles/proofMockupCarousel.css';
 
