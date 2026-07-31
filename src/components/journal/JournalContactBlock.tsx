@@ -1,8 +1,19 @@
 import { Mail, Phone } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
+import type { I18nManifest } from '../../lib/i18nManifest';
 import { useWebsiteI18n } from '../../lib/websiteI18n';
 import './JournalContactBlock.css';
+
+export const JOURNAL_CONTACT_BLOCK_I18N_MANIFEST = {
+  componentKey: 'journal.contact.block',
+  namespace: 'journal.contact',
+  translationKeys: [
+    'journal.contact.eyebrow',
+    'journal.contact.title',
+    'journal.contact.message',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function JournalContactBlock() {
   const { t } = useWebsiteI18n();

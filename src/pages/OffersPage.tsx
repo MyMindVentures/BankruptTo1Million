@@ -46,6 +46,7 @@ export const OFFERS_PAGE_I18N_MANIFEST = {
     'offers.page.book',
     'offers.page.empty_filters',
     'offers.page.open_offer_aria',
+    'journey_calendar.booking.unavailable',
   ] as const,
 } as const satisfies I18nManifest;
 

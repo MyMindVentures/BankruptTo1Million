@@ -26,6 +26,7 @@ export const OFFER_DETAIL_PAGE_I18N_MANIFEST = {
     'offers.detail.cta.eyebrow',
     'offers.detail.cta.title',
     'offers.detail.cta.description',
+    'journey_calendar.booking.unavailable',
   ] as const,
   entityContent: {
     tables: ['offers', 'offer_translations', 'journey_offer_bookings', 'journey_exchange_items'],

@@ -1,4 +1,24 @@
+import type { I18nManifest } from '../lib/i18nManifest';
 import { useWebsiteI18n } from '../lib/websiteI18n';
+
+export const LEGAL_PAGE_I18N_MANIFEST = {
+  componentKey: 'pages.legal',
+  namespace: 'legal',
+  translationKeys: [
+    'legal.eyebrow',
+    'legal.title',
+    'legal.intro',
+    'legal.sections_aria',
+    'legal.ownership.title',
+    'legal.ownership.body',
+    'legal.terms.title',
+    'legal.terms.body',
+    'legal.privacy.title',
+    'legal.privacy.body',
+    'legal.mission.title',
+    'legal.mission.body',
+  ] as const,
+} as const satisfies I18nManifest;
 
 export function LegalPage() {
   const { t } = useWebsiteI18n();
