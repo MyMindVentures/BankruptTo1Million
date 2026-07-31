@@ -1,0 +1,63 @@
+name: Premium CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: premium-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '20.19.0'
+
+jobs:
+  quality:
+    name: Typecheck, lint, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Lint
+        run: npm run lint
+      - name: Tests
+        run: npm test
+      - name: i18n verification
+        run: npm run verify:i18n
+      - name: Production build
+        run: npm run build
+
+  migration-safety:
+    name: SQL migration safety checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Verify migrations are structurally safe
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE 'drop[[:space:]]+table|drop[[:space:]]+schema|drop[[:space:]]+database|truncate[[:space:]]' supabase/migrations; then
+            echo 'Destructive SQL detected in migrations.' >&2
+            exit 1
+          fi
+          grep -RIn 'reports_to_agent_id' supabase/migrations >/dev/null
+          grep -RIn 'admin_get_ai_hierarchy' supabase/migrations >/dev/null
+          echo 'Migration safety checks passed.'

@@ -55,91 +55,10 @@ import './styles/adminSections.css';
 import './styles/journalAdmin.css';
 import './styles/journalAi.css';
 import './styles/adminAiControlCenter.css';
+import './styles/adminAiHierarchy.css';
 import './styles/outreachPrivate.css';
 import './styles/proofMockupCarousel.css';
-
-initializeJournalArticleEnhancements();
-initializePlatformUpdatesUi();
-
-function PublicUiInitializers() {
-  const { t } = useWebsiteI18n();
-  const initialized = useRef(false);
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    initializeConceptOwnershipUi(t);
-    initializeConceptMessageUi(t);
-    initializeFounderPostUi(t);
-    initializeFounderPostOpportunitiesUi(t);
-    initializeJournalMetadataUi(t);
-    initializeLatestThreeUi(t);
-    initializeSiteMediaUi(t);
-    void initializeMediaVaultGroupsUi();
-  }, [t]);
-  return null;
-}
-
-function AppShell() {
-  const [locationKey, setLocationKey] = useState(() => `${window.location.pathname}${window.location.search}${window.location.hash}`);
-
-  useEffect(() => {
-    const syncLocation = () => {
-      setLocationKey(`${window.location.pathname}${window.location.search}${window.location.hash}`);
-    };
-
-    const onDocumentClick = (event: MouseEvent) => {
-      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-      const target = event.target as Element | null;
-      const anchor = target?.closest<HTMLAnchorElement>('a[href]');
-      if (!anchor || anchor.target || anchor.hasAttribute('download')) return;
-
-      const url = new URL(anchor.href, window.location.href);
-      if (url.origin !== window.location.origin) return;
-
-      const samePath = url.pathname === window.location.pathname && url.search === window.location.search;
-      if (samePath && url.hash) return;
-
-      event.preventDefault();
-      window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`);
-      syncLocation();
-    };
-
-    window.addEventListener('popstate', syncLocation);
-    document.addEventListener('click', onDocumentClick);
-    return () => {
-      window.removeEventListener('popstate', syncLocation);
-      document.removeEventListener('click', onDocumentClick);
-    };
-  }, []);
-
-  useEffect(() => {
-    const hash = window.location.hash;
-    if (hash) {
-      window.requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
-    } else {
-      window.scrollTo({ top: 0, left: 0 });
-    }
-
-    const frame = window.requestAnimationFrame(() => { void initializeMediaVaultGroupsUi(); });
-    return () => window.cancelAnimationFrame(frame);
-  }, [locationKey]);
-
-  return (
-    <>
-      <PublicUiInitializers />
-      <Header />
-      <div className="page-shell">
-        {resolvePublicPage(window.location.pathname)}
-      </div>
-      <Footer />
-    </>
-  );
-}
-
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <WebsiteI18nProvider>
-      <AppShell />
-    </WebsiteI18nProvider>
-  </StrictMode>,
-);
+initializeJournalArticleEnhancements(); initializePlatformUpdatesUi();
+function PublicUiInitializers() { const { t } = useWebsiteI18n(); const initialized = useRef(false); useEffect(() => { if (initialized.current) return; initialized.current = true; initializeConceptOwnershipUi(t); initializeConceptMessageUi(t); initializeFounderPostUi(t); initializeFounderPostOpportunitiesUi(t); initializeJournalMetadataUi(t); initializeLatestThreeUi(t); initializeSiteMediaUi(t); void initializeMediaVaultGroupsUi(); }, [t]); return null; }
+function AppShell() { const [locationKey, setLocationKey] = useState(() => `${window.location.pathname}${window.location.search}${window.location.hash}`); useEffect(() => { const syncLocation = () => setLocationKey(`${window.location.pathname}${window.location.search}${window.location.hash}`); const onDocumentClick = (event: MouseEvent) => { if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return; const target = event.target as Element | null; const anchor = target?.closest<HTMLAnchorElement>('a[href]'); if (!anchor || anchor.target || anchor.hasAttribute('download')) return; const url = new URL(anchor.href, window.location.href); if (url.origin !== window.location.origin) return; const samePath = url.pathname === window.location.pathname && url.search === window.location.search; if (samePath && url.hash) return; event.preventDefault(); window.history.pushState({}, '', `${url.pathname}${url.search}${url.hash}`); syncLocation(); }; window.addEventListener('popstate', syncLocation); document.addEventListener('click', onDocumentClick); return () => { window.removeEventListener('popstate', syncLocation); document.removeEventListener('click', onDocumentClick); }; }, []); useEffect(() => { const hash = window.location.hash; if (hash) window.requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView()); else window.scrollTo({ top: 0, left: 0 }); const frame = window.requestAnimationFrame(() => { void initializeMediaVaultGroupsUi(); }); return () => window.cancelAnimationFrame(frame); }, [locationKey]); return <><PublicUiInitializers /><Header /><div className="page-shell">{resolvePublicPage(window.location.pathname)}</div><Footer /></>; }
+createRoot(document.getElementById('root')!).render(<StrictMode><WebsiteI18nProvider><AppShell /></WebsiteI18nProvider></StrictMode>);
