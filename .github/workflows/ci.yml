@@ -1,4 +1,4 @@
-name: Premium CI
+name: CI
 
 on:
   push:
