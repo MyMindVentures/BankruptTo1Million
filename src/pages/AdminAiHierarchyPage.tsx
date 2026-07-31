@@ -26,7 +26,7 @@ type TeamState = Record<string, boolean>;
 declare global { interface Window { mermaid?: MermaidApi } }
 
 function nodeId(id: string) { return `agent_${id.replaceAll('-', '_')}`; }
-function label(value: string) { return value.replaceAll('"', "'").replaceAll('[', '(').replaceAll(']', ')').replaceAll('\n', ' '); }
+function label(value: string) { return value.replace(/<\/?[^>]+>/g, '').replaceAll('"', "'").replaceAll('[', '(').replaceAll(']', ')').replaceAll('\n', ' '); }
 function nodeClass(row: AdminAiHierarchyRow) {
   if (row.agent_name.startsWith('AGENT —')) return 'agentNode';
   if (row.agent_title === 'Orchestrator') return 'rootNode';
@@ -79,7 +79,7 @@ function graphDefinition(rows: AdminAiHierarchyRow[], expandedTeams: TeamState) 
     '  linkStyle default stroke:#64748b,stroke-width:1.5px'
   ];
   for (const row of rows.filter((candidate) => !visibleTeams.has(candidate.team_id))) lines.push(`  team_${nodeId(row.team_id)}("${label(row.team_name)}"):::teamNode`);
-  for (const row of visible) lines.push(`  ${nodeId(row.agent_id)}("${label(row.agent_name)}<br/><small>${label(row.agent_title)}</small>"):::${nodeClass(row)}`);
+  for (const row of visible) lines.push(`  ${nodeId(row.agent_id)}("${label(row.agent_name)}<br/>${label(row.agent_title)}"):::${nodeClass(row)}`);
   for (const row of visible) if (row.reports_to_agent_id && visible.some((candidate) => candidate.agent_id === row.reports_to_agent_id)) lines.push(`  ${nodeId(row.reports_to_agent_id)} --> ${nodeId(row.agent_id)}`);
   return lines.join('\n');
 }
@@ -174,7 +174,25 @@ export function AdminAiHierarchyPage() {
   useEffect(() => { void load(); }, [t]);
   useEffect(() => { setExpandedTeams(Object.fromEntries((rows || []).map((row) => [row.team_id, true]))); setZoomSafe(1); setPanSafe({ x: 0, y: 0 }); }, [rows]);
   useEffect(() => { const listener = () => setIsFullscreen(document.fullscreenElement === viewportRef.current); document.addEventListener('fullscreenchange', listener); return () => document.removeEventListener('fullscreenchange', listener); }, []);
-  useEffect(() => { if (!rows?.length || !graphRef.current) return; let cancelled = false; void loadMermaid().then((mermaid) => { mermaid.initialize({ startOnLoad: false, securityLevel: 'strict', theme: 'dark', flowchart: { curve: 'basis', nodeSpacing: 40, rankSpacing: 55 }, themeVariables: { background: '#0b1120', lineColor: '#64748b', fontFamily: 'Inter, ui-sans-serif, system-ui' } }); return mermaid.render('admin-ai-hierarchy-graph', graphDefinition(rows, expandedTeams)); }).then(({ svg }) => { if (!cancelled && graphRef.current) graphRef.current.innerHTML = svg; }).catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Mermaid render failed.'); }); return () => { cancelled = true; }; }, [rows, expandedTeams]);
+  useEffect(() => {
+    if (!rows?.length || !graphRef.current) return;
+    let cancelled = false;
+    void loadMermaid()
+      .then((mermaid) => {
+        mermaid.initialize({
+          startOnLoad: false,
+          securityLevel: 'strict',
+          theme: 'dark',
+          flowchart: { curve: 'basis', nodeSpacing: 40, rankSpacing: 55, htmlLabels: false },
+          themeVariables: { background: '#0b1120', lineColor: '#64748b', fontFamily: 'Inter, ui-sans-serif, system-ui' },
+          themeCSS: 'svg{shape-rendering:geometricPrecision;text-rendering:geometricPrecision}.nodeLabel,.edgeLabel{font-synthesis:none}'
+        });
+        return mermaid.render('admin-ai-hierarchy-graph', graphDefinition(rows, expandedTeams));
+      })
+      .then(({ svg }) => { if (!cancelled && graphRef.current) graphRef.current.innerHTML = svg; })
+      .catch((reason) => { if (!cancelled) setError(reason instanceof Error ? reason.message : 'Mermaid render failed.'); });
+    return () => { cancelled = true; };
+  }, [rows, expandedTeams]);
 
   return <section className="admin-ai-hierarchy" aria-labelledby="admin-ai-hierarchy-title">
     <header className="admin-section-heading"><div><p>{t('admin.ai_hierarchy.eyebrow', 'AI GOVERNANCE')}</p><h1 id="admin-ai-hierarchy-title">{t('admin.ai_hierarchy.title', 'Live AI hierarchy')}</h1><span>{t('admin.ai_hierarchy.description', 'Read-only view of agents, teams and reporting relationships from Supabase.')}</span></div><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={16} />{t('admin.ai_hierarchy.refresh', 'Refresh')}</button></header>
@@ -194,7 +212,7 @@ export function AdminAiHierarchyPage() {
       </div>
       <div className="admin-ai-hierarchy__teams" aria-label={t('admin.ai_hierarchy.teams', 'Teams')}>{teams.map((team) => { const expanded = expandedTeams[team.id] !== false; return <button type="button" key={team.id} onClick={() => setExpandedTeams((current) => ({ ...current, [team.id]: !expanded }))} aria-expanded={expanded}>{expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}<span>{team.name}</span><small>{expanded ? '' : `${team.count} hidden`}</small></button>; })}</div>
       <div ref={viewportRef} className="admin-panel admin-ai-hierarchy__viewport" role="img" aria-label={t('admin.ai_hierarchy.graph_label', 'Mermaid diagram of the live AI hierarchy')} onWheel={onWheel} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={endPointer} onPointerCancel={endPointer} onDoubleClick={resetView} style={{ overflow: 'hidden', minHeight: isFullscreen ? '100vh' : 620, width: '100%', background: '#0b1120', touchAction: 'none', cursor: isPanning ? 'grabbing' : 'grab', userSelect: 'none' }}>
-        <div className="admin-ai-hierarchy__graph" ref={graphRef} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'top left', width: 'max-content', minWidth: '100%', willChange: 'transform' }} />
+        <div className="admin-ai-hierarchy__graph" ref={graphRef} style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: 'top left', width: 'max-content', minWidth: '100%' }} />
       </div>
     </>}
   </section>;
