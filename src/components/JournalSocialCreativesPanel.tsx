@@ -45,15 +45,62 @@ export const JOURNAL_SOCIAL_CREATIVES_PANEL_I18N_MANIFEST = {
 } as const satisfies I18nManifest;
 
 type Props = {
-// ...existing code...
+  postId: string | null;
+  footage: AdminJournalFootageItem[];
+};
+
+function mediaUrl(path: string | null | undefined) {
+  return resolvePublicMediaUrl(path);
+}
+
 export function JournalSocialCreativesPanel({ postId, footage }: Props) {
   const { t } = useWebsiteI18n();
   const imageFootage = useMemo(() => footage.filter((item) => item.asset_type === 'image'), [footage]);
-// ...existing code...
+  const [selectedAssetId, setSelectedAssetId] = useState('');
+  const [creatives, setCreatives] = useState<JournalSocialCreative[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [generatingImage, setGeneratingImage] = useState(false);
+  const [generatingCaption, setGeneratingCaption] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  const latest = creatives?.[0] ?? null;
+
+  useEffect(() => {
+    if (!selectedAssetId && imageFootage[0]?.asset_id) setSelectedAssetId(imageFootage[0].asset_id);
+  }, [imageFootage, selectedAssetId]);
+
+  useEffect(() => {
+    if (!postId) {
+      setCreatives(null);
+      setError(null);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    void getJournalSocialCreatives(postId)
+      .then((rows) => {
+        if (!cancelled) setCreatives(rows);
+      })
       .catch((reason) => {
         if (!cancelled) setError(reason instanceof Error ? reason.message : t('journal.social_creatives.error.load_failed', 'Failed to load Instagram creative.'));
       })
-// ...existing code...
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [postId, t]);
+
+  async function refresh() {
+    if (!postId) return null;
+    const rows = await getJournalSocialCreatives(postId);
+    setCreatives(rows);
+    return rows[0] ?? null;
+  }
+
   async function onGenerateImage() {
     if (!postId || !selectedAssetId) {
       setError(t('journal.social_creatives.error.select_photo', 'Select a journal photo first.'));

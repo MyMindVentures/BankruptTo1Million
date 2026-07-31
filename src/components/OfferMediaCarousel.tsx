@@ -20,7 +20,10 @@ export const OFFER_MEDIA_CAROUSEL_I18N_MANIFEST = {
 } as const satisfies I18nManifest;
 
 type OfferMediaCarouselProps = {
-// ...existing code...
+  collection: OfferMediaCollection;
+  onOpen: (item: OfferMediaItem) => void;
+};
+
 function MediaCard({ item, onOpen }: { item: OfferMediaItem; onOpen: () => void }) {
   const { t } = useWebsiteI18n();
   const preview = item.thumbnailUrl || (item.kind === 'image' ? item.url : '');
@@ -51,7 +54,17 @@ function MediaCard({ item, onOpen }: { item: OfferMediaItem; onOpen: () => void 
 export function OfferMediaCarousel({ collection, onOpen }: OfferMediaCarouselProps) {
   const { t, formatDate } = useWebsiteI18n();
   const trackRef = useRef<HTMLDivElement>(null);
-// ...existing code...
+
+  function scroll(direction: -1 | 1) {
+    const track = trackRef.current;
+    if (!track) return;
+    track.scrollBy({ left: direction * Math.max(track.clientWidth * 0.82, 280), behavior: 'smooth' });
+  }
+
+  const showControls = collection.items.length > 1;
+
+  return (
+    <article className="offer-collection">
       <header>
         <div>
           <h3>{collection.title}</h3>
