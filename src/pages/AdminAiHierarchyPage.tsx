@@ -59,8 +59,8 @@ function graphDefinition(rows: AdminAiHierarchyRow[], expandedTeams: TeamState) 
   const visible = rows.filter((row) => expandedTeams[row.team_id] !== false);
   const visibleTeams = new Set(visible.map((row) => row.team_id));
   const lines = ['flowchart TD'];
-  for (const row of rows.filter((candidate) => !visibleTeams.has(candidate.team_id))) lines.push(`  team_${nodeId(row.team_id)}["${label(row.team_name)}"]`);
-  for (const row of visible) lines.push(`  ${nodeId(row.agent_id)}["${label(row.agent_name)}<br/><small>${label(row.agent_title)}</small>"]`);
+  for (const row of rows.filter((candidate) => !visibleTeams.has(candidate.team_id))) lines.push(`  team_${nodeId(row.team_id)}("${label(row.team_name)}")`);
+  for (const row of visible) lines.push(`  ${nodeId(row.agent_id)}("${label(row.agent_name)}<br/><small>${label(row.agent_title)}</small>")`);
   for (const row of visible) if (row.reports_to_agent_id && visible.some((candidate) => candidate.agent_id === row.reports_to_agent_id)) lines.push(`  ${nodeId(row.reports_to_agent_id)} --> ${nodeId(row.agent_id)}`);
   return lines.join('\n');
 }
