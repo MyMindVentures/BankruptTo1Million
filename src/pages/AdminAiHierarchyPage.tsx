@@ -195,7 +195,7 @@ export function AdminAiHierarchyPage() {
   }, [rows, expandedTeams]);
 
   return <section className="admin-ai-hierarchy" aria-labelledby="admin-ai-hierarchy-title">
-    <header className="admin-section-heading"><div><p>{t('admin.ai_hierarchy.eyebrow', 'AI GOVERNANCE')}</p><h1 id="admin-ai-hierarchy-title">{t('admin.ai_hierarchy.title', 'Live AI hierarchy')}</h1><span>{t('admin.ai_hierarchy.description', 'Read-only view of agents, teams and reporting relationships from Supabase.')}</span></div><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={16} />{t('admin.ai_hierarchy.refresh', 'Refresh')}</button></header>
+    <header className="admin-section-heading"><div><p>{t('admin.ai_hierarchy.eyebrow', 'AI GOVERNANCE')}</p><h1 id="admin-ai-hierarchy-title">{t('admin.ai_hierarchy.title', 'Hermes AI')}</h1><span>{t('admin.ai_hierarchy.description', 'Read-only view of agents, teams and reporting relationships from Supabase.')}</span></div><button type="button" onClick={() => void load()} disabled={loading}><RefreshCw size={16} />{t('admin.ai_hierarchy.refresh', 'Refresh')}</button></header>
     {loading && <div className="admin-loading"><LoaderCircle className="spin" />{t('admin.ai_hierarchy.loading', 'Loading the live AI hierarchy…')}</div>}
     {error && <div className="admin-error" role="alert"><AlertTriangle size={18} /><span>{error}</span></div>}
     {!loading && !error && rows && rows.length === 0 && <div className="admin-empty">{t('admin.ai_hierarchy.empty', 'No AI agents are available.')}</div>}
